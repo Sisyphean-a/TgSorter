@@ -108,8 +108,8 @@ flutter run \
 ## TODO（后续对话可直接接续）
 
 - [ ] 完成 Android 侧 TDLib 运行参数细化（目录、设备信息、日志级别等）并补充文档。
-- [ ] 支持 `authorizationStateWaitPassword`（两步验证密码）流程。
-- [ ] 在图片预览中补齐文件下载流程（当本地文件不存在时主动 `downloadFile`）。
+- [x] 支持 `authorizationStateWaitPassword`（两步验证密码）流程。
+- [x] 在图片预览中补齐文件下载流程（当本地文件不存在时主动 `downloadFile`）。
 - [ ] 增加消息拉取方向配置（最新优先 / 最旧优先）。
 - [ ] 增加“跳过当前消息”与“撤销上一步”能力。
 - [ ] 增加批处理模式（N 条连续处理）并配套节流策略。

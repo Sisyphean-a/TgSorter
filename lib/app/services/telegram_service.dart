@@ -18,11 +18,15 @@ class TdlibRequestException implements Exception {
 }
 
 class TelegramService {
+  static const int _downloadPriorityPhotoPreview = 16;
+  static const int _downloadOffsetStart = 0;
+  static const int _downloadLimitUnlimited = 0;
+
   TelegramService({
     required TdClientTransport transport,
     required TdlibCredentials credentials,
-  })  : _transport = transport,
-        _credentials = credentials;
+  }) : _transport = transport,
+       _credentials = credentials;
 
   final TdClientTransport _transport;
   final TdlibCredentials _credentials;
@@ -40,7 +44,6 @@ class TelegramService {
     await TdPlugin.initialize();
     await _transport.start();
     _updatesSub ??= _transport.updates.listen(_handleUpdate);
-
   }
 
   Future<void> submitPhoneNumber(String phoneNumber) {
@@ -51,6 +54,10 @@ class TelegramService {
 
   Future<void> submitCode(String code) {
     return _sendExpectOk(CheckAuthenticationCode(code: code));
+  }
+
+  Future<void> submitPassword(String password) {
+    return _sendExpectOk(CheckAuthenticationPassword(password: password));
   }
 
   Future<PipelineMessage?> fetchNextSavedMessage() async {
@@ -69,6 +76,7 @@ class TelegramService {
       return null;
     }
     final message = object.messages.first;
+    await _ensurePhotoDownloadStarted(message.content);
     return PipelineMessage(
       id: message.id,
       preview: mapMessagePreview(message.content),
@@ -93,11 +101,7 @@ class TelegramService {
       ),
     );
     await _sendExpectOk(
-      DeleteMessages(
-        chatId: selfChatId,
-        messageIds: [messageId],
-        revoke: true,
-      ),
+      DeleteMessages(chatId: selfChatId, messageIds: [messageId], revoke: true),
     );
   }
 
@@ -121,6 +125,39 @@ class TelegramService {
       throw StateError('无法获取 Saved Messages 的 chat_id');
     }
     return fresh;
+  }
+
+  Future<void> _ensurePhotoDownloadStarted(MessageContent content) async {
+    if (content is! MessagePhoto) {
+      return;
+    }
+    final file = _pickPreviewPhotoFile(content.photo.sizes);
+    if (file == null ||
+        _isLocalFileReady(file.local) ||
+        !file.local.canBeDownloaded) {
+      return;
+    }
+    final response = await _transport.send(
+      DownloadFile(
+        fileId: file.id,
+        priority: _downloadPriorityPhotoPreview,
+        offset: _downloadOffsetStart,
+        limit: _downloadLimitUnlimited,
+        synchronous: false,
+      ),
+    );
+    _assertNoError(response);
+  }
+
+  File? _pickPreviewPhotoFile(List<PhotoSize> sizes) {
+    if (sizes.isEmpty) {
+      return null;
+    }
+    return sizes.last.photo;
+  }
+
+  bool _isLocalFileReady(LocalFile local) {
+    return local.isDownloadingCompleted && local.path.isNotEmpty;
   }
 
   Future<void> _sendExpectOk(TdFunction function) async {
@@ -153,25 +190,27 @@ class TelegramService {
     if (state is! AuthorizationStateWaitTdlibParameters) {
       return;
     }
-    unawaited(_sendExpectOk(
-      SetTdlibParameters(
-        useTestDc: false,
-        databaseDirectory: 'tgsorter_td_db',
-        filesDirectory: 'tgsorter_td_files',
-        databaseEncryptionKey: '',
-        useFileDatabase: true,
-        useChatInfoDatabase: true,
-        useMessageDatabase: true,
-        useSecretChats: false,
-        apiId: _credentials.apiId,
-        apiHash: _credentials.apiHash,
-        systemLanguageCode: 'zh-hans',
-        deviceModel: 'Android',
-        systemVersion: '14',
-        applicationVersion: '0.1.0',
-        enableStorageOptimizer: true,
-        ignoreFileNames: false,
+    unawaited(
+      _sendExpectOk(
+        SetTdlibParameters(
+          useTestDc: false,
+          databaseDirectory: 'tgsorter_td_db',
+          filesDirectory: 'tgsorter_td_files',
+          databaseEncryptionKey: '',
+          useFileDatabase: true,
+          useChatInfoDatabase: true,
+          useMessageDatabase: true,
+          useSecretChats: false,
+          apiId: _credentials.apiId,
+          apiHash: _credentials.apiHash,
+          systemLanguageCode: 'zh-hans',
+          deviceModel: 'Android',
+          systemVersion: '14',
+          applicationVersion: '0.1.0',
+          enableStorageOptimizer: true,
+          ignoreFileNames: false,
+        ),
       ),
-    ));
+    );
   }
 }

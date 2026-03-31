@@ -4,7 +4,14 @@ import 'package:get/get.dart';
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
 
-enum AuthStage { loading, waitPhone, waitCode, ready, unsupported }
+enum AuthStage {
+  loading,
+  waitPhone,
+  waitCode,
+  waitPassword,
+  ready,
+  unsupported,
+}
 
 class AuthController extends GetxController {
   AuthController(this._service);
@@ -40,6 +47,15 @@ class AuthController extends GetxController {
     }
   }
 
+  Future<void> submitPassword(String password) async {
+    loading.value = true;
+    try {
+      await _service.submitPassword(password.trim());
+    } finally {
+      loading.value = false;
+    }
+  }
+
   Future<void> _bootstrap() async {
     try {
       await _service.start();
@@ -55,6 +71,10 @@ class AuthController extends GetxController {
     }
     if (state is AuthorizationStateWaitCode) {
       stage.value = AuthStage.waitCode;
+      return;
+    }
+    if (state is AuthorizationStateWaitPassword) {
+      stage.value = AuthStage.waitPassword;
       return;
     }
     if (state is AuthorizationStateReady) {
