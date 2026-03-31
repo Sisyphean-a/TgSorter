@@ -17,6 +17,7 @@ class AuthPage extends StatelessWidget {
       body: Obx(() {
         final stage = controller.stage.value;
         final isLoading = controller.loading.value;
+        final startupError = controller.startupError.value;
         return Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -27,6 +28,13 @@ class AuthPage extends StatelessWidget {
                 style: TextStyle(fontSize: 18),
               ),
               const SizedBox(height: 20),
+              if (startupError != null) ...[
+                Text(
+                  startupError,
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
+                const SizedBox(height: 12),
+              ],
               if (stage == AuthStage.waitPhone) ...[
                 TextField(
                   controller: phoneCtrl,

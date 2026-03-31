@@ -22,6 +22,7 @@ class AuthController extends GetxController {
   final TelegramGateway _service;
   final stage = AuthStage.loading.obs;
   final loading = false.obs;
+  final startupError = RxnString();
 
   StreamSubscription<AuthorizationState>? _authSub;
 
@@ -62,10 +63,11 @@ class AuthController extends GetxController {
   Future<void> _bootstrap() async {
     try {
       await _service.start();
+      startupError.value = null;
     } on TdlibRequestException catch (error) {
       _showTdlibError(error, '启动失败');
     } catch (error) {
-      Get.snackbar('启动失败', error.toString());
+      _showSafeError('启动失败', error.toString());
     }
   }
 
@@ -101,21 +103,29 @@ class AuthController extends GetxController {
     if (kind == TdErrorKind.rateLimit) {
       final waitSeconds = parseFloodWaitSeconds(error.message);
       final suffix = waitSeconds == null ? '' : '，请等待 $waitSeconds 秒';
-      Get.snackbar(title, '触发 FloodWait$suffix');
+      _showSafeError(title, '触发 FloodWait$suffix');
       return;
     }
     if (kind == TdErrorKind.network) {
-      Get.snackbar(title, '网络异常，请检查连接后重试');
+      _showSafeError(title, '网络异常，请检查连接后重试');
       return;
     }
     if (kind == TdErrorKind.auth) {
-      Get.snackbar(title, '鉴权失败，请确认手机号/验证码/密码是否正确');
+      _showSafeError(title, '鉴权失败，请确认手机号/验证码/密码是否正确');
       return;
     }
     if (kind == TdErrorKind.permission) {
-      Get.snackbar(title, '权限受限，请检查 Telegram 账号状态');
+      _showSafeError(title, '权限受限，请检查 Telegram 账号状态');
       return;
     }
-    Get.snackbar(title, error.toString());
+    _showSafeError(title, error.toString());
+  }
+
+  void _showSafeError(String title, String message) {
+    startupError.value = '$title：$message';
+    if (Get.context == null) {
+      return;
+    }
+    Get.snackbar(title, message);
   }
 }

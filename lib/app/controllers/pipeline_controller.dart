@@ -42,13 +42,20 @@ class PipelineController extends GetxController {
     retryQueue.assignAll(_journalRepository.loadRetryQueue());
     _connectionSub = _service.connectionStates.listen((state) {
       isOnline.value = state is ConnectionStateReady;
+      if (state is ConnectionStateReady &&
+          currentMessage.value == null &&
+          !loading.value) {
+        unawaited(fetchNext());
+      }
     });
   }
 
   @override
   void onReady() {
     super.onReady();
-    fetchNext();
+    if (isOnline.value) {
+      unawaited(fetchNext());
+    }
   }
 
   Future<void> fetchNext() async {
@@ -59,6 +66,8 @@ class PipelineController extends GetxController {
       );
     } on TdlibRequestException catch (error) {
       _showTdlibError(error);
+    } catch (error) {
+      _showGeneralError(error.toString());
     } finally {
       loading.value = false;
     }
@@ -316,6 +325,10 @@ class PipelineController extends GetxController {
       return;
     }
     Get.snackbar('TDLib 错误', error.toString());
+  }
+
+  void _showGeneralError(String message) {
+    Get.snackbar('运行异常', message);
   }
 
   @override

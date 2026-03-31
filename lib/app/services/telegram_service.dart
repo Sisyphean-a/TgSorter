@@ -53,9 +53,26 @@ class TelegramService implements TelegramGateway {
 
   @override
   Future<void> start() async {
-    await TdPlugin.initialize();
+    await TdPlugin.initialize(_resolveTdlibLibraryPath());
     await _transport.start();
     _updatesSub ??= _transport.updates.listen(_handleUpdate);
+    final state = await _bootstrapAuthorizationState();
+    if (state is! AuthorizationStateWaitTdlibParameters) {
+      await _configureProxyIfNeeded();
+    }
+  }
+
+  String? _resolveTdlibLibraryPath() {
+    if (Platform.isAndroid || Platform.isLinux) {
+      return 'libtdjson.so';
+    }
+    if (Platform.isWindows) {
+      return 'tdjson.dll';
+    }
+    if (Platform.isMacOS || Platform.isIOS) {
+      return 'libtdjson.dylib';
+    }
+    return null;
   }
 
   @override
@@ -341,6 +358,17 @@ class TelegramService implements TelegramGateway {
     unawaited(_configureTdlib());
   }
 
+  Future<AuthorizationState> _bootstrapAuthorizationState() async {
+    final response = await _transport.send(const GetAuthorizationState());
+    final object = _assertNoError(response);
+    if (object is! AuthorizationState) {
+      throw StateError('GetAuthorizationState 返回类型异常: ${object.getConstructor()}');
+    }
+    _authStateController.add(object);
+    _handleAuthTransition(object);
+    return object;
+  }
+
   Future<void> _configureTdlib() async {
     final baseDir = await getApplicationSupportDirectory();
     final dbDir = Directory('${baseDir.path}/tgsorter/tdlib/db');
@@ -371,5 +399,27 @@ class TelegramService implements TelegramGateway {
         ignoreFileNames: false,
       ),
     );
+    await _configureProxyIfNeeded();
+  }
+
+  Future<void> _configureProxyIfNeeded() async {
+    final server = _credentials.proxyServer;
+    final port = _credentials.proxyPort;
+    if (server == null || port == null) {
+      await _sendExpectOk(const DisableProxy());
+      return;
+    }
+    final response = await _transport.send(
+      AddProxy(
+        server: server,
+        port: port,
+        enable: true,
+        type: ProxyTypeSocks5(
+          username: _credentials.proxyUsername,
+          password: _credentials.proxyPassword,
+        ),
+      ),
+    );
+    _assertNoError(response);
   }
 }
