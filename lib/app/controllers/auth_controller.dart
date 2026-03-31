@@ -40,6 +40,10 @@ class AuthController extends GetxController {
     loading.value = true;
     try {
       await _service.submitPhoneNumber(phone.trim());
+    } on TdlibRequestException catch (error) {
+      _showTdlibError(error, '发送验证码失败');
+    } catch (error) {
+      _showSafeError('发送验证码失败', error.toString());
     } finally {
       loading.value = false;
     }
@@ -49,6 +53,10 @@ class AuthController extends GetxController {
     loading.value = true;
     try {
       await _service.submitCode(code.trim());
+    } on TdlibRequestException catch (error) {
+      _showTdlibError(error, '提交验证码失败');
+    } catch (error) {
+      _showSafeError('提交验证码失败', error.toString());
     } finally {
       loading.value = false;
     }
@@ -58,6 +66,10 @@ class AuthController extends GetxController {
     loading.value = true;
     try {
       await _service.submitPassword(password.trim());
+    } on TdlibRequestException catch (error) {
+      _showTdlibError(error, '提交密码失败');
+    } catch (error) {
+      _showSafeError('提交密码失败', error.toString());
     } finally {
       loading.value = false;
     }
@@ -114,7 +126,7 @@ class AuthController extends GetxController {
       return;
     }
     if (kind == TdErrorKind.auth) {
-      _showSafeError(title, '鉴权失败，请确认手机号/验证码/密码是否正确');
+      _showSafeError(title, '鉴权失败：${error.message}');
       return;
     }
     if (kind == TdErrorKind.permission) {

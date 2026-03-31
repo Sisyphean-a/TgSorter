@@ -29,6 +29,7 @@ class TelegramService implements TelegramGateway {
   static const int _downloadOffsetStart = 0;
   static const int _downloadLimitUnlimited = 0;
   static const int _historyBatchSize = 100;
+  static const Duration _authRequestTimeout = Duration(minutes: 2);
 
   TelegramService({
     required TdClientTransport transport,
@@ -44,6 +45,8 @@ class TelegramService implements TelegramGateway {
 
   StreamSubscription<TdObject>? _updatesSub;
   int? _selfChatId;
+  bool _tdlibConfiguring = false;
+  bool _tdlibConfigured = false;
 
   @override
   Stream<AuthorizationState> get authStates => _authStateController.stream;
@@ -67,17 +70,24 @@ class TelegramService implements TelegramGateway {
   Future<void> submitPhoneNumber(String phoneNumber) {
     return _sendExpectOk(
       SetAuthenticationPhoneNumber(phoneNumber: phoneNumber),
+      timeout: _authRequestTimeout,
     );
   }
 
   @override
   Future<void> submitCode(String code) {
-    return _sendExpectOk(CheckAuthenticationCode(code: code));
+    return _sendExpectOk(
+      CheckAuthenticationCode(code: code),
+      timeout: _authRequestTimeout,
+    );
   }
 
   @override
   Future<void> submitPassword(String password) {
-    return _sendExpectOk(CheckAuthenticationPassword(password: password));
+    return _sendExpectOk(
+      CheckAuthenticationPassword(password: password),
+      timeout: _authRequestTimeout,
+    );
   }
 
   @override
@@ -313,8 +323,11 @@ class TelegramService implements TelegramGateway {
     return local.isDownloadingCompleted && local.path.isNotEmpty;
   }
 
-  Future<void> _sendExpectOk(TdFunction function) async {
-    final response = await _transport.send(function);
+  Future<void> _sendExpectOk(
+    TdFunction function, {
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final response = await _transport.sendWithTimeout(function, timeout);
     final object = _assertNoError(response);
     if (object is! Ok) {
       throw StateError('请求返回非 Ok: ${object.getConstructor()}');
@@ -343,10 +356,21 @@ class TelegramService implements TelegramGateway {
     if (state is! AuthorizationStateWaitTdlibParameters) {
       return;
     }
+    if (_tdlibConfiguring || _tdlibConfigured) {
+      return;
+    }
+    _tdlibConfiguring = true;
     unawaited(
-      _configureTdlib().catchError((error, stack) {
-        _authStateController.addError(error, stack);
-      }),
+      _configureTdlib()
+          .then((_) {
+            _tdlibConfigured = true;
+          })
+          .catchError((error, stack) {
+            _authStateController.addError(error, stack);
+          })
+          .whenComplete(() {
+            _tdlibConfiguring = false;
+          }),
     );
   }
 
