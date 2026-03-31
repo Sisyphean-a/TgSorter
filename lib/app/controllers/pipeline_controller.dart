@@ -11,8 +11,8 @@ class PipelineController extends GetxController {
   PipelineController({
     required TelegramService service,
     required SettingsController settingsController,
-  })  : _service = service,
-        _settingsController = settingsController;
+  }) : _service = service,
+       _settingsController = settingsController;
 
   final TelegramService _service;
   final SettingsController _settingsController;
@@ -41,7 +41,9 @@ class PipelineController extends GetxController {
   Future<void> fetchNext() async {
     loading.value = true;
     try {
-      currentMessage.value = await _service.fetchNextSavedMessage();
+      currentMessage.value = await _service.fetchNextSavedMessage(
+        direction: _settingsController.settings.value.fetchDirection,
+      );
     } on TdlibRequestException catch (error) {
       _showTdlibError(error);
     } finally {

@@ -35,4 +35,10 @@ class SettingsController extends GetxController {
     settings.value = updated;
     await _repository.save(updated);
   }
+
+  Future<void> saveFetchDirection(MessageFetchDirection direction) async {
+    final updated = settings.value.updateFetchDirection(direction);
+    settings.value = updated;
+    await _repository.save(updated);
+  }
 }

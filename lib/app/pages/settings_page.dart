@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
+import 'package:tgsorter/app/models/app_settings.dart';
 
 class SettingsPage extends StatelessWidget {
   SettingsPage({super.key});
@@ -13,9 +14,15 @@ class SettingsPage extends StatelessWidget {
       appBar: AppBar(title: const Text('分类设置')),
       body: Obx(() {
         final categories = controller.settings.value.categories;
+        final fetchDirection = controller.settings.value.fetchDirection;
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            _FetchDirectionEditor(
+              value: fetchDirection,
+              onChanged: controller.saveFetchDirection,
+            ),
+            const SizedBox(height: 8),
             for (final item in categories)
               _CategoryEditor(
                 key: ValueKey(item.key),
@@ -26,6 +33,55 @@ class SettingsPage extends StatelessWidget {
           ],
         );
       }),
+    );
+  }
+}
+
+class _FetchDirectionEditor extends StatelessWidget {
+  const _FetchDirectionEditor({required this.value, required this.onChanged});
+
+  final MessageFetchDirection value;
+  final Future<void> Function(MessageFetchDirection) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('消息拉取方向', style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<MessageFetchDirection>(
+              value: value,
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+              items: const [
+                DropdownMenuItem(
+                  value: MessageFetchDirection.latestFirst,
+                  child: Text('最新优先'),
+                ),
+                DropdownMenuItem(
+                  value: MessageFetchDirection.oldestFirst,
+                  child: Text('最旧优先'),
+                ),
+              ],
+              onChanged: (next) async {
+                if (next == null) {
+                  return;
+                }
+                await onChanged(next);
+                if (!context.mounted) {
+                  return;
+                }
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('拉取方向已保存')));
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -95,9 +151,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                   if (!context.mounted) {
                     return;
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('已保存')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('已保存')));
                 },
                 child: const Text('保存'),
               ),

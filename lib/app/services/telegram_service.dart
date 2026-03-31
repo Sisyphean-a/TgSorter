@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:tdlib/td_api.dart';
 import 'package:tdlib/td_client.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
@@ -21,6 +22,7 @@ class TelegramService {
   static const int _downloadPriorityPhotoPreview = 16;
   static const int _downloadOffsetStart = 0;
   static const int _downloadLimitUnlimited = 0;
+  static const int _historyBatchSize = 100;
 
   TelegramService({
     required TdClientTransport transport,
@@ -60,27 +62,19 @@ class TelegramService {
     return _sendExpectOk(CheckAuthenticationPassword(password: password));
   }
 
-  Future<PipelineMessage?> fetchNextSavedMessage() async {
+  Future<PipelineMessage?> fetchNextSavedMessage({
+    required MessageFetchDirection direction,
+  }) async {
     final chatId = await _requireSelfChatId();
-    final response = await _transport.send(
-      GetChatHistory(
-        chatId: chatId,
-        fromMessageId: 0,
-        offset: 0,
-        limit: 1,
-        onlyLocal: false,
-      ),
+    final message = await _fetchSavedMessage(
+      chatId: chatId,
+      direction: direction,
     );
-    final object = _assertNoError(response);
-    if (object is! Messages || object.messages.isEmpty) {
+    if (message == null) {
       return null;
     }
-    final message = object.messages.first;
     await _ensurePhotoDownloadStarted(message.content);
-    return PipelineMessage(
-      id: message.id,
-      preview: mapMessagePreview(message.content),
-    );
+    return _toPipelineMessage(message);
   }
 
   Future<void> classifyMessage({
@@ -147,6 +141,82 @@ class TelegramService {
       ),
     );
     _assertNoError(response);
+  }
+
+  Future<Message?> _fetchSavedMessage({
+    required int chatId,
+    required MessageFetchDirection direction,
+  }) async {
+    if (direction == MessageFetchDirection.oldestFirst) {
+      return _fetchOldestSavedMessage(chatId);
+    }
+    return _fetchLatestSavedMessage(chatId);
+  }
+
+  Future<Message?> _fetchLatestSavedMessage(int chatId) async {
+    final messages = await _fetchHistoryPage(
+      chatId: chatId,
+      fromMessageId: 0,
+      limit: 1,
+    );
+    if (messages.isEmpty) {
+      return null;
+    }
+    return messages.first;
+  }
+
+  Future<Message?> _fetchOldestSavedMessage(int chatId) async {
+    var fromMessageId = 0;
+    Message? oldest;
+
+    while (true) {
+      final page = await _fetchHistoryPage(
+        chatId: chatId,
+        fromMessageId: fromMessageId,
+        limit: _historyBatchSize,
+      );
+      if (page.isEmpty) {
+        return oldest;
+      }
+
+      oldest = page.last;
+      if (page.length < _historyBatchSize) {
+        return oldest;
+      }
+
+      if (page.last.id == fromMessageId) {
+        throw StateError('获取最旧消息时游标未推进，history_id=$fromMessageId');
+      }
+      fromMessageId = page.last.id;
+    }
+  }
+
+  Future<List<Message>> _fetchHistoryPage({
+    required int chatId,
+    required int fromMessageId,
+    required int limit,
+  }) async {
+    final response = await _transport.send(
+      GetChatHistory(
+        chatId: chatId,
+        fromMessageId: fromMessageId,
+        offset: 0,
+        limit: limit,
+        onlyLocal: false,
+      ),
+    );
+    final object = _assertNoError(response);
+    if (object is! Messages) {
+      throw StateError('GetChatHistory 返回类型异常: ${object.getConstructor()}');
+    }
+    return object.messages;
+  }
+
+  PipelineMessage _toPipelineMessage(Message message) {
+    return PipelineMessage(
+      id: message.id,
+      preview: mapMessagePreview(message.content),
+    );
   }
 
   File? _pickPreviewPhotoFile(List<PhotoSize> sizes) {
