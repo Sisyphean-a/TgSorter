@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "TgSorter (env.local debug)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=.env.local.json"
+      ]
+    },
+    {
+      "name": "TgSorter (env.local profile)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=.env.local.json"
+      ]
+    }
+  ]
+}

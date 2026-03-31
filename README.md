@@ -86,15 +86,27 @@ test/
 
 ## 运行方式
 
-1. 准备 Telegram 开发者凭据（`api_id` / `api_hash`）。
-2. 在项目根目录执行：
+1. 在项目根目录准备 `.env.local.json`（已存在可跳过）：
+
+```json
+{
+  "TDLIB_API_ID": "你的_api_id",
+  "TDLIB_API_HASH": "你的_api_hash"
+}
+```
+
+2. 命令行运行（推荐）：
 
 ```bash
 flutter pub get
 flutter run \
-  --dart-define=TDLIB_API_ID=你的_api_id \
-  --dart-define=TDLIB_API_HASH=你的_api_hash
+  --dart-define-from-file=.env.local.json
 ```
+
+3. VS Code F5 运行：
+   - 直接按 `F5`；
+   - 选择 `TgSorter (env.local debug)`；
+   - 将自动携带 `--dart-define-from-file=.env.local.json`。
 
 ## 使用说明
 
@@ -109,7 +121,7 @@ flutter run \
 
 - 目前目标平台是 Android。
 - 项目严格依赖 TDLib，本地需可正常加载插件。
-- 请不要把 `api_hash` 写进源码，使用 `--dart-define` 注入。
+- 请不要把 `api_hash` 写进源码，使用 `--dart-define-from-file` 注入。
 - Android TDLib 参数细化文档见：`docs/tdlib-android-params.md`。
 
 ## TODO（后续对话可直接接续）
