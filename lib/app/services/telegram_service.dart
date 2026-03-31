@@ -31,8 +31,11 @@ class TelegramService implements TelegramGateway {
   static const int _downloadLimitUnlimited = 0;
   static const int _historyBatchSize = 100;
   static const int _chatListLimit = 200;
+  static const int _maxSelectableChats = 120;
   static const Duration _authRequestTimeout = Duration(minutes: 2);
   static const Duration _authorizationReadyTimeout = Duration(seconds: 20);
+  static const Duration _getMeTimeout = Duration(seconds: 60);
+  static const Duration _getChatTimeout = Duration(seconds: 8);
 
   TelegramService({
     required TdClientTransport transport,
@@ -112,12 +115,26 @@ class TelegramService implements TelegramGateway {
       throw StateError('GetChats 返回类型异常: ${object.getConstructor()}');
     }
     final result = <SelectableChat>[];
+    final failedChatIds = <int>[];
     for (final chatId in object.chatIds) {
-      final chat = await _loadChat(chatId);
+      final chat = await _tryLoadChat(chatId);
+      if (chat == null) {
+        failedChatIds.add(chatId);
+        continue;
+      }
       if (!_isSelectableChatType(chat.type)) {
         continue;
       }
       result.add(SelectableChat(id: chat.id, title: chat.title));
+      if (result.length >= _maxSelectableChats) {
+        break;
+      }
+    }
+    if (failedChatIds.isNotEmpty) {
+      developer.log(
+        '部分会话详情拉取失败，failed=${failedChatIds.length}',
+        name: 'TelegramService',
+      );
     }
     result.sort((a, b) => a.title.compareTo(b.title));
     return result;
@@ -233,7 +250,13 @@ class TelegramService implements TelegramGateway {
   }
 
   Future<void> _loadSelfChatId() async {
-    final response = await _transport.send(const GetMe());
+    final optionResponse = await _transport.send(const GetOption(name: 'my_id'));
+    final option = _assertNoError(optionResponse);
+    if (option is OptionValueInteger && option.value > 0) {
+      _selfChatId = option.value;
+      return;
+    }
+    final response = await _transport.sendWithTimeout(const GetMe(), _getMeTimeout);
     final object = _assertNoError(response);
     if (object is! User) {
       throw StateError('GetMe 返回类型异常: ${object.getConstructor()}');
@@ -380,7 +403,10 @@ class TelegramService implements TelegramGateway {
   }
 
   Future<Chat> _loadChat(int chatId) async {
-    final response = await _transport.send(GetChat(chatId: chatId));
+    final response = await _transport.sendWithTimeout(
+      GetChat(chatId: chatId),
+      _getChatTimeout,
+    );
     final object = _assertNoErrorWithContext(
       response,
       requestLabel: 'getChat($chatId)',
@@ -389,6 +415,20 @@ class TelegramService implements TelegramGateway {
       throw StateError('GetChat 返回类型异常: ${object.getConstructor()}');
     }
     return object;
+  }
+
+  Future<Chat?> _tryLoadChat(int chatId) async {
+    try {
+      return await _loadChat(chatId);
+    } catch (error, stack) {
+      developer.log(
+        'getChat($chatId) 失败: $error',
+        name: 'TelegramService',
+        error: error,
+        stackTrace: stack,
+      );
+      return null;
+    }
   }
 
   bool _isSelectableChatType(ChatType type) {
