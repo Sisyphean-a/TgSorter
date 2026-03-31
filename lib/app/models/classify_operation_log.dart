@@ -1,4 +1,12 @@
-enum ClassifyOperationStatus { success, failed, retrySuccess, retryFailed }
+enum ClassifyOperationStatus {
+  success,
+  failed,
+  retrySuccess,
+  retryFailed,
+  skipped,
+  undoSuccess,
+  undoFailed,
+}
 
 class ClassifyOperationLog {
   const ClassifyOperationLog({
@@ -53,6 +61,12 @@ class ClassifyOperationLog {
         return 'retry_success';
       case ClassifyOperationStatus.retryFailed:
         return 'retry_failed';
+      case ClassifyOperationStatus.skipped:
+        return 'skipped';
+      case ClassifyOperationStatus.undoSuccess:
+        return 'undo_success';
+      case ClassifyOperationStatus.undoFailed:
+        return 'undo_failed';
     }
   }
 
@@ -66,6 +80,12 @@ class ClassifyOperationLog {
         return ClassifyOperationStatus.retrySuccess;
       case 'retry_failed':
         return ClassifyOperationStatus.retryFailed;
+      case 'skipped':
+        return ClassifyOperationStatus.skipped;
+      case 'undo_success':
+        return ClassifyOperationStatus.undoSuccess;
+      case 'undo_failed':
+        return ClassifyOperationStatus.undoFailed;
       default:
         throw StateError('未知日志状态: $value');
     }

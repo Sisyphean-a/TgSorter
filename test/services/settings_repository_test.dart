@@ -39,5 +39,31 @@ void main() {
 
       expect(prefs.getString('message_fetch_direction'), 'oldest_first');
     });
+
+    test('load uses batch defaults when storage is empty', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final settings = repo.load();
+
+      expect(settings.batchSize, 5);
+      expect(settings.throttleMs, 1200);
+    });
+
+    test('save persists batch settings', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().updateBatchOptions(
+        batchSize: 12,
+        throttleMs: 1800,
+      );
+
+      await repo.save(settings);
+
+      expect(prefs.getInt('pipeline_batch_size'), 12);
+      expect(prefs.getInt('pipeline_throttle_ms'), 1800);
+    });
   });
 }

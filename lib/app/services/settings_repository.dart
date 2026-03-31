@@ -12,12 +12,22 @@ class SettingsRepository {
   static const _fetchDirectionKey = 'message_fetch_direction';
   static const _fetchDirectionLatest = 'latest_first';
   static const _fetchDirectionOldest = 'oldest_first';
+  static const _batchSizeKey = 'pipeline_batch_size';
+  static const _throttleMsKey = 'pipeline_throttle_ms';
+  static const _defaultBatchSize = 5;
+  static const _defaultThrottleMs = 1200;
 
   AppSettings load() {
     var settings = AppSettings.defaults();
     final fetchDirectionRaw = _prefs.getString(_fetchDirectionKey);
     final fetchDirection = _parseFetchDirection(fetchDirectionRaw);
     settings = settings.updateFetchDirection(fetchDirection);
+    final batchSize = _prefs.getInt(_batchSizeKey) ?? _defaultBatchSize;
+    final throttleMs = _prefs.getInt(_throttleMsKey) ?? _defaultThrottleMs;
+    settings = settings.updateBatchOptions(
+      batchSize: batchSize,
+      throttleMs: throttleMs,
+    );
     for (final item in settings.categories) {
       final name = _prefs.getString('$_namePrefix${item.key}') ?? item.name;
       final chatIdRaw = _prefs.getString('$_chatIdPrefix${item.key}');
@@ -34,6 +44,8 @@ class SettingsRepository {
       _fetchDirectionKey,
       _encodeFetchDirection(settings.fetchDirection),
     );
+    await _prefs.setInt(_batchSizeKey, settings.batchSize);
+    await _prefs.setInt(_throttleMsKey, settings.throttleMs);
     for (final item in settings.categories) {
       await _prefs.setString('$_namePrefix${item.key}', item.name);
       final value = item.targetChatId;

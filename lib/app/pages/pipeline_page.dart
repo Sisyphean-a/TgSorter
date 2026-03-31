@@ -79,6 +79,36 @@ class PipelinePage extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: canClick ? pipeline.skipCurrent : null,
+                            child: const Text('跳过当前'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: canClick ? pipeline.undoLastStep : null,
+                            child: const Text('撤销上一步'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: canClick
+                            ? () => pipeline.runBatch('a')
+                            : null,
+                        child: Text(
+                          '批处理 ${settings.settings.value.batchSize} 条 (A)',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
                         Expanded(child: Text('失败重试队列：$retryCount')),
                         ElevatedButton(
                           onPressed: canClick && retryCount > 0
@@ -145,6 +175,12 @@ class PipelinePage extends StatelessWidget {
         return '重试成功';
       case ClassifyOperationStatus.retryFailed:
         return '重试失败';
+      case ClassifyOperationStatus.skipped:
+        return '跳过';
+      case ClassifyOperationStatus.undoSuccess:
+        return '撤销成功';
+      case ClassifyOperationStatus.undoFailed:
+        return '撤销失败';
     }
   }
 }

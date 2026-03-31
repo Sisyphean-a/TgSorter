@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:path_provider/path_provider.dart';
 import 'package:tdlib/td_api.dart';
 import 'package:tdlib/td_client.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
@@ -7,6 +9,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
+import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class TdlibRequestException implements Exception {
   TdlibRequestException({required this.code, required this.message});
@@ -18,13 +21,14 @@ class TdlibRequestException implements Exception {
   String toString() => 'TDLib 请求失败($code): $message';
 }
 
-class TelegramService {
+class TelegramService implements TelegramGateway {
   static const int _downloadPriorityPhotoPreview = 16;
   static const int _downloadPriorityVideoPreview = 17;
   static const int _downloadPriorityVideoFile = 20;
   static const int _downloadOffsetStart = 0;
   static const int _downloadLimitUnlimited = 0;
   static const int _historyBatchSize = 100;
+  static const int _tdLogVerbosityLevel = 1;
 
   TelegramService({
     required TdClientTransport transport,
@@ -41,29 +45,37 @@ class TelegramService {
   StreamSubscription<TdObject>? _updatesSub;
   int? _selfChatId;
 
+  @override
   Stream<AuthorizationState> get authStates => _authStateController.stream;
+
+  @override
   Stream<ConnectionState> get connectionStates => _connectionController.stream;
 
+  @override
   Future<void> start() async {
     await TdPlugin.initialize();
     await _transport.start();
     _updatesSub ??= _transport.updates.listen(_handleUpdate);
   }
 
+  @override
   Future<void> submitPhoneNumber(String phoneNumber) {
     return _sendExpectOk(
       SetAuthenticationPhoneNumber(phoneNumber: phoneNumber),
     );
   }
 
+  @override
   Future<void> submitCode(String code) {
     return _sendExpectOk(CheckAuthenticationCode(code: code));
   }
 
+  @override
   Future<void> submitPassword(String password) {
     return _sendExpectOk(CheckAuthenticationPassword(password: password));
   }
 
+  @override
   Future<PipelineMessage?> fetchNextSavedMessage({
     required MessageFetchDirection direction,
   }) async {
@@ -79,12 +91,13 @@ class TelegramService {
     return _toPipelineMessage(message);
   }
 
-  Future<void> classifyMessage({
+  @override
+  Future<ClassifyReceipt> classifyMessage({
     required int messageId,
     required int targetChatId,
   }) async {
     final selfChatId = await _requireSelfChatId();
-    await _sendExpectOk(
+    final response = await _transport.send(
       ForwardMessages(
         chatId: targetChatId,
         messageThreadId: 0,
@@ -96,8 +109,52 @@ class TelegramService {
         onlyPreview: false,
       ),
     );
+    final object = _assertNoError(response);
+    if (object is! Messages || object.messages.isEmpty) {
+      throw StateError('forwardMessages 返回异常，无法提取目标消息 ID');
+    }
+    final targetMessageId = object.messages.first.id;
+
     await _sendExpectOk(
       DeleteMessages(chatId: selfChatId, messageIds: [messageId], revoke: true),
+    );
+
+    return ClassifyReceipt(
+      sourceChatId: selfChatId,
+      sourceMessageId: messageId,
+      targetChatId: targetChatId,
+      targetMessageId: targetMessageId,
+    );
+  }
+
+  @override
+  Future<void> undoClassify({
+    required int sourceChatId,
+    required int targetChatId,
+    required int targetMessageId,
+  }) async {
+    final response = await _transport.send(
+      ForwardMessages(
+        chatId: sourceChatId,
+        messageThreadId: 0,
+        fromChatId: targetChatId,
+        messageIds: [targetMessageId],
+        options: null,
+        sendCopy: true,
+        removeCaption: false,
+        onlyPreview: false,
+      ),
+    );
+    final object = _assertNoError(response);
+    if (object is! Messages) {
+      throw StateError('undo forward 返回非 Messages: ${object.getConstructor()}');
+    }
+    await _sendExpectOk(
+      DeleteMessages(
+        chatId: targetChatId,
+        messageIds: [targetMessageId],
+        revoke: true,
+      ),
     );
   }
 
@@ -281,26 +338,37 @@ class TelegramService {
     if (state is! AuthorizationStateWaitTdlibParameters) {
       return;
     }
-    unawaited(
-      _sendExpectOk(
-        SetTdlibParameters(
-          useTestDc: false,
-          databaseDirectory: 'tgsorter_td_db',
-          filesDirectory: 'tgsorter_td_files',
-          databaseEncryptionKey: '',
-          useFileDatabase: true,
-          useChatInfoDatabase: true,
-          useMessageDatabase: true,
-          useSecretChats: false,
-          apiId: _credentials.apiId,
-          apiHash: _credentials.apiHash,
-          systemLanguageCode: 'zh-hans',
-          deviceModel: 'Android',
-          systemVersion: '14',
-          applicationVersion: '0.1.0',
-          enableStorageOptimizer: true,
-          ignoreFileNames: false,
-        ),
+    unawaited(_configureTdlib());
+  }
+
+  Future<void> _configureTdlib() async {
+    final baseDir = await getApplicationSupportDirectory();
+    final dbDir = Directory('${baseDir.path}/tgsorter/tdlib/db');
+    final filesDir = Directory('${baseDir.path}/tgsorter/tdlib/files');
+    await dbDir.create(recursive: true);
+    await filesDir.create(recursive: true);
+
+    await _sendExpectOk(
+      const SetLogVerbosityLevel(newVerbosityLevel: _tdLogVerbosityLevel),
+    );
+    await _sendExpectOk(
+      SetTdlibParameters(
+        useTestDc: false,
+        databaseDirectory: dbDir.path,
+        filesDirectory: filesDir.path,
+        databaseEncryptionKey: '',
+        useFileDatabase: true,
+        useChatInfoDatabase: true,
+        useMessageDatabase: true,
+        useSecretChats: false,
+        apiId: _credentials.apiId,
+        apiHash: _credentials.apiHash,
+        systemLanguageCode: 'zh-hans',
+        deviceModel: 'Flutter ${Platform.operatingSystem}',
+        systemVersion: Platform.operatingSystemVersion,
+        applicationVersion: '1.0.0',
+        enableStorageOptimizer: true,
+        ignoreFileNames: false,
       ),
     );
   }

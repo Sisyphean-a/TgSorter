@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:tdlib/td_api.dart';
+import 'package:tgsorter/app/domain/td_error_classifier.dart';
+import 'package:tgsorter/app/domain/flood_wait.dart';
+import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
 
 enum AuthStage {
@@ -16,7 +19,7 @@ enum AuthStage {
 class AuthController extends GetxController {
   AuthController(this._service);
 
-  final TelegramService _service;
+  final TelegramGateway _service;
   final stage = AuthStage.loading.obs;
   final loading = false.obs;
 
@@ -59,6 +62,8 @@ class AuthController extends GetxController {
   Future<void> _bootstrap() async {
     try {
       await _service.start();
+    } on TdlibRequestException catch (error) {
+      _showTdlibError(error, '启动失败');
     } catch (error) {
       Get.snackbar('启动失败', error.toString());
     }
@@ -89,5 +94,28 @@ class AuthController extends GetxController {
   void onClose() {
     _authSub?.cancel();
     super.onClose();
+  }
+
+  void _showTdlibError(TdlibRequestException error, String title) {
+    final kind = classifyTdlibError(error);
+    if (kind == TdErrorKind.rateLimit) {
+      final waitSeconds = parseFloodWaitSeconds(error.message);
+      final suffix = waitSeconds == null ? '' : '，请等待 $waitSeconds 秒';
+      Get.snackbar(title, '触发 FloodWait$suffix');
+      return;
+    }
+    if (kind == TdErrorKind.network) {
+      Get.snackbar(title, '网络异常，请检查连接后重试');
+      return;
+    }
+    if (kind == TdErrorKind.auth) {
+      Get.snackbar(title, '鉴权失败，请确认手机号/验证码/密码是否正确');
+      return;
+    }
+    if (kind == TdErrorKind.permission) {
+      Get.snackbar(title, '权限受限，请检查 Telegram 账号状态');
+      return;
+    }
+    Get.snackbar(title, error.toString());
   }
 }

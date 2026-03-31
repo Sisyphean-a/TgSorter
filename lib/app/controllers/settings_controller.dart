@@ -41,4 +41,18 @@ class SettingsController extends GetxController {
     settings.value = updated;
     await _repository.save(updated);
   }
+
+  Future<void> saveBatchOptions({
+    required int batchSize,
+    required int throttleMs,
+  }) async {
+    final safeBatchSize = batchSize < 1 ? 1 : batchSize;
+    final safeThrottleMs = throttleMs < 0 ? 0 : throttleMs;
+    final updated = settings.value.updateBatchOptions(
+      batchSize: safeBatchSize,
+      throttleMs: safeThrottleMs,
+    );
+    settings.value = updated;
+    await _repository.save(updated);
+  }
 }

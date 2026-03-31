@@ -4,22 +4,24 @@ import 'package:get/get.dart';
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
+import 'package:tgsorter/app/domain/td_error_classifier.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
+import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
 
 class PipelineController extends GetxController {
   PipelineController({
-    required TelegramService service,
+    required TelegramGateway service,
     required SettingsController settingsController,
     required OperationJournalRepository journalRepository,
   }) : _service = service,
        _settingsController = settingsController,
        _journalRepository = journalRepository;
 
-  final TelegramService _service;
+  final TelegramGateway _service;
   final SettingsController _settingsController;
   final OperationJournalRepository _journalRepository;
 
@@ -31,6 +33,7 @@ class PipelineController extends GetxController {
   final retryQueue = <RetryQueueItem>[].obs;
 
   StreamSubscription<ConnectionState>? _connectionSub;
+  ClassifyReceipt? _lastSuccessReceipt;
 
   @override
   void onInit() {
@@ -61,27 +64,66 @@ class PipelineController extends GetxController {
     }
   }
 
-  Future<void> classify(String key) async {
+  Future<void> skipCurrent() async {
+    if (processing.value || !isOnline.value || currentMessage.value == null) {
+      return;
+    }
+    final messageId = currentMessage.value!.id;
+    await _appendLog(
+      ClassifyOperationLog(
+        id: _buildId('skip', messageId),
+        categoryKey: '-',
+        messageId: messageId,
+        targetChatId: 0,
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        status: ClassifyOperationStatus.skipped,
+      ),
+    );
+    currentMessage.value = null;
+    await fetchNext();
+  }
+
+  Future<void> runBatch(String key) async {
     if (processing.value || !isOnline.value) {
       return;
     }
+    final maxCount = _settingsController.settings.value.batchSize;
+    for (var i = 0; i < maxCount; i++) {
+      if (currentMessage.value == null) {
+        await fetchNext();
+      }
+      if (currentMessage.value == null) {
+        break;
+      }
+      await classify(key);
+      if (i + 1 < maxCount) {
+        await _delayThrottle();
+      }
+    }
+  }
+
+  Future<bool> classify(String key) async {
+    if (processing.value || !isOnline.value) {
+      return false;
+    }
     final message = currentMessage.value;
     if (message == null) {
-      return;
+      return false;
     }
 
     final target = _settingsController.getCategory(key);
     if (target.targetChatId == null) {
       Get.snackbar('未配置目标会话', '请先在设置里填写 ${target.name} 的 Chat ID');
-      return;
+      return false;
     }
 
     processing.value = true;
     try {
-      await _service.classifyMessage(
+      final receipt = await _service.classifyMessage(
         messageId: message.id,
         targetChatId: target.targetChatId!,
       );
+      _lastSuccessReceipt = receipt;
       await _appendLog(
         ClassifyOperationLog(
           id: _buildId('ok', message.id),
@@ -94,25 +136,59 @@ class PipelineController extends GetxController {
       );
       currentMessage.value = null;
       await fetchNext();
+      return true;
+    } on TdlibRequestException catch (error) {
+      await _appendFailureAndRetry(
+        error: error,
+        key: key,
+        message: message,
+        targetChatId: target.targetChatId!,
+      );
+      _showTdlibError(error);
+      return false;
+    } finally {
+      processing.value = false;
+    }
+  }
+
+  Future<void> undoLastStep() async {
+    if (processing.value || !isOnline.value) {
+      return;
+    }
+    final receipt = _lastSuccessReceipt;
+    if (receipt == null) {
+      Get.snackbar('无法撤销', '当前没有可撤销的成功操作');
+      return;
+    }
+
+    processing.value = true;
+    try {
+      await _service.undoClassify(
+        sourceChatId: receipt.sourceChatId,
+        targetChatId: receipt.targetChatId,
+        targetMessageId: receipt.targetMessageId,
+      );
+      await _appendLog(
+        ClassifyOperationLog(
+          id: _buildId('undo_ok', receipt.sourceMessageId),
+          categoryKey: '-',
+          messageId: receipt.sourceMessageId,
+          targetChatId: receipt.targetChatId,
+          createdAtMs: DateTime.now().millisecondsSinceEpoch,
+          status: ClassifyOperationStatus.undoSuccess,
+        ),
+      );
+      _lastSuccessReceipt = null;
+      await fetchNext();
     } on TdlibRequestException catch (error) {
       await _appendLog(
         ClassifyOperationLog(
-          id: _buildId('fail', message.id),
-          categoryKey: key,
-          messageId: message.id,
-          targetChatId: target.targetChatId!,
+          id: _buildId('undo_fail', receipt.sourceMessageId),
+          categoryKey: '-',
+          messageId: receipt.sourceMessageId,
+          targetChatId: receipt.targetChatId,
           createdAtMs: DateTime.now().millisecondsSinceEpoch,
-          status: ClassifyOperationStatus.failed,
-          reason: error.toString(),
-        ),
-      );
-      await _enqueueRetry(
-        RetryQueueItem(
-          id: _buildId('retry', message.id),
-          categoryKey: key,
-          messageId: message.id,
-          targetChatId: target.targetChatId!,
-          createdAtMs: DateTime.now().millisecondsSinceEpoch,
+          status: ClassifyOperationStatus.undoFailed,
           reason: error.toString(),
         ),
       );
@@ -167,6 +243,35 @@ class PipelineController extends GetxController {
     }
   }
 
+  Future<void> _appendFailureAndRetry({
+    required TdlibRequestException error,
+    required String key,
+    required PipelineMessage message,
+    required int targetChatId,
+  }) async {
+    await _appendLog(
+      ClassifyOperationLog(
+        id: _buildId('fail', message.id),
+        categoryKey: key,
+        messageId: message.id,
+        targetChatId: targetChatId,
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        status: ClassifyOperationStatus.failed,
+        reason: error.toString(),
+      ),
+    );
+    await _enqueueRetry(
+      RetryQueueItem(
+        id: _buildId('retry', message.id),
+        categoryKey: key,
+        messageId: message.id,
+        targetChatId: targetChatId,
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        reason: error.toString(),
+      ),
+    );
+  }
+
   Future<void> _appendLog(ClassifyOperationLog log) async {
     logs.insert(0, log);
     await _journalRepository.saveLogs(logs);
@@ -177,16 +282,37 @@ class PipelineController extends GetxController {
     await _journalRepository.saveRetryQueue(retryQueue);
   }
 
+  Future<void> _delayThrottle() async {
+    final delayMs = _settingsController.settings.value.throttleMs;
+    if (delayMs <= 0) {
+      return;
+    }
+    await Future<void>.delayed(Duration(milliseconds: delayMs));
+  }
+
   String _buildId(String prefix, int messageId) {
     final now = DateTime.now().microsecondsSinceEpoch;
     return '$prefix-$messageId-$now';
   }
 
   void _showTdlibError(TdlibRequestException error) {
-    if (error.code == 420) {
+    final kind = classifyTdlibError(error);
+    if (kind == TdErrorKind.rateLimit) {
       final waitSeconds = parseFloodWaitSeconds(error.message);
       final suffix = waitSeconds == null ? '' : '，需等待 $waitSeconds 秒';
       Get.snackbar('操作过快', '触发 FloodWait$suffix');
+      return;
+    }
+    if (kind == TdErrorKind.network) {
+      Get.snackbar('网络异常', '请检查网络连接后重试');
+      return;
+    }
+    if (kind == TdErrorKind.auth) {
+      Get.snackbar('鉴权异常', '登录态可能失效，请重新登录');
+      return;
+    }
+    if (kind == TdErrorKind.permission) {
+      Get.snackbar('权限异常', '目标会话可能无发送权限');
       return;
     }
     Get.snackbar('TDLib 错误', error.toString());
