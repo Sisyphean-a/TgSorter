@@ -8,6 +8,7 @@ import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
+import 'package:tgsorter/app/services/tdlib_library_locator.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
@@ -28,7 +29,6 @@ class TelegramService implements TelegramGateway {
   static const int _downloadOffsetStart = 0;
   static const int _downloadLimitUnlimited = 0;
   static const int _historyBatchSize = 100;
-  static const int _tdLogVerbosityLevel = 1;
 
   TelegramService({
     required TdClientTransport transport,
@@ -53,26 +53,14 @@ class TelegramService implements TelegramGateway {
 
   @override
   Future<void> start() async {
-    await TdPlugin.initialize(_resolveTdlibLibraryPath());
+    final libraryPath = resolveTdlibLibraryPath(TdlibRuntimeInfo.current());
+    await TdPlugin.initialize(libraryPath);
     await _transport.start();
     _updatesSub ??= _transport.updates.listen(_handleUpdate);
     final state = await _bootstrapAuthorizationState();
     if (state is! AuthorizationStateWaitTdlibParameters) {
       await _configureProxyIfNeeded();
     }
-  }
-
-  String? _resolveTdlibLibraryPath() {
-    if (Platform.isAndroid || Platform.isLinux) {
-      return 'libtdjson.so';
-    }
-    if (Platform.isWindows) {
-      return 'tdjson.dll';
-    }
-    if (Platform.isMacOS || Platform.isIOS) {
-      return 'libtdjson.dylib';
-    }
-    return null;
   }
 
   @override
@@ -355,14 +343,20 @@ class TelegramService implements TelegramGateway {
     if (state is! AuthorizationStateWaitTdlibParameters) {
       return;
     }
-    unawaited(_configureTdlib());
+    unawaited(
+      _configureTdlib().catchError((error, stack) {
+        _authStateController.addError(error, stack);
+      }),
+    );
   }
 
   Future<AuthorizationState> _bootstrapAuthorizationState() async {
     final response = await _transport.send(const GetAuthorizationState());
     final object = _assertNoError(response);
     if (object is! AuthorizationState) {
-      throw StateError('GetAuthorizationState 返回类型异常: ${object.getConstructor()}');
+      throw StateError(
+        'GetAuthorizationState 返回类型异常: ${object.getConstructor()}',
+      );
     }
     _authStateController.add(object);
     _handleAuthTransition(object);
@@ -376,9 +370,6 @@ class TelegramService implements TelegramGateway {
     await dbDir.create(recursive: true);
     await filesDir.create(recursive: true);
 
-    await _sendExpectOk(
-      const SetLogVerbosityLevel(newVerbosityLevel: _tdLogVerbosityLevel),
-    );
     await _sendExpectOk(
       SetTdlibParameters(
         useTestDc: false,

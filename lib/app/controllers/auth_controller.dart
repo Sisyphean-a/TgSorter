@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
@@ -29,8 +30,10 @@ class AuthController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _authSub = _service.authStates.listen(_onAuthState);
-    _bootstrap();
+    _authSub = _service.authStates.listen(_onAuthState, onError: _onAuthError);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_bootstrap());
+    });
   }
 
   Future<void> submitPhone(String phone) async {
@@ -127,5 +130,13 @@ class AuthController extends GetxController {
       return;
     }
     Get.snackbar(title, message);
+  }
+
+  void _onAuthError(Object error, StackTrace stackTrace) {
+    if (error is TdlibRequestException) {
+      _showTdlibError(error, '授权初始化失败');
+      return;
+    }
+    _showSafeError('授权初始化失败', error.toString());
   }
 }

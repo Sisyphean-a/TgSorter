@@ -87,6 +87,27 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+set(TDLIB_WINDOWS_DLL "${CMAKE_CURRENT_SOURCE_DIR}/tdjson.dll")
+if(EXISTS "${TDLIB_WINDOWS_DLL}")
+  install(FILES "${TDLIB_WINDOWS_DLL}"
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+endif()
+
+set(TDLIB_WINDOWS_RUNTIME_DLLS
+  "libssl-3-x64.dll"
+  "libcrypto-3-x64.dll"
+  "zlib1.dll"
+)
+foreach(TDLIB_DEP_DLL IN LISTS TDLIB_WINDOWS_RUNTIME_DLLS)
+  set(TDLIB_DEP_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${TDLIB_DEP_DLL}")
+  if(EXISTS "${TDLIB_DEP_PATH}")
+    install(FILES "${TDLIB_DEP_PATH}"
+      DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+      COMPONENT Runtime)
+  endif()
+endforeach()
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

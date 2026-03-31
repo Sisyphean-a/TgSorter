@@ -108,6 +108,21 @@ flutter run \
    - 选择 `TgSorter (env.local debug)`；
    - 将自动携带 `--dart-define-from-file=.env.local.json`。
 
+### Windows 桌面端额外要求
+
+`tdlib` 依赖仅内置 Android 动态库，Windows 需要你手动提供 `tdjson.dll`：
+
+1. 先按 TDLib 官方方式编译出 Windows 版 `tdjson.dll`；
+2. 将 `tdjson.dll` 放到项目 `windows/tdjson.dll`；
+3. 同时将依赖 `libssl-3-x64.dll`、`libcrypto-3-x64.dll`、`zlib1.dll` 放到 `windows/`；
+4. 重新 `flutter run -d windows --dart-define-from-file=.env.local.json` 或使用 F5。
+
+也可以通过环境变量指定 DLL 绝对路径：
+
+```powershell
+$env:TDLIB_DLL_PATH="D:\\path\\to\\tdjson.dll"
+```
+
 ## 使用说明
 
 1. 首次进入登录页，输入手机号并提交。
