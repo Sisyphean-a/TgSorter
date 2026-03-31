@@ -32,6 +32,7 @@ class TelegramService implements TelegramGateway {
   static const int _historyBatchSize = 100;
   static const int _chatListLimit = 200;
   static const Duration _authRequestTimeout = Duration(minutes: 2);
+  static const Duration _authorizationReadyTimeout = Duration(seconds: 20);
 
   TelegramService({
     required TdClientTransport transport,
@@ -49,6 +50,7 @@ class TelegramService implements TelegramGateway {
   int? _selfChatId;
   bool _tdlibConfiguring = false;
   bool _tdlibConfigured = false;
+  Completer<void> _authorizationReady = Completer<void>();
 
   @override
   Stream<AuthorizationState> get authStates => _authStateController.stream;
@@ -97,11 +99,15 @@ class TelegramService implements TelegramGateway {
 
   @override
   Future<List<SelectableChat>> listSelectableChats() async {
-    await _sendExpectOk(const LoadChats(chatList: ChatListMain(), limit: _chatListLimit));
+    await _requireAuthorizationReady();
+    await _loadChatsMainUntilDone();
     final response = await _transport.send(
       const GetChats(chatList: ChatListMain(), limit: _chatListLimit),
     );
-    final object = _assertNoError(response);
+    final object = _assertNoErrorWithContext(
+      response,
+      requestLabel: 'getChats(main)',
+    );
     if (object is! Chats) {
       throw StateError('GetChats 返回类型异常: ${object.getConstructor()}');
     }
@@ -117,11 +123,29 @@ class TelegramService implements TelegramGateway {
     return result;
   }
 
+  Future<void> _loadChatsMainUntilDone() async {
+    while (true) {
+      try {
+        await _sendExpectOkWithContext(
+          const LoadChats(chatList: ChatListMain(), limit: _chatListLimit),
+          requestLabel: 'loadChats(main)',
+        );
+      } on TdlibRequestException catch (error) {
+        final isLoadedDone = error.code == 404;
+        if (isLoadedDone) {
+          return;
+        }
+        rethrow;
+      }
+    }
+  }
+
   @override
   Future<PipelineMessage?> fetchNextMessage({
     required MessageFetchDirection direction,
     required int? sourceChatId,
   }) async {
+    await _requireAuthorizationReady();
     final chatId = await _resolveSourceChatId(sourceChatId);
     final message = await _fetchSavedMessage(
       chatId: chatId,
@@ -140,6 +164,7 @@ class TelegramService implements TelegramGateway {
     required int messageId,
     required int targetChatId,
   }) async {
+    await _requireAuthorizationReady();
     final actualSourceChatId = await _resolveSourceChatId(sourceChatId);
     final response = await _transport.send(
       ForwardMessages(
@@ -181,6 +206,7 @@ class TelegramService implements TelegramGateway {
     required int targetChatId,
     required int targetMessageId,
   }) async {
+    await _requireAuthorizationReady();
     final response = await _transport.send(
       ForwardMessages(
         chatId: sourceChatId,
@@ -355,7 +381,10 @@ class TelegramService implements TelegramGateway {
 
   Future<Chat> _loadChat(int chatId) async {
     final response = await _transport.send(GetChat(chatId: chatId));
-    final object = _assertNoError(response);
+    final object = _assertNoErrorWithContext(
+      response,
+      requestLabel: 'getChat($chatId)',
+    );
     if (object is! Chat) {
       throw StateError('GetChat 返回类型异常: ${object.getConstructor()}');
     }
@@ -395,9 +424,38 @@ class TelegramService implements TelegramGateway {
     return object;
   }
 
+  Future<void> _sendExpectOkWithContext(
+    TdFunction function, {
+    required String requestLabel,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final response = await _transport.sendWithTimeout(function, timeout);
+    final object = _assertNoErrorWithContext(
+      response,
+      requestLabel: requestLabel,
+    );
+    if (object is! Ok) {
+      throw StateError('请求返回非 Ok: ${object.getConstructor()}');
+    }
+  }
+
+  TdObject _assertNoErrorWithContext(
+    TdObject object, {
+    required String requestLabel,
+  }) {
+    if (object is! TdError) {
+      return object;
+    }
+    throw TdlibRequestException(
+      code: object.code,
+      message: '$requestLabel -> ${object.message}',
+    );
+  }
+
   void _handleUpdate(TdObject update) {
     if (update is UpdateAuthorizationState) {
       _authStateController.add(update.authorizationState);
+      _recordAuthorizationState(update.authorizationState);
       _handleAuthTransition(update.authorizationState);
       return;
     }
@@ -415,6 +473,19 @@ class TelegramService implements TelegramGateway {
     );
     _authStateController.addError(error, stack);
     _connectionController.addError(error, stack);
+  }
+
+  void _recordAuthorizationState(AuthorizationState state) {
+    if (state is AuthorizationStateReady) {
+      if (!_authorizationReady.isCompleted) {
+        _authorizationReady.complete();
+      }
+      return;
+    }
+    if (state is AuthorizationStateClosed) {
+      _authorizationReady = Completer<void>();
+      _selfChatId = null;
+    }
   }
 
   void _handleAuthTransition(AuthorizationState state) {
@@ -448,8 +519,21 @@ class TelegramService implements TelegramGateway {
       );
     }
     _authStateController.add(object);
+    _recordAuthorizationState(object);
     _handleAuthTransition(object);
     return object;
+  }
+
+  Future<void> _requireAuthorizationReady() {
+    if (_authorizationReady.isCompleted) {
+      return Future<void>.value();
+    }
+    return _authorizationReady.future.timeout(
+      _authorizationReadyTimeout,
+      onTimeout: () {
+        throw StateError('TDLib 授权未就绪，无法执行当前请求');
+      },
+    );
   }
 
   Future<void> _configureTdlib() async {
