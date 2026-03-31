@@ -2,6 +2,13 @@ import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 
+class SelectableChat {
+  const SelectableChat({required this.id, required this.title});
+
+  final int id;
+  final String title;
+}
+
 class ClassifyReceipt {
   const ClassifyReceipt({
     required this.sourceChatId,
@@ -25,11 +32,15 @@ abstract class TelegramGateway {
   Future<void> submitCode(String code);
   Future<void> submitPassword(String password);
 
-  Future<PipelineMessage?> fetchNextSavedMessage({
+  Future<List<SelectableChat>> listSelectableChats();
+
+  Future<PipelineMessage?> fetchNextMessage({
     required MessageFetchDirection direction,
+    required int? sourceChatId,
   });
 
   Future<ClassifyReceipt> classifyMessage({
+    required int? sourceChatId,
     required int messageId,
     required int targetChatId,
   });

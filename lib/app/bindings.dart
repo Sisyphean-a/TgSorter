@@ -26,7 +26,7 @@ Future<void> initDependencies() async {
   Get.put(credentials, permanent: true);
   Get.put(telegram, permanent: true);
 
-  Get.put(SettingsController(settingsRepo), permanent: true);
+  Get.put(SettingsController(settingsRepo, telegram), permanent: true);
   Get.put(AuthController(telegram), permanent: true);
   Get.put(
     PipelineController(

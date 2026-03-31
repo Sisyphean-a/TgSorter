@@ -50,6 +50,7 @@ void main() {
         RetryQueueItem(
           id: 'retry-1',
           categoryKey: 'b',
+          sourceChatId: 5001,
           messageId: 3001,
           targetChatId: 4001,
           createdAtMs: 1720000000000,

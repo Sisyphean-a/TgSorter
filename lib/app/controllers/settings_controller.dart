@@ -3,12 +3,17 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
+import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class SettingsController extends GetxController {
-  SettingsController(this._repository);
+  SettingsController(this._repository, this._telegram);
 
   final SettingsRepository _repository;
+  final TelegramGateway _telegram;
   final Rx<AppSettings> settings = AppSettings.defaults().obs;
+  final chats = <SelectableChat>[].obs;
+  final chatsLoading = false.obs;
+  final chatsError = RxnString();
 
   @override
   void onInit() {
@@ -23,18 +28,37 @@ class SettingsController extends GetxController {
   Future<void> saveCategory({
     required String key,
     required String name,
-    required String chatIdRaw,
+    required int? targetChatId,
   }) async {
-    final chatId = int.tryParse(chatIdRaw.trim());
     final updated = settings.value.updateCategory(
       CategoryConfig(
         key: key,
         name: name.trim().isEmpty ? '未命名分类' : name.trim(),
-        targetChatId: chatId,
+        targetChatId: targetChatId,
       ),
     );
     settings.value = updated;
     await _repository.save(updated);
+  }
+
+  Future<void> saveSourceChat(int? sourceChatId) async {
+    final updated = settings.value.updateSourceChatId(sourceChatId);
+    settings.value = updated;
+    await _repository.save(updated);
+  }
+
+  Future<void> loadChats() async {
+    chatsLoading.value = true;
+    chatsError.value = null;
+    try {
+      final loaded = await _telegram.listSelectableChats();
+      chats.assignAll(loaded);
+    } catch (error) {
+      chatsError.value = error.toString();
+      rethrow;
+    } finally {
+      chatsLoading.value = false;
+    }
   }
 
   Future<void> saveFetchDirection(MessageFetchDirection direction) async {

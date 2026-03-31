@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
@@ -29,6 +30,7 @@ class TelegramService implements TelegramGateway {
   static const int _downloadOffsetStart = 0;
   static const int _downloadLimitUnlimited = 0;
   static const int _historyBatchSize = 100;
+  static const int _chatListLimit = 200;
   static const Duration _authRequestTimeout = Duration(minutes: 2);
 
   TelegramService({
@@ -59,7 +61,10 @@ class TelegramService implements TelegramGateway {
     final libraryPath = resolveTdlibLibraryPath(TdlibRuntimeInfo.current());
     await TdPlugin.initialize(libraryPath);
     await _transport.start();
-    _updatesSub ??= _transport.updates.listen(_handleUpdate);
+    _updatesSub ??= _transport.updates.listen(
+      _handleUpdate,
+      onError: _handleTransportError,
+    );
     final state = await _bootstrapAuthorizationState();
     if (state is! AuthorizationStateWaitTdlibParameters) {
       await _configureProxyIfNeeded();
@@ -91,10 +96,33 @@ class TelegramService implements TelegramGateway {
   }
 
   @override
-  Future<PipelineMessage?> fetchNextSavedMessage({
+  Future<List<SelectableChat>> listSelectableChats() async {
+    await _sendExpectOk(const LoadChats(chatList: ChatListMain(), limit: _chatListLimit));
+    final response = await _transport.send(
+      const GetChats(chatList: ChatListMain(), limit: _chatListLimit),
+    );
+    final object = _assertNoError(response);
+    if (object is! Chats) {
+      throw StateError('GetChats 返回类型异常: ${object.getConstructor()}');
+    }
+    final result = <SelectableChat>[];
+    for (final chatId in object.chatIds) {
+      final chat = await _loadChat(chatId);
+      if (!_isSelectableChatType(chat.type)) {
+        continue;
+      }
+      result.add(SelectableChat(id: chat.id, title: chat.title));
+    }
+    result.sort((a, b) => a.title.compareTo(b.title));
+    return result;
+  }
+
+  @override
+  Future<PipelineMessage?> fetchNextMessage({
     required MessageFetchDirection direction,
+    required int? sourceChatId,
   }) async {
-    final chatId = await _requireSelfChatId();
+    final chatId = await _resolveSourceChatId(sourceChatId);
     final message = await _fetchSavedMessage(
       chatId: chatId,
       direction: direction,
@@ -103,20 +131,21 @@ class TelegramService implements TelegramGateway {
       return null;
     }
     await _ensureMediaDownloadsStarted(message.content);
-    return _toPipelineMessage(message);
+    return _toPipelineMessage(message, chatId);
   }
 
   @override
   Future<ClassifyReceipt> classifyMessage({
+    required int? sourceChatId,
     required int messageId,
     required int targetChatId,
   }) async {
-    final selfChatId = await _requireSelfChatId();
+    final actualSourceChatId = await _resolveSourceChatId(sourceChatId);
     final response = await _transport.send(
       ForwardMessages(
         chatId: targetChatId,
         messageThreadId: 0,
-        fromChatId: selfChatId,
+        fromChatId: actualSourceChatId,
         messageIds: [messageId],
         options: null,
         sendCopy: false,
@@ -131,11 +160,15 @@ class TelegramService implements TelegramGateway {
     final targetMessageId = object.messages.first.id;
 
     await _sendExpectOk(
-      DeleteMessages(chatId: selfChatId, messageIds: [messageId], revoke: true),
+      DeleteMessages(
+        chatId: actualSourceChatId,
+        messageIds: [messageId],
+        revoke: true,
+      ),
     );
 
     return ClassifyReceipt(
-      sourceChatId: selfChatId,
+      sourceChatId: actualSourceChatId,
       sourceMessageId: messageId,
       targetChatId: targetChatId,
       targetMessageId: targetMessageId,
@@ -193,6 +226,13 @@ class TelegramService implements TelegramGateway {
       throw StateError('无法获取 Saved Messages 的 chat_id');
     }
     return fresh;
+  }
+
+  Future<int> _resolveSourceChatId(int? sourceChatId) async {
+    if (sourceChatId != null) {
+      return sourceChatId;
+    }
+    return _requireSelfChatId();
   }
 
   Future<void> _ensureMediaDownloadsStarted(MessageContent content) async {
@@ -305,11 +345,25 @@ class TelegramService implements TelegramGateway {
     return object.messages;
   }
 
-  PipelineMessage _toPipelineMessage(Message message) {
+  PipelineMessage _toPipelineMessage(Message message, int sourceChatId) {
     return PipelineMessage(
       id: message.id,
+      sourceChatId: sourceChatId,
       preview: mapMessagePreview(message.content),
     );
+  }
+
+  Future<Chat> _loadChat(int chatId) async {
+    final response = await _transport.send(GetChat(chatId: chatId));
+    final object = _assertNoError(response);
+    if (object is! Chat) {
+      throw StateError('GetChat 返回类型异常: ${object.getConstructor()}');
+    }
+    return object;
+  }
+
+  bool _isSelectableChatType(ChatType type) {
+    return type is ChatTypeBasicGroup || type is ChatTypeSupergroup;
   }
 
   File? _pickPreviewPhotoFile(List<PhotoSize> sizes) {
@@ -350,6 +404,17 @@ class TelegramService implements TelegramGateway {
     if (update is UpdateConnectionState) {
       _connectionController.add(update.state);
     }
+  }
+
+  void _handleTransportError(Object error, StackTrace stack) {
+    developer.log(
+      'TDLib 传输层异常: $error',
+      name: 'TelegramService',
+      error: error,
+      stackTrace: stack,
+    );
+    _authStateController.addError(error, stack);
+    _connectionController.addError(error, stack);
   }
 
   void _handleAuthTransition(AuthorizationState state) {

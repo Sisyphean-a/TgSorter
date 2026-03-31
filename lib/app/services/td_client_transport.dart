@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:tdlib/td_api.dart';
 import 'package:tdlib/td_client.dart';
@@ -13,6 +14,7 @@ class TdClientTransport {
 
   final _updatesController = StreamController<TdObject>.broadcast();
   final Map<String, Completer<TdObject>> _pending = {};
+  final Set<String> _reportedReceiveErrors = <String>{};
 
   bool _running = false;
   bool _polling = false;
@@ -89,10 +91,36 @@ class TdClientTransport {
         _handleEvent(event);
       }
     } catch (error, stack) {
-      _updatesController.addError(error, stack);
+      if (_isKnownTdlibParseError(error, stack)) {
+        _reportReceiveErrorOnce('TDLib 更新解析异常（已跳过该条更新）', error, stack);
+      } else if (_updatesController.hasListener) {
+        _updatesController.addError(error, stack);
+      } else {
+        _reportReceiveErrorOnce('TDLib 接收异常', error, stack);
+      }
     } finally {
       _polling = false;
     }
+  }
+
+  bool _isKnownTdlibParseError(Object error, StackTrace stack) {
+    final message = error.toString();
+    final trace = stack.toString();
+    return message.contains("type 'Null' is not a subtype of type") &&
+        trace.contains('package:tdlib/src/tdapi/objects/');
+  }
+
+  void _reportReceiveErrorOnce(String title, Object error, StackTrace stack) {
+    final signature = '$title|$error';
+    if (!_reportedReceiveErrors.add(signature)) {
+      return;
+    }
+    developer.log(
+      '$title: $error',
+      name: 'TdClientTransport',
+      error: error,
+      stackTrace: stack,
+    );
   }
 
   void _handleEvent(TdObject event) {

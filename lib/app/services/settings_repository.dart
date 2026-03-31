@@ -11,6 +11,7 @@ class SettingsRepository {
   static const _namePrefix = 'category_name_';
   static const _chatIdPrefix = 'category_chat_id_';
   static const _fetchDirectionKey = 'message_fetch_direction';
+  static const _sourceChatIdKey = 'source_chat_id';
   static const _fetchDirectionLatest = 'latest_first';
   static const _fetchDirectionOldest = 'oldest_first';
   static const _batchSizeKey = 'pipeline_batch_size';
@@ -25,6 +26,9 @@ class SettingsRepository {
     final fetchDirectionRaw = _prefs.getString(_fetchDirectionKey);
     final fetchDirection = _parseFetchDirection(fetchDirectionRaw);
     settings = settings.updateFetchDirection(fetchDirection);
+    final sourceChatIdRaw = _prefs.getString(_sourceChatIdKey);
+    final sourceChatId = int.tryParse(sourceChatIdRaw ?? '');
+    settings = settings.updateSourceChatId(sourceChatId);
     final batchSize = _prefs.getInt(_batchSizeKey) ?? _defaultBatchSize;
     final throttleMs = _prefs.getInt(_throttleMsKey) ?? _defaultThrottleMs;
     settings = settings.updateBatchOptions(
@@ -52,6 +56,12 @@ class SettingsRepository {
       _fetchDirectionKey,
       _encodeFetchDirection(settings.fetchDirection),
     );
+    final sourceChatId = settings.sourceChatId;
+    if (sourceChatId == null) {
+      await _prefs.remove(_sourceChatIdKey);
+    } else {
+      await _prefs.setString(_sourceChatIdKey, sourceChatId.toString());
+    }
     for (final entry in settings.shortcutBindings.entries) {
       await _prefs.setString(
         '$_shortcutPrefix${entry.key.name}',

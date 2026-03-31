@@ -1,46 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
-import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/widgets/shortcut_bindings_editor.dart';
+import 'package:tgsorter/app/pages/settings_common_editors.dart';
 
-class SettingsPage extends StatelessWidget {
-  SettingsPage({super.key});
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({super.key});
 
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
   final SettingsController controller = Get.find<SettingsController>();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChats();
+  }
+
+  Future<void> _loadChats() async {
+    try {
+      await controller.loadChats();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('加载会话失败：$error')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('分类设置')),
       body: Obx(() {
-        final categories = controller.settings.value.categories;
-        final fetchDirection = controller.settings.value.fetchDirection;
-        final batchSize = controller.settings.value.batchSize;
-        final throttleMs = controller.settings.value.throttleMs;
-        final shortcuts = controller.settings.value.shortcutBindings;
+        final config = controller.settings.value;
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _FetchDirectionEditor(
-              value: fetchDirection,
+            _ChatListCard(
+              loading: controller.chatsLoading.value,
+              chatsError: controller.chatsError.value,
+              onReload: _loadChats,
+            ),
+            const SizedBox(height: 8),
+            _SourceChatEditor(
+              sourceChatId: config.sourceChatId,
+              onSave: controller.saveSourceChat,
+            ),
+            const SizedBox(height: 8),
+            FetchDirectionEditor(
+              value: config.fetchDirection,
               onChanged: controller.saveFetchDirection,
             ),
             const SizedBox(height: 8),
-            _BatchOptionsEditor(
-              batchSize: batchSize,
-              throttleMs: throttleMs,
+            BatchOptionsEditor(
+              batchSize: config.batchSize,
+              throttleMs: config.throttleMs,
               onSave: controller.saveBatchOptions,
             ),
             const SizedBox(height: 8),
-            ShortcutBindingsEditor(controller: controller, bindings: shortcuts),
+            ShortcutBindingsEditor(
+              controller: controller,
+              bindings: config.shortcutBindings,
+            ),
             const SizedBox(height: 8),
-            for (final item in categories)
+            for (final item in config.categories)
               _CategoryEditor(
                 key: ValueKey(item.key),
                 categoryKey: item.key,
                 initialName: item.name,
-                initialChatId: item.targetChatId?.toString() ?? '',
+                initialTargetChatId: item.targetChatId,
               ),
           ],
         );
@@ -49,78 +84,34 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-class _BatchOptionsEditor extends StatefulWidget {
-  const _BatchOptionsEditor({
-    required this.batchSize,
-    required this.throttleMs,
-    required this.onSave,
+class _ChatListCard extends StatelessWidget {
+  const _ChatListCard({
+    required this.loading,
+    required this.chatsError,
+    required this.onReload,
   });
 
-  final int batchSize;
-  final int throttleMs;
-  final Future<void> Function({required int batchSize, required int throttleMs})
-  onSave;
-
-  @override
-  State<_BatchOptionsEditor> createState() => _BatchOptionsEditorState();
-}
-
-class _BatchOptionsEditorState extends State<_BatchOptionsEditor> {
-  late final TextEditingController _batchCtrl;
-  late final TextEditingController _throttleCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _batchCtrl = TextEditingController(text: widget.batchSize.toString());
-    _throttleCtrl = TextEditingController(text: widget.throttleMs.toString());
-  }
-
-  @override
-  void dispose() {
-    _batchCtrl.dispose();
-    _throttleCtrl.dispose();
-    super.dispose();
-  }
+  final bool loading;
+  final String? chatsError;
+  final Future<void> Function() onReload;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
+        child: Row(
           children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('批处理与节流', style: TextStyle(fontSize: 16)),
-            ),
-            TextField(
-              controller: _batchCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: '批处理条数 N'),
-            ),
-            TextField(
-              controller: _throttleCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: '节流毫秒'),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final batch = int.tryParse(_batchCtrl.text.trim()) ?? 1;
-                  final throttle = int.tryParse(_throttleCtrl.text.trim()) ?? 0;
-                  await widget.onSave(batchSize: batch, throttleMs: throttle);
-                  if (!context.mounted) {
-                    return;
-                  }
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('批处理设置已保存')));
-                },
-                child: const Text('保存'),
+            Expanded(
+              child: Text(
+                chatsError == null
+                    ? '可选会话：仅群组与频道'
+                    : '会话列表加载失败：$chatsError',
               ),
+            ),
+            FilledButton.tonal(
+              onPressed: loading ? null : onReload,
+              child: Text(loading ? '加载中...' : '刷新会话'),
             ),
           ],
         ),
@@ -129,46 +120,50 @@ class _BatchOptionsEditorState extends State<_BatchOptionsEditor> {
   }
 }
 
-class _FetchDirectionEditor extends StatelessWidget {
-  const _FetchDirectionEditor({required this.value, required this.onChanged});
+class _SourceChatEditor extends StatelessWidget {
+  const _SourceChatEditor({required this.sourceChatId, required this.onSave});
 
-  final MessageFetchDirection value;
-  final Future<void> Function(MessageFetchDirection) onChanged;
+  final int? sourceChatId;
+  final Future<void> Function(int?) onSave;
 
   @override
   Widget build(BuildContext context) {
+    final controller = Get.find<SettingsController>();
+    final chats = controller.chats.toList(growable: true);
+    if (sourceChatId != null && !chats.any((item) => item.id == sourceChatId)) {
+      chats.add(SelectableChat(id: sourceChatId!, title: '未知会话'));
+    }
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('消息拉取方向', style: TextStyle(fontSize: 16)),
+            const Text('来源会话', style: TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
-            DropdownButtonFormField<MessageFetchDirection>(
-              initialValue: value,
+            DropdownButtonFormField<int?>(
+              initialValue: sourceChatId,
               decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(
-                  value: MessageFetchDirection.latestFirst,
-                  child: Text('最新优先'),
+              items: [
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('收藏夹（Saved Messages）'),
                 ),
-                DropdownMenuItem(
-                  value: MessageFetchDirection.oldestFirst,
-                  child: Text('最旧优先'),
+                ...chats.map(
+                  (item) => DropdownMenuItem<int?>(
+                    value: item.id,
+                    child: Text(_chatLabel(item)),
+                  ),
                 ),
               ],
               onChanged: (next) async {
-                if (next == null) {
-                  return;
-                }
-                await onChanged(next);
+                await onSave(next);
                 if (!context.mounted) {
                   return;
                 }
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(const SnackBar(content: Text('拉取方向已保存')));
+                ).showSnackBar(const SnackBar(content: Text('来源会话已保存')));
               },
             ),
           ],
@@ -183,12 +178,12 @@ class _CategoryEditor extends StatefulWidget {
     super.key,
     required this.categoryKey,
     required this.initialName,
-    required this.initialChatId,
+    required this.initialTargetChatId,
   });
 
   final String categoryKey;
   final String initialName;
-  final String initialChatId;
+  final int? initialTargetChatId;
 
   @override
   State<_CategoryEditor> createState() => _CategoryEditorState();
@@ -196,25 +191,29 @@ class _CategoryEditor extends StatefulWidget {
 
 class _CategoryEditorState extends State<_CategoryEditor> {
   late final TextEditingController _nameCtrl;
-  late final TextEditingController _chatCtrl;
   final SettingsController _controller = Get.find<SettingsController>();
+  int? _selectedChatId;
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.initialName);
-    _chatCtrl = TextEditingController(text: widget.initialChatId);
+    _selectedChatId = widget.initialTargetChatId;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _chatCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final chats = _controller.chats.toList(growable: true);
+    if (_selectedChatId != null &&
+        !chats.any((item) => item.id == _selectedChatId)) {
+      chats.add(SelectableChat(id: _selectedChatId!, title: '未知会话'));
+    }
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -225,34 +224,64 @@ class _CategoryEditorState extends State<_CategoryEditor> {
               controller: _nameCtrl,
               decoration: const InputDecoration(labelText: '按钮名称'),
             ),
-            TextField(
-              controller: _chatCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: '目标 Chat ID'),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              initialValue: _selectedChatId,
+              decoration: const InputDecoration(
+                labelText: '目标会话（群组/频道）',
+                border: OutlineInputBorder(),
+              ),
+              items: chats
+                  .map(
+                    (item) => DropdownMenuItem<int>(
+                      value: item.id,
+                      child: Text(_chatLabel(item)),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (next) {
+                setState(() {
+                  _selectedChatId = next;
+                });
+              },
             ),
             const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                onPressed: () async {
-                  await _controller.saveCategory(
-                    key: widget.categoryKey,
-                    name: _nameCtrl.text,
-                    chatIdRaw: _chatCtrl.text,
-                  );
-                  if (!context.mounted) {
-                    return;
-                  }
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('已保存')));
-                },
-                child: const Text('保存'),
-              ),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedChatId = null;
+                    });
+                  },
+                  child: const Text('清空目标'),
+                ),
+                const Spacer(),
+                ElevatedButton(
+                  onPressed: () async {
+                    await _controller.saveCategory(
+                      key: widget.categoryKey,
+                      name: _nameCtrl.text,
+                      targetChatId: _selectedChatId,
+                    );
+                    if (!context.mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('已保存')));
+                  },
+                  child: const Text('保存'),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
   }
+}
+
+String _chatLabel(SelectableChat chat) {
+  return '${chat.title} (${chat.id})';
 }

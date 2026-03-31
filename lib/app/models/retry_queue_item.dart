@@ -2,6 +2,7 @@ class RetryQueueItem {
   const RetryQueueItem({
     required this.id,
     required this.categoryKey,
+    required this.sourceChatId,
     required this.messageId,
     required this.targetChatId,
     required this.createdAtMs,
@@ -10,6 +11,7 @@ class RetryQueueItem {
 
   final String id;
   final String categoryKey;
+  final int? sourceChatId;
   final int messageId;
   final int targetChatId;
   final int createdAtMs;
@@ -19,6 +21,7 @@ class RetryQueueItem {
     return {
       'id': id,
       'category_key': categoryKey,
+      'source_chat_id': sourceChatId,
       'message_id': messageId,
       'target_chat_id': targetChatId,
       'created_at_ms': createdAtMs,
@@ -30,6 +33,7 @@ class RetryQueueItem {
     return RetryQueueItem(
       id: json['id'] as String,
       categoryKey: json['category_key'] as String,
+      sourceChatId: json['source_chat_id'] as int?,
       messageId: json['message_id'] as int,
       targetChatId: json['target_chat_id'] as int,
       createdAtMs: json['created_at_ms'] as int,

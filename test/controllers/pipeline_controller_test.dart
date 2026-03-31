@@ -25,7 +25,8 @@ void main() {
       Get.testMode = true;
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
-      settingsController = SettingsController(SettingsRepository(prefs));
+      service = _FakeTelegramService();
+      settingsController = SettingsController(SettingsRepository(prefs), service);
       settingsController.onInit();
       settingsController.settings.value = const AppSettings(
         categories: [
@@ -33,12 +34,12 @@ void main() {
           CategoryConfig(key: 'b', name: '分类 B', targetChatId: 10002),
           CategoryConfig(key: 'c', name: '分类 C', targetChatId: 10003),
         ],
+        sourceChatId: 8888,
         fetchDirection: MessageFetchDirection.latestFirst,
         batchSize: 2,
         throttleMs: 0,
       );
       journalRepository = OperationJournalRepository(prefs);
-      service = _FakeTelegramService();
       controller = PipelineController(
         service: service,
         settingsController: settingsController,
@@ -78,6 +79,12 @@ void main() {
       expect(service.classifiedMessageIds, [1, 2]);
       expect(controller.currentMessage.value?.id, 3);
     });
+
+    test('fetchNext passes sourceChatId from settings', () async {
+      await controller.fetchNext();
+
+      expect(service.lastFetchSourceChatId, 8888);
+    });
   });
 }
 
@@ -86,6 +93,7 @@ class _FakeTelegramService implements TelegramGateway {
 
   final List<PipelineMessage?> nextMessages = <PipelineMessage?>[];
   final List<int> classifiedMessageIds = <int>[];
+  int? lastFetchSourceChatId;
 
   @override
   Stream<AuthorizationState> get authStates => const Stream.empty();
@@ -110,9 +118,16 @@ class _FakeTelegramService implements TelegramGateway {
   Future<void> submitPhoneNumber(String phoneNumber) async {}
 
   @override
-  Future<PipelineMessage?> fetchNextSavedMessage({
+  Future<List<SelectableChat>> listSelectableChats() async {
+    return const [];
+  }
+
+  @override
+  Future<PipelineMessage?> fetchNextMessage({
     required MessageFetchDirection direction,
+    required int? sourceChatId,
   }) async {
+    lastFetchSourceChatId = sourceChatId;
     if (nextMessages.isEmpty) {
       return null;
     }
@@ -121,6 +136,7 @@ class _FakeTelegramService implements TelegramGateway {
 
   @override
   Future<ClassifyReceipt> classifyMessage({
+    required int? sourceChatId,
     required int messageId,
     required int targetChatId,
   }) async {
@@ -144,6 +160,7 @@ class _FakeTelegramService implements TelegramGateway {
 PipelineMessage _message(int id, String title) {
   return PipelineMessage(
     id: id,
+    sourceChatId: 8888,
     preview: MessagePreview(kind: MessagePreviewKind.text, title: title),
   );
 }

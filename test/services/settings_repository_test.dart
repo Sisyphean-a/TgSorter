@@ -41,6 +41,27 @@ void main() {
       expect(prefs.getString('message_fetch_direction'), 'oldest_first');
     });
 
+    test('load uses null sourceChatId by default', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final settings = repo.load();
+
+      expect(settings.sourceChatId, isNull);
+    });
+
+    test('save persists sourceChatId', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().updateSourceChatId(123456789);
+
+      await repo.save(settings);
+
+      expect(prefs.getString('source_chat_id'), '123456789');
+    });
+
     test('load uses batch defaults when storage is empty', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();

@@ -61,8 +61,9 @@ class PipelineController extends GetxController {
   Future<void> fetchNext() async {
     loading.value = true;
     try {
-      currentMessage.value = await _service.fetchNextSavedMessage(
+      currentMessage.value = await _service.fetchNextMessage(
         direction: _settingsController.settings.value.fetchDirection,
+        sourceChatId: _settingsController.settings.value.sourceChatId,
       );
     } on TdlibRequestException catch (error) {
       _showTdlibError(error);
@@ -122,13 +123,14 @@ class PipelineController extends GetxController {
 
     final target = _settingsController.getCategory(key);
     if (target.targetChatId == null) {
-      Get.snackbar('未配置目标会话', '请先在设置里填写 ${target.name} 的 Chat ID');
+      Get.snackbar('未配置目标会话', '请先在设置里选择 ${target.name} 的目标会话');
       return false;
     }
 
     processing.value = true;
     try {
       final receipt = await _service.classifyMessage(
+        sourceChatId: message.sourceChatId,
         messageId: message.id,
         targetChatId: target.targetChatId!,
       );
@@ -215,6 +217,7 @@ class PipelineController extends GetxController {
     final item = retryQueue.first;
     try {
       await _service.classifyMessage(
+        sourceChatId: item.sourceChatId ?? _settingsController.settings.value.sourceChatId,
         messageId: item.messageId,
         targetChatId: item.targetChatId,
       );
@@ -273,6 +276,7 @@ class PipelineController extends GetxController {
       RetryQueueItem(
         id: _buildId('retry', message.id),
         categoryKey: key,
+        sourceChatId: message.sourceChatId,
         messageId: message.id,
         targetChatId: targetChatId,
         createdAtMs: DateTime.now().millisecondsSinceEpoch,

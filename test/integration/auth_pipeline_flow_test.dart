@@ -23,8 +23,8 @@ void main() {
     Get.testMode = true;
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    final settings = SettingsController(SettingsRepository(prefs));
     final service = _IntegrationFakeGateway();
+    final settings = SettingsController(SettingsRepository(prefs), service);
     final pipeline = PipelineController(
       service: service,
       settingsController: settings,
@@ -92,14 +92,21 @@ class _IntegrationFakeGateway implements TelegramGateway {
   Future<void> submitPhoneNumber(String phoneNumber) async {}
 
   @override
-  Future<PipelineMessage?> fetchNextSavedMessage({
+  Future<List<SelectableChat>> listSelectableChats() async {
+    return const [];
+  }
+
+  @override
+  Future<PipelineMessage?> fetchNextMessage({
     required MessageFetchDirection direction,
+    required int? sourceChatId,
   }) async {
     return null;
   }
 
   @override
   Future<ClassifyReceipt> classifyMessage({
+    required int? sourceChatId,
     required int messageId,
     required int targetChatId,
   }) async {

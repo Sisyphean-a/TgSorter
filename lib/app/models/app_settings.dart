@@ -6,6 +6,7 @@ enum MessageFetchDirection { latestFirst, oldestFirst }
 class AppSettings {
   const AppSettings({
     required this.categories,
+    required this.sourceChatId,
     required this.fetchDirection,
     required this.batchSize,
     required this.throttleMs,
@@ -13,6 +14,7 @@ class AppSettings {
   });
 
   final List<CategoryConfig> categories;
+  final int? sourceChatId;
   final MessageFetchDirection fetchDirection;
   final int batchSize;
   final int throttleMs;
@@ -25,6 +27,7 @@ class AppSettings {
         CategoryConfig(key: 'b', name: '分类 B', targetChatId: null),
         CategoryConfig(key: 'c', name: '分类 C', targetChatId: null),
       ],
+      sourceChatId: null,
       fetchDirection: MessageFetchDirection.latestFirst,
       batchSize: 5,
       throttleMs: 1200,
@@ -76,6 +79,18 @@ class AppSettings {
         .toList(growable: false);
     return AppSettings(
       categories: updated,
+      sourceChatId: sourceChatId,
+      fetchDirection: fetchDirection,
+      batchSize: batchSize,
+      throttleMs: throttleMs,
+      shortcutBindings: shortcutBindings,
+    );
+  }
+
+  AppSettings updateSourceChatId(int? chatId) {
+    return AppSettings(
+      categories: categories,
+      sourceChatId: chatId,
       fetchDirection: fetchDirection,
       batchSize: batchSize,
       throttleMs: throttleMs,
@@ -86,6 +101,7 @@ class AppSettings {
   AppSettings updateFetchDirection(MessageFetchDirection direction) {
     return AppSettings(
       categories: categories,
+      sourceChatId: sourceChatId,
       fetchDirection: direction,
       batchSize: batchSize,
       throttleMs: throttleMs,
@@ -99,6 +115,7 @@ class AppSettings {
   }) {
     return AppSettings(
       categories: categories,
+      sourceChatId: sourceChatId,
       fetchDirection: fetchDirection,
       batchSize: batchSize,
       throttleMs: throttleMs,
@@ -114,6 +131,7 @@ class AppSettings {
     updated[action] = binding;
     return AppSettings(
       categories: categories,
+      sourceChatId: sourceChatId,
       fetchDirection: fetchDirection,
       batchSize: batchSize,
       throttleMs: throttleMs,
