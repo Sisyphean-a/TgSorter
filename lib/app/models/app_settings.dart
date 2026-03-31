@@ -1,4 +1,5 @@
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/shortcut_binding.dart';
 
 enum MessageFetchDirection { latestFirst, oldestFirst }
 
@@ -8,12 +9,14 @@ class AppSettings {
     required this.fetchDirection,
     required this.batchSize,
     required this.throttleMs,
+    this.shortcutBindings = defaultShortcutBindings,
   });
 
   final List<CategoryConfig> categories;
   final MessageFetchDirection fetchDirection;
   final int batchSize;
   final int throttleMs;
+  final Map<ShortcutAction, ShortcutBinding> shortcutBindings;
 
   static AppSettings defaults() {
     return const AppSettings(
@@ -25,8 +28,47 @@ class AppSettings {
       fetchDirection: MessageFetchDirection.latestFirst,
       batchSize: 5,
       throttleMs: 1200,
+      shortcutBindings: defaultShortcutBindings,
     );
   }
+
+  static const Map<ShortcutAction, ShortcutBinding> defaultShortcutBindings = {
+    ShortcutAction.classifyA: ShortcutBinding(
+      action: ShortcutAction.classifyA,
+      trigger: ShortcutTrigger.digit1,
+      ctrl: false,
+    ),
+    ShortcutAction.classifyB: ShortcutBinding(
+      action: ShortcutAction.classifyB,
+      trigger: ShortcutTrigger.digit2,
+      ctrl: false,
+    ),
+    ShortcutAction.classifyC: ShortcutBinding(
+      action: ShortcutAction.classifyC,
+      trigger: ShortcutTrigger.digit3,
+      ctrl: false,
+    ),
+    ShortcutAction.skipCurrent: ShortcutBinding(
+      action: ShortcutAction.skipCurrent,
+      trigger: ShortcutTrigger.keyS,
+      ctrl: false,
+    ),
+    ShortcutAction.undoLastStep: ShortcutBinding(
+      action: ShortcutAction.undoLastStep,
+      trigger: ShortcutTrigger.keyZ,
+      ctrl: false,
+    ),
+    ShortcutAction.retryNextFailed: ShortcutBinding(
+      action: ShortcutAction.retryNextFailed,
+      trigger: ShortcutTrigger.keyR,
+      ctrl: false,
+    ),
+    ShortcutAction.batchA: ShortcutBinding(
+      action: ShortcutAction.batchA,
+      trigger: ShortcutTrigger.keyB,
+      ctrl: true,
+    ),
+  };
 
   AppSettings updateCategory(CategoryConfig config) {
     final updated = categories
@@ -37,6 +79,7 @@ class AppSettings {
       fetchDirection: fetchDirection,
       batchSize: batchSize,
       throttleMs: throttleMs,
+      shortcutBindings: shortcutBindings,
     );
   }
 
@@ -46,6 +89,7 @@ class AppSettings {
       fetchDirection: direction,
       batchSize: batchSize,
       throttleMs: throttleMs,
+      shortcutBindings: shortcutBindings,
     );
   }
 
@@ -58,6 +102,22 @@ class AppSettings {
       fetchDirection: fetchDirection,
       batchSize: batchSize,
       throttleMs: throttleMs,
+      shortcutBindings: shortcutBindings,
+    );
+  }
+
+  AppSettings updateShortcutBinding(
+    ShortcutAction action,
+    ShortcutBinding binding,
+  ) {
+    final updated = Map<ShortcutAction, ShortcutBinding>.from(shortcutBindings);
+    updated[action] = binding;
+    return AppSettings(
+      categories: categories,
+      fetchDirection: fetchDirection,
+      batchSize: batchSize,
+      throttleMs: throttleMs,
+      shortcutBindings: Map.unmodifiable(updated),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 
 class SettingsController extends GetxController {
@@ -54,5 +55,44 @@ class SettingsController extends GetxController {
     );
     settings.value = updated;
     await _repository.save(updated);
+  }
+
+  Future<void> saveShortcutBinding({
+    required ShortcutAction action,
+    required ShortcutTrigger trigger,
+    required bool ctrl,
+  }) async {
+    _assertNoConflict(action: action, trigger: trigger, ctrl: ctrl);
+    final updated = settings.value.updateShortcutBinding(
+      action,
+      ShortcutBinding(action: action, trigger: trigger, ctrl: ctrl),
+    );
+    settings.value = updated;
+    await _repository.save(updated);
+  }
+
+  Future<void> resetShortcutDefaults() async {
+    var updated = settings.value;
+    for (final entry in AppSettings.defaultShortcutBindings.entries) {
+      updated = updated.updateShortcutBinding(entry.key, entry.value);
+    }
+    settings.value = updated;
+    await _repository.save(updated);
+  }
+
+  void _assertNoConflict({
+    required ShortcutAction action,
+    required ShortcutTrigger trigger,
+    required bool ctrl,
+  }) {
+    for (final entry in settings.value.shortcutBindings.entries) {
+      if (entry.key == action) {
+        continue;
+      }
+      final binding = entry.value;
+      if (binding.trigger == trigger && binding.ctrl == ctrl) {
+        throw StateError('快捷键冲突：${entry.key.name} 已使用该组合');
+      }
+    }
   }
 }

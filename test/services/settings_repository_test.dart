@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 
 void main() {
@@ -64,6 +65,41 @@ void main() {
 
       expect(prefs.getInt('pipeline_batch_size'), 12);
       expect(prefs.getInt('pipeline_throttle_ms'), 1800);
+    });
+
+    test('save persists shortcut bindings', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().updateShortcutBinding(
+        ShortcutAction.skipCurrent,
+        const ShortcutBinding(
+          action: ShortcutAction.skipCurrent,
+          trigger: ShortcutTrigger.keyB,
+          ctrl: true,
+        ),
+      );
+
+      await repo.save(settings);
+
+      expect(prefs.getString('shortcut_skipCurrent'), 'ctrl+keyB');
+    });
+
+    test('load falls back to defaults for invalid shortcut value', () async {
+      SharedPreferences.setMockInitialValues({'shortcut_skipCurrent': 'x+y'});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final settings = repo.load();
+
+      expect(
+        settings.shortcutBindings[ShortcutAction.skipCurrent]?.trigger,
+        ShortcutTrigger.keyS,
+      );
+      expect(
+        settings.shortcutBindings[ShortcutAction.skipCurrent]?.ctrl,
+        isFalse,
+      );
     });
   });
 }

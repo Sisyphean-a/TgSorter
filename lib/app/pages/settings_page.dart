@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/widgets/shortcut_bindings_editor.dart';
 
 class SettingsPage extends StatelessWidget {
   SettingsPage({super.key});
@@ -17,6 +18,7 @@ class SettingsPage extends StatelessWidget {
         final fetchDirection = controller.settings.value.fetchDirection;
         final batchSize = controller.settings.value.batchSize;
         final throttleMs = controller.settings.value.throttleMs;
+        final shortcuts = controller.settings.value.shortcutBindings;
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -30,6 +32,8 @@ class SettingsPage extends StatelessWidget {
               throttleMs: throttleMs,
               onSave: controller.saveBatchOptions,
             ),
+            const SizedBox(height: 8),
+            ShortcutBindingsEditor(controller: controller, bindings: shortcuts),
             const SizedBox(height: 8),
             for (final item in categories)
               _CategoryEditor(
@@ -142,7 +146,7 @@ class _FetchDirectionEditor extends StatelessWidget {
             const Text('消息拉取方向', style: TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
             DropdownButtonFormField<MessageFetchDirection>(
-              value: value,
+              initialValue: value,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               items: const [
                 DropdownMenuItem(
