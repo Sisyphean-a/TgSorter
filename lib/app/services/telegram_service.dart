@@ -20,6 +20,8 @@ class TdlibRequestException implements Exception {
 
 class TelegramService {
   static const int _downloadPriorityPhotoPreview = 16;
+  static const int _downloadPriorityVideoPreview = 17;
+  static const int _downloadPriorityVideoFile = 20;
   static const int _downloadOffsetStart = 0;
   static const int _downloadLimitUnlimited = 0;
   static const int _historyBatchSize = 100;
@@ -73,7 +75,7 @@ class TelegramService {
     if (message == null) {
       return null;
     }
-    await _ensurePhotoDownloadStarted(message.content);
+    await _ensureMediaDownloadsStarted(message.content);
     return _toPipelineMessage(message);
   }
 
@@ -121,11 +123,30 @@ class TelegramService {
     return fresh;
   }
 
-  Future<void> _ensurePhotoDownloadStarted(MessageContent content) async {
-    if (content is! MessagePhoto) {
+  Future<void> _ensureMediaDownloadsStarted(MessageContent content) async {
+    if (content is MessagePhoto) {
+      await _ensureFileDownloadStarted(
+        file: _pickPreviewPhotoFile(content.photo.sizes),
+        priority: _downloadPriorityPhotoPreview,
+      );
       return;
     }
-    final file = _pickPreviewPhotoFile(content.photo.sizes);
+    if (content is MessageVideo) {
+      await _ensureFileDownloadStarted(
+        file: content.video.thumbnail?.file,
+        priority: _downloadPriorityVideoPreview,
+      );
+      await _ensureFileDownloadStarted(
+        file: content.video.video,
+        priority: _downloadPriorityVideoFile,
+      );
+    }
+  }
+
+  Future<void> _ensureFileDownloadStarted({
+    required File? file,
+    required int priority,
+  }) async {
     if (file == null ||
         _isLocalFileReady(file.local) ||
         !file.local.canBeDownloaded) {
@@ -134,7 +155,7 @@ class TelegramService {
     final response = await _transport.send(
       DownloadFile(
         fileId: file.id,
-        priority: _downloadPriorityPhotoPreview,
+        priority: priority,
         offset: _downloadOffsetStart,
         limit: _downloadLimitUnlimited,
         synchronous: false,
