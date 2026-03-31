@@ -3,7 +3,15 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:tdlib/td_api.dart';
+import 'package:tdlib/td_api.dart'
+    show
+        FormattedText,
+        TextEntity,
+        TextEntityType,
+        TextEntityTypeEmailAddress,
+        TextEntityTypePhoneNumber,
+        TextEntityTypeTextUrl,
+        TextEntityTypeUrl;
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:url_launcher/url_launcher.dart';
