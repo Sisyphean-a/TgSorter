@@ -8,6 +8,8 @@ import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
+import 'package:tgsorter/app/services/td_json_logger.dart';
+import 'package:tgsorter/app/services/td_raw_transport.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
 import 'package:tgsorter/app/services/tdlib_schema_probe.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
@@ -17,7 +19,12 @@ Future<void> initDependencies() async {
   final settingsRepo = SettingsRepository(prefs);
   final journalRepo = OperationJournalRepository(prefs);
   final credentials = TdlibCredentials.fromEnvironment();
-  final transport = TdClientTransport();
+  final tdLogger = TdJsonLogger();
+  final rawTransport = TdRawTransport(logger: tdLogger);
+  final transport = TdClientTransport(
+    rawTransport: rawTransport,
+    logger: tdLogger,
+  );
   final runtimePaths = await resolveTdlibRuntimePaths();
   final adapter = TdlibAdapter(
     transport: transport,
@@ -36,6 +43,8 @@ Future<void> initDependencies() async {
 
   Get.put(settingsRepo, permanent: true);
   Get.put(journalRepo, permanent: true);
+  Get.put(tdLogger, permanent: true);
+  Get.put(rawTransport, permanent: true);
   Get.put(transport, permanent: true);
   Get.put(credentials, permanent: true);
   Get.put(adapter, permanent: true);
