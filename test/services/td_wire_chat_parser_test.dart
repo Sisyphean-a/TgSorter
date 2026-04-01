@@ -8,7 +8,7 @@ void main() {
       final dto = TdChatListDto.fromEnvelope(
         TdWireEnvelope.fromJson(<String, dynamic>{
           '@type': 'chats',
-          'chat_ids': [1, 2, 3],
+          'chat_ids': [1, '2', 3],
         }),
       );
 
@@ -37,7 +37,7 @@ void main() {
       final myId = TdOptionMyIdDto.fromEnvelope(
         TdWireEnvelope.fromJson(<String, dynamic>{
           '@type': 'optionValueInteger',
-          'value': 88,
+          'value': '88',
         }),
       );
 

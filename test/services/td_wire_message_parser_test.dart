@@ -10,7 +10,7 @@ void main() {
           '@type': 'messages',
           'messages': [
             {
-              'id': 1,
+              'id': '1',
               'content': {
                 '@type': 'messageText',
                 'text': {'text': 'hello', 'entities': []},
@@ -25,7 +25,7 @@ void main() {
                   'sizes': [
                     {
                       'photo': {
-                        'id': 11,
+                        'id': '11',
                         'local': {'path': '/tmp/p.jpg'},
                       },
                     },
@@ -39,15 +39,15 @@ void main() {
                 '@type': 'messageVideo',
                 'caption': {'text': '', 'entities': []},
                 'video': {
-                  'duration': 9,
+                  'duration': '9',
                   'thumbnail': {
                     'file': {
-                      'id': 31,
+                      'id': '31',
                       'local': {'path': '/tmp/t.jpg'},
                     },
                   },
                   'video': {
-                    'id': 32,
+                    'id': '32',
                     'local': {'path': '/tmp/v.mp4'},
                   },
                 },
@@ -80,7 +80,7 @@ void main() {
           '@type': 'messages',
           'messages': [
             {
-              'id': 777,
+              'id': '777',
               'content': {
                 '@type': 'messageText',
                 'text': {'text': 'ok', 'entities': []},

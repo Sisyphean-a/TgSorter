@@ -18,8 +18,9 @@ abstract final class TdResponseReader {
 
   static int readInt(Map<String, dynamic> source, String key) {
     final value = source[key];
-    if (value is int) {
-      return value;
+    final parsed = _parseInt(value);
+    if (parsed != null) {
+      return parsed;
     }
     throw TdResponseReadError('Missing required int at $key');
   }
@@ -52,5 +53,15 @@ abstract final class TdResponseReader {
       return Map<String, dynamic>.unmodifiable(value.cast<String, dynamic>());
     }
     throw TdResponseReadError('Missing required map at $key');
+  }
+
+  static int? _parseInt(Object? value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is String) {
+      return int.tryParse(value);
+    }
+    return null;
   }
 }

@@ -7,7 +7,14 @@ class TdChatListDto {
   factory TdChatListDto.fromEnvelope(TdWireEnvelope envelope) {
     final rawItems = TdResponseReader.readList(envelope.payload, 'chat_ids');
     return TdChatListDto(
-      chatIds: rawItems.map((item) => item as int).toList(growable: false),
+      chatIds: rawItems
+          .map(
+            (item) => TdResponseReader.readInt(
+              <String, dynamic>{'item': item},
+              'item',
+            ),
+          )
+          .toList(growable: false),
     );
   }
 

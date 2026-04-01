@@ -17,6 +17,7 @@ class TdJsonLogger {
       _sink = sink ?? _defaultSink;
 
   static const String loggerName = 'TdJsonLogger';
+  static const Set<String> _suppressedUpdateTypes = <String>{'updateOption'};
 
   final bool _isEnabled;
   final TdLogSink _sink;
@@ -44,6 +45,9 @@ class TdJsonLogger {
   }
 
   void logUpdate({required String type, required Object payload}) {
+    if (_suppressedUpdateTypes.contains(type)) {
+      return;
+    }
     _log('[TD UPDATE] type=$type payload=${_encodePayload(payload)}');
   }
 

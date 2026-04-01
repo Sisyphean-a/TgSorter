@@ -83,6 +83,68 @@ void main() {
       );
       expect(records.single.message, contains('payload={"@type":"ok"'));
     });
+
+    test('suppresses noisy updateOption logs by default', () {
+      final records = <_LogRecord>[];
+      final logger = TdJsonLogger(
+        isEnabled: true,
+        sink: ({
+          required String message,
+          required String name,
+          Object? error,
+          StackTrace? stackTrace,
+        }) {
+          records.add(
+            _LogRecord(
+              message: message,
+              name: name,
+              error: error,
+              stackTrace: stackTrace,
+            ),
+          );
+        },
+      );
+
+      logger.logUpdate(
+        type: 'updateOption',
+        payload: <String, dynamic>{
+          '@type': 'updateOption',
+          'name': 'bio_length_max',
+        },
+      );
+
+      expect(records, isEmpty);
+    });
+
+    test('keeps structural updates visible', () {
+      final records = <_LogRecord>[];
+      final logger = TdJsonLogger(
+        isEnabled: true,
+        sink: ({
+          required String message,
+          required String name,
+          Object? error,
+          StackTrace? stackTrace,
+        }) {
+          records.add(
+            _LogRecord(
+              message: message,
+              name: name,
+              error: error,
+              stackTrace: stackTrace,
+            ),
+          );
+        },
+      );
+
+      logger.logUpdate(
+        type: 'updateNewChat',
+        payload: <String, dynamic>{'@type': 'updateNewChat'},
+      );
+
+      expect(records, hasLength(1));
+      expect(records.single.message, contains('type=updateNewChat'));
+    });
   });
 }
 
