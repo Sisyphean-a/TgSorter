@@ -1,8 +1,9 @@
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
+import 'package:tgsorter/app/services/td_wire_message.dart';
 
-typedef TdlibProbeSend = Future<TdObject> Function(TdFunction function);
+typedef TdlibProbeSend = Future<TdWireEnvelope> Function(TdFunction function);
 
 class TdlibSchemaProbe {
   const TdlibSchemaProbe({required TdlibProbeSend send}) : _send = send;
@@ -18,7 +19,7 @@ class TdlibSchemaProbe {
         type: const ProxyTypeSocks5(username: '', password: ''),
       ),
     );
-    if (response is Ok) {
+    if (response.type == 'ok') {
       return const TdlibSchemaCapabilities(
         addProxyMode: TdlibAddProxyMode.flatArgs,
       );
@@ -28,24 +29,24 @@ class TdlibSchemaProbe {
         addProxyMode: TdlibAddProxyMode.nestedProxyObject,
       );
     }
-    if (response is TdError) {
+    if (response.isError) {
       throw TdlibFailure.tdError(
-        code: response.code,
-        message: response.message,
+        code: response.errorCode ?? 0,
+        message: response.errorMessage ?? 'Unknown TDLib error',
         request: 'addProxy',
         phase: TdlibPhase.startup,
       );
     }
     throw TdlibFailure.transport(
-      message: 'Unexpected schema probe response: ${response.getConstructor()}',
+      message: 'Unexpected schema probe response: ${response.type}',
       request: 'addProxy',
       phase: TdlibPhase.startup,
     );
   }
 
-  bool _isLegacyProxyShapeError(TdObject object) {
-    return object is TdError &&
-        object.code == 400 &&
-        object.message == 'Proxy must be non-empty';
+  bool _isLegacyProxyShapeError(TdWireEnvelope object) {
+    return object.isError &&
+        object.errorCode == 400 &&
+        object.errorMessage == 'Proxy must be non-empty';
   }
 }

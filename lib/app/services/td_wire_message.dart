@@ -1,3 +1,5 @@
+import 'package:tdlib/td_api.dart';
+
 class TdWireEnvelope {
   const TdWireEnvelope({
     required this.payload,
@@ -22,6 +24,18 @@ class TdWireEnvelope {
       errorCode: errorCode,
       errorMessage: errorMessage,
     );
+  }
+
+  factory TdWireEnvelope.fromTdObject(TdObject object) {
+    final payload = Map<String, dynamic>.from(object.toJson());
+    payload['@type'] ??= object.getConstructor();
+    if (object.extra != null) {
+      payload['@extra'] ??= object.extra;
+    }
+    if (object.clientId != null) {
+      payload['@client_id'] ??= object.clientId;
+    }
+    return TdWireEnvelope.fromJson(payload);
   }
 
   final Map<String, dynamic> payload;

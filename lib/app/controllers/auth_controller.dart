@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
-import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
+import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
@@ -26,7 +26,7 @@ class AuthController extends GetxController {
   final startupError = RxnString();
   final errorHistory = <String>[].obs;
 
-  StreamSubscription<AuthorizationState>? _authSub;
+  StreamSubscription<TdAuthState>? _authSub;
 
   @override
   void onInit() {
@@ -87,20 +87,20 @@ class AuthController extends GetxController {
     }
   }
 
-  void _onAuthState(AuthorizationState state) {
-    if (state is AuthorizationStateWaitPhoneNumber) {
+  void _onAuthState(TdAuthState state) {
+    if (state.kind == TdAuthStateKind.waitPhoneNumber) {
       stage.value = AuthStage.waitPhone;
       return;
     }
-    if (state is AuthorizationStateWaitCode) {
+    if (state.kind == TdAuthStateKind.waitCode) {
       stage.value = AuthStage.waitCode;
       return;
     }
-    if (state is AuthorizationStateWaitPassword) {
+    if (state.kind == TdAuthStateKind.waitPassword) {
       stage.value = AuthStage.waitPassword;
       return;
     }
-    if (state is AuthorizationStateReady) {
+    if (state.kind == TdAuthStateKind.ready) {
       stage.value = AuthStage.ready;
       Get.offNamed('/pipeline');
       return;

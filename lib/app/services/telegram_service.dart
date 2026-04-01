@@ -4,8 +4,12 @@ import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/td_auth_state.dart';
+import 'package:tgsorter/app/services/td_chat_dto.dart';
+import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
+import 'package:tgsorter/app/services/td_message_dto.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class TelegramService implements TelegramGateway {
@@ -29,10 +33,10 @@ class TelegramService implements TelegramGateway {
   int? _selfChatId;
 
   @override
-  Stream<AuthorizationState> get authStates => _adapter.authorizationStates;
+  Stream<TdAuthState> get authStates => _adapter.authorizationStates;
 
   @override
-  Stream<ConnectionState> get connectionStates => _adapter.connectionStates;
+  Stream<TdConnectionState> get connectionStates => _adapter.connectionStates;
 
   @override
   Future<void> start() => _adapter.start();
@@ -52,23 +56,21 @@ class TelegramService implements TelegramGateway {
   Future<List<SelectableChat>> listSelectableChats() async {
     await _requireAuthorizationReady();
     await _loadChatsMainUntilDone();
-    final object = await _adapter.send(
+    final envelope = await _adapter.sendWire(
       const GetChats(chatList: ChatListMain(), limit: _chatListLimit),
       request: 'getChats(main)',
       phase: TdlibPhase.business,
     );
-    if (object is! Chats) {
-      throw StateError('GetChats 返回类型异常: ${object.getConstructor()}');
-    }
+    final chats = TdChatListDto.fromEnvelope(envelope);
     final result = <SelectableChat>[];
     final failedChatIds = <int>[];
-    for (final chatId in object.chatIds) {
+    for (final chatId in chats.chatIds) {
       final chat = await _tryLoadChat(chatId);
       if (chat == null) {
         failedChatIds.add(chatId);
         continue;
       }
-      if (!_isSelectableChatType(chat.type)) {
+      if (!chat.isSelectable) {
         continue;
       }
       result.add(SelectableChat(id: chat.id, title: chat.title));
@@ -129,7 +131,7 @@ class TelegramService implements TelegramGateway {
   }) async {
     await _requireAuthorizationReady();
     final actualSourceChatId = await _resolveSourceChatId(sourceChatId);
-    final object = await _adapter.send(
+    final envelope = await _adapter.sendWire(
       ForwardMessages(
         chatId: targetChatId,
         messageThreadId: 0,
@@ -143,10 +145,11 @@ class TelegramService implements TelegramGateway {
       request: 'forwardMessages',
       phase: TdlibPhase.business,
     );
-    if (object is! Messages || object.messages.isEmpty) {
+    final forwarded = TdMessagesDto.fromEnvelope(envelope);
+    if (forwarded.messages.isEmpty) {
       throw StateError('forwardMessages 返回异常，无法提取目标消息 ID');
     }
-    final targetMessageId = object.messages.first.id;
+    final targetMessageId = forwarded.messages.first.id;
 
     await _sendExpectOk(
       DeleteMessages(
@@ -173,7 +176,7 @@ class TelegramService implements TelegramGateway {
     required int targetMessageId,
   }) async {
     await _requireAuthorizationReady();
-    final object = await _adapter.send(
+    final envelope = await _adapter.sendWire(
       ForwardMessages(
         chatId: sourceChatId,
         messageThreadId: 0,
@@ -187,8 +190,9 @@ class TelegramService implements TelegramGateway {
       request: 'forwardMessages',
       phase: TdlibPhase.business,
     );
-    if (object is! Messages) {
-      throw StateError('undo forward 返回非 Messages: ${object.getConstructor()}');
+    final forwarded = TdMessagesDto.fromEnvelope(envelope);
+    if (forwarded.messages.isEmpty) {
+      throw StateError('undo forward 返回空消息列表');
     }
     await _sendExpectOk(
       DeleteMessages(
@@ -202,25 +206,25 @@ class TelegramService implements TelegramGateway {
   }
 
   Future<void> _loadSelfChatId() async {
-    final option = await _adapter.send(
+    final option = await _adapter.sendWire(
       const GetOption(name: 'my_id'),
       request: 'getOption(my_id)',
       phase: TdlibPhase.business,
     );
-    if (option is OptionValueInteger && option.value > 0) {
-      _selfChatId = option.value;
-      return;
+    if (option.type == 'optionValueInteger') {
+      final myId = TdOptionMyIdDto.fromEnvelope(option);
+      if (myId.value > 0) {
+        _selfChatId = myId.value;
+        return;
+      }
     }
-    final object = await _adapter.send(
+    final me = await _adapter.sendWire(
       const GetMe(),
       request: 'getMe',
       phase: TdlibPhase.business,
       timeout: _getMeTimeout,
     );
-    if (object is! User) {
-      throw StateError('GetMe 返回类型异常: ${object.getConstructor()}');
-    }
-    _selfChatId = object.id;
+    _selfChatId = TdSelfDto.fromEnvelope(me).id;
   }
 
   Future<int> _requireSelfChatId() async {
@@ -243,38 +247,40 @@ class TelegramService implements TelegramGateway {
     return _requireSelfChatId();
   }
 
-  Future<void> _ensureMediaDownloadsStarted(MessageContent content) async {
-    if (content is MessagePhoto) {
+  Future<void> _ensureMediaDownloadsStarted(TdMessageContentDto content) async {
+    if (content.kind == TdMessageContentKind.photo) {
       await _ensureFileDownloadStarted(
-        file: _pickPreviewPhotoFile(content.photo.sizes),
+        fileId: content.remoteImageFileId,
+        localPath: content.localImagePath,
         priority: _downloadPriorityPhotoPreview,
       );
       return;
     }
-    if (content is MessageVideo) {
+    if (content.kind == TdMessageContentKind.video) {
       await _ensureFileDownloadStarted(
-        file: content.video.thumbnail?.file,
+        fileId: content.remoteVideoThumbnailFileId,
+        localPath: content.localVideoThumbnailPath,
         priority: _downloadPriorityVideoPreview,
       );
       await _ensureFileDownloadStarted(
-        file: content.video.video,
+        fileId: content.remoteVideoFileId,
+        localPath: content.localVideoPath,
         priority: _downloadPriorityVideoFile,
       );
     }
   }
 
   Future<void> _ensureFileDownloadStarted({
-    required File? file,
+    required int? fileId,
+    required String? localPath,
     required int priority,
   }) async {
-    if (file == null ||
-        _isLocalFileReady(file.local) ||
-        !file.local.canBeDownloaded) {
+    if (fileId == null || (localPath != null && localPath.isNotEmpty)) {
       return;
     }
-    await _adapter.send(
+    await _adapter.sendWire(
       DownloadFile(
-        fileId: file.id,
+        fileId: fileId,
         priority: priority,
         offset: _downloadOffsetStart,
         limit: _downloadLimitUnlimited,
@@ -285,7 +291,7 @@ class TelegramService implements TelegramGateway {
     );
   }
 
-  Future<Message?> _fetchSavedMessage({
+  Future<TdMessageDto?> _fetchSavedMessage({
     required int chatId,
     required MessageFetchDirection direction,
   }) async {
@@ -295,7 +301,7 @@ class TelegramService implements TelegramGateway {
     return _fetchLatestSavedMessage(chatId);
   }
 
-  Future<Message?> _fetchLatestSavedMessage(int chatId) async {
+  Future<TdMessageDto?> _fetchLatestSavedMessage(int chatId) async {
     final messages = await _fetchHistoryPage(
       chatId: chatId,
       fromMessageId: 0,
@@ -307,9 +313,9 @@ class TelegramService implements TelegramGateway {
     return messages.first;
   }
 
-  Future<Message?> _fetchOldestSavedMessage(int chatId) async {
+  Future<TdMessageDto?> _fetchOldestSavedMessage(int chatId) async {
     var fromMessageId = 0;
-    Message? oldest;
+    TdMessageDto? oldest;
 
     while (true) {
       final page = await _fetchHistoryPage(
@@ -333,12 +339,12 @@ class TelegramService implements TelegramGateway {
     }
   }
 
-  Future<List<Message>> _fetchHistoryPage({
+  Future<List<TdMessageDto>> _fetchHistoryPage({
     required int chatId,
     required int fromMessageId,
     required int limit,
   }) async {
-    final object = await _adapter.send(
+    final envelope = await _adapter.sendWire(
       GetChatHistory(
         chatId: chatId,
         fromMessageId: fromMessageId,
@@ -349,13 +355,10 @@ class TelegramService implements TelegramGateway {
       request: 'getChatHistory',
       phase: TdlibPhase.business,
     );
-    if (object is! Messages) {
-      throw StateError('GetChatHistory 返回类型异常: ${object.getConstructor()}');
-    }
-    return object.messages;
+    return TdMessagesDto.fromEnvelope(envelope).messages;
   }
 
-  PipelineMessage _toPipelineMessage(Message message, int sourceChatId) {
+  PipelineMessage _toPipelineMessage(TdMessageDto message, int sourceChatId) {
     return PipelineMessage(
       id: message.id,
       sourceChatId: sourceChatId,
@@ -363,20 +366,17 @@ class TelegramService implements TelegramGateway {
     );
   }
 
-  Future<Chat> _loadChat(int chatId) async {
-    final object = await _adapter.send(
+  Future<TdChatDto> _loadChat(int chatId) async {
+    final envelope = await _adapter.sendWire(
       GetChat(chatId: chatId),
       request: 'getChat($chatId)',
       phase: TdlibPhase.business,
       timeout: _getChatTimeout,
     );
-    if (object is! Chat) {
-      throw StateError('GetChat 返回类型异常: ${object.getConstructor()}');
-    }
-    return object;
+    return TdChatDto.fromEnvelope(envelope);
   }
 
-  Future<Chat?> _tryLoadChat(int chatId) async {
+  Future<TdChatDto?> _tryLoadChat(int chatId) async {
     try {
       return await _loadChat(chatId);
     } catch (error, stack) {
@@ -390,36 +390,18 @@ class TelegramService implements TelegramGateway {
     }
   }
 
-  bool _isSelectableChatType(ChatType type) {
-    return type is ChatTypeBasicGroup || type is ChatTypeSupergroup;
-  }
-
-  File? _pickPreviewPhotoFile(List<PhotoSize> sizes) {
-    if (sizes.isEmpty) {
-      return null;
-    }
-    return sizes.last.photo;
-  }
-
-  bool _isLocalFileReady(LocalFile local) {
-    return local.isDownloadingCompleted && local.path.isNotEmpty;
-  }
-
   Future<void> _sendExpectOk(
     TdFunction function, {
     required String request,
     required TdlibPhase phase,
     Duration timeout = _defaultTimeout,
   }) async {
-    final object = await _adapter.send(
+    await _adapter.sendWireExpectOk(
       function,
       request: request,
       phase: phase,
       timeout: timeout,
     );
-    if (object is! Ok) {
-      throw StateError('请求返回非 Ok: ${object.getConstructor()}');
-    }
   }
 
   Future<void> _sendExpectOkWithContext(
@@ -427,15 +409,12 @@ class TelegramService implements TelegramGateway {
     required String requestLabel,
     Duration timeout = _defaultTimeout,
   }) async {
-    final object = await _adapter.send(
+    await _adapter.sendWireExpectOk(
       function,
       request: requestLabel,
       phase: TdlibPhase.business,
       timeout: timeout,
     );
-    if (object is! Ok) {
-      throw StateError('请求返回非 Ok: ${object.getConstructor()}');
-    }
   }
 
   Future<void> _requireAuthorizationReady() {

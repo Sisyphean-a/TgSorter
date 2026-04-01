@@ -2,25 +2,32 @@ import 'dart:async';
 
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
+import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_adapter_support.dart';
+import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/tdlib_auth_manager.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/tdlib_proxy_manager.dart';
+import 'package:tgsorter/app/services/td_proxy_dto.dart';
 import 'package:tgsorter/app/services/tdlib_request_executor.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
 import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
+import 'package:tgsorter/app/services/td_raw_transport.dart';
+import 'package:tgsorter/app/services/td_wire_message.dart';
 
 export 'package:tgsorter/app/services/tdlib_adapter_support.dart';
 
 class TdlibAdapter {
   TdlibAdapter({
     required TdTransport transport,
+    TdRawTransport? rawTransport,
     required TdlibCredentials credentials,
     required TdlibRuntimePaths runtimePaths,
     required TdlibCapabilitiesDetector detectCapabilities,
     required TdlibInitializer initializeTdlib,
   }) : _transport = transport,
+       _rawTransport = rawTransport,
        _credentials = credentials,
        _runtimePaths = runtimePaths,
        _detectCapabilities = detectCapabilities,
@@ -28,12 +35,14 @@ class TdlibAdapter {
 
   static const Duration _defaultTimeout = Duration(seconds: 20);
   final TdTransport _transport;
+  final TdRawTransport? _rawTransport;
   final TdlibCredentials _credentials;
   final TdlibRuntimePaths _runtimePaths;
   final TdlibCapabilitiesDetector _detectCapabilities;
   final TdlibInitializer _initializeTdlib;
   late final TdlibRequestExecutor _requestExecutor = TdlibRequestExecutor(
     transport: _transport,
+    rawTransport: _rawTransport,
   );
   late final TdlibProxyManager _proxyManager = TdlibProxyManager(
     transport: _transport,
@@ -44,10 +53,10 @@ class TdlibAdapter {
     requestExecutor: _requestExecutor,
   );
 
-  final _authStateController = StreamController<AuthorizationState>.broadcast(
+  final _authStateController = StreamController<TdAuthState>.broadcast(
     sync: true,
   );
-  final _connectionController = StreamController<ConnectionState>.broadcast(
+  final _connectionController = StreamController<TdConnectionState>.broadcast(
     sync: true,
   );
   final _startupController = StreamController<TdlibStartupState>.broadcast(
@@ -64,9 +73,9 @@ class TdlibAdapter {
   TdlibSchemaCapabilities? _capabilities;
   TdlibLifecycleState _lifecycleState = TdlibLifecycleState.idle;
 
-  Stream<AuthorizationState> get authorizationStates =>
-      _authStateController.stream;
-  Stream<ConnectionState> get connectionStates => _connectionController.stream;
+  Stream<TdAuthState> get authorizationStates => _authStateController.stream;
+  Stream<TdConnectionState> get connectionStates =>
+      _connectionController.stream;
   Stream<TdlibStartupState> get startupStates => _startupController.stream;
   Stream<TdlibLifecycleState> get lifecycleStates =>
       _lifecycleController.stream;
@@ -93,14 +102,14 @@ class TdlibAdapter {
       );
       _capabilities ??= await _detectCapabilities();
       final state = await _getAuthorizationState();
-      if (state is AuthorizationStateWaitTdlibParameters) {
+      if (state.needsTdlibParameters) {
         _emitStartup(TdlibStartupState.setParams);
         await _setTdlibParameters();
       }
       _emitStartup(TdlibStartupState.setProxy);
       await _syncProxy();
       _emitStartup(TdlibStartupState.auth);
-      if (state is AuthorizationStateReady) {
+      if (state.isReady) {
         _recordAuthorizationState(state);
         _emitStartup(TdlibStartupState.ready);
       }
@@ -161,7 +170,7 @@ class TdlibAdapter {
   Future<void> submitPassword(String password) =>
       _authManager.submitPassword(password);
 
-  Future<Proxies> getProxies() async {
+  Future<TdProxyList> getProxies() async {
     return _proxyManager.getProxies();
   }
 
@@ -187,6 +196,30 @@ class TdlibAdapter {
     timeout: timeout,
   );
 
+  Future<TdWireEnvelope> sendWire(
+    TdFunction function, {
+    required String request,
+    required TdlibPhase phase,
+    Duration timeout = _defaultTimeout,
+  }) => _requestExecutor.sendWire(
+    function,
+    request: request,
+    phase: phase,
+    timeout: timeout,
+  );
+
+  Future<void> sendWireExpectOk(
+    TdFunction function, {
+    required String request,
+    required TdlibPhase phase,
+    Duration timeout = _defaultTimeout,
+  }) => _requestExecutor.sendWireExpectOk(
+    function,
+    request: request,
+    phase: phase,
+    timeout: timeout,
+  );
+
   Future<void> waitUntilReady() {
     if (_authorizationReady.isCompleted) {
       return Future<void>.value();
@@ -194,7 +227,7 @@ class TdlibAdapter {
     return _authorizationReady.future;
   }
 
-  Future<AuthorizationState> _getAuthorizationState() async {
+  Future<TdAuthState> _getAuthorizationState() async {
     final object = await send(
       const GetAuthorizationState(),
       request: 'getAuthorizationState',
@@ -205,8 +238,9 @@ class TdlibAdapter {
         'GetAuthorizationState 返回类型异常: ${object.getConstructor()}',
       );
     }
-    _authStateController.add(object);
-    return object;
+    final state = TdAuthState.fromTdObject(object);
+    _authStateController.add(state);
+    return state;
   }
 
   Future<void> _setTdlibParameters() {
@@ -256,12 +290,13 @@ class TdlibAdapter {
 
   void _handleUpdate(TdObject update) {
     if (update is UpdateAuthorizationState) {
-      _authStateController.add(update.authorizationState);
-      _recordAuthorizationState(update.authorizationState);
+      final state = TdAuthState.fromTdObject(update.authorizationState);
+      _authStateController.add(state);
+      _recordAuthorizationState(state);
       return;
     }
     if (update is UpdateConnectionState) {
-      _connectionController.add(update.state);
+      _connectionController.add(TdConnectionState.fromTdObject(update.state));
     }
   }
 
@@ -277,15 +312,15 @@ class TdlibAdapter {
     _connectionController.addError(failure, stackTrace);
   }
 
-  void _recordAuthorizationState(AuthorizationState state) {
-    if (state is AuthorizationStateReady) {
+  void _recordAuthorizationState(TdAuthState state) {
+    if (state.isReady) {
       if (!_authorizationReady.isCompleted) {
         _authorizationReady.complete();
       }
       _emitStartup(TdlibStartupState.ready);
       return;
     }
-    if (state is AuthorizationStateClosed) {
+    if (state.isClosed) {
       _completeClose();
       _emitStartup(TdlibStartupState.closed);
     }

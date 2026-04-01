@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/controllers/auth_controller.dart';
 import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
@@ -14,6 +13,8 @@ import 'package:tgsorter/app/pages/auth_page.dart';
 import 'package:tgsorter/app/pages/pipeline_page.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
+import 'package:tgsorter/app/services/td_auth_state.dart';
+import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void main() {
@@ -50,7 +51,12 @@ void main() {
       ),
     );
     await tester.pump();
-    service.emitAuthState(const AuthorizationStateReady());
+    service.emitAuthState(
+      const TdAuthState(
+        kind: TdAuthStateKind.ready,
+        rawType: 'authorizationStateReady',
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('TgSorter 分发流水线'), findsOneWidget);
@@ -62,21 +68,26 @@ void main() {
 }
 
 class _IntegrationFakeGateway implements TelegramGateway {
-  final _authController = StreamController<AuthorizationState>.broadcast();
-  final _connectionController = StreamController<ConnectionState>.broadcast();
+  final _authController = StreamController<TdAuthState>.broadcast();
+  final _connectionController = StreamController<TdConnectionState>.broadcast();
 
   @override
-  Stream<AuthorizationState> get authStates => _authController.stream;
+  Stream<TdAuthState> get authStates => _authController.stream;
 
   @override
-  Stream<ConnectionState> get connectionStates => _connectionController.stream;
+  Stream<TdConnectionState> get connectionStates => _connectionController.stream;
 
-  void emitAuthState(AuthorizationState state) {
+  void emitAuthState(TdAuthState state) {
     _authController.add(state);
   }
 
   void emitConnectionReady() {
-    _connectionController.add(const ConnectionStateReady());
+    _connectionController.add(
+      const TdConnectionState(
+        kind: TdConnectionStateKind.ready,
+        rawType: 'connectionStateReady',
+      ),
+    );
   }
 
   @override

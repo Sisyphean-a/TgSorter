@@ -3,6 +3,7 @@ import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/tdlib_adapter_support.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
+import 'package:tgsorter/app/services/td_proxy_dto.dart';
 import 'package:tgsorter/app/services/tdlib_request_executor.dart';
 import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 
@@ -19,17 +20,14 @@ class TdlibProxyManager {
   final TdlibCredentials _credentials;
   final TdlibRequestExecutor _requestExecutor;
 
-  Future<Proxies> getProxies() async {
-    final object = await _requestExecutor.send(
+  Future<TdProxyList> getProxies() async {
+    final envelope = await _requestExecutor.sendWire(
       const GetProxies(),
       request: 'getProxies',
       phase: TdlibPhase.startup,
       timeout: const Duration(seconds: 20),
     );
-    if (object is! Proxies) {
-      throw StateError('GetProxies 返回类型异常: ${object.getConstructor()}');
-    }
-    return object;
+    return TdProxyList.fromEnvelope(envelope);
   }
 
   Future<void> addProxy(TdlibSchemaCapabilities capabilities) async {
@@ -39,7 +37,7 @@ class TdlibProxyManager {
       throw StateError('代理未配置，无法执行 addProxy');
     }
     if (capabilities.addProxyMode == TdlibAddProxyMode.flatArgs) {
-      await _requestExecutor.sendExpectOk(
+      await _requestExecutor.sendWireExpectOk(
         AddProxy(
           server: server,
           port: port,
@@ -77,7 +75,7 @@ class TdlibProxyManager {
   }
 
   Future<void> disableProxy() {
-    return _requestExecutor.sendExpectOk(
+    return _requestExecutor.sendWireExpectOk(
       const DisableProxy(),
       request: 'disableProxy',
       phase: TdlibPhase.startup,

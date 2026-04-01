@@ -3,17 +3,9 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:tdlib/td_api.dart'
-    show
-        FormattedText,
-        TextEntity,
-        TextEntityType,
-        TextEntityTypeEmailAddress,
-        TextEntityTypePhoneNumber,
-        TextEntityTypeTextUrl,
-        TextEntityTypeUrl;
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/td_message_dto.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
@@ -162,7 +154,7 @@ class _PreviewText extends StatefulWidget {
     required this.fontSize,
   });
 
-  final FormattedText? text;
+  final TdFormattedTextDto? text;
   final String fallbackText;
   final double fontSize;
 
@@ -202,7 +194,7 @@ class _PreviewTextState extends State<_PreviewText> {
     );
   }
 
-  List<InlineSpan> _buildSpans(BuildContext context, FormattedText text) {
+  List<InlineSpan> _buildSpans(BuildContext context, TdFormattedTextDto text) {
     final spans = <InlineSpan>[];
     final entities = [...text.entities]
       ..sort((a, b) => a.offset.compareTo(b.offset));
@@ -232,10 +224,10 @@ class _PreviewTextState extends State<_PreviewText> {
 
   TextSpan _buildEntitySpan(
     BuildContext context,
-    TextEntity entity,
+    TdTextEntityDto entity,
     String entityText,
   ) {
-    final link = _toLink(entity.type, entityText);
+    final link = _toLink(entity, entityText);
     if (link == null) {
       return TextSpan(text: entityText);
     }
@@ -252,17 +244,17 @@ class _PreviewTextState extends State<_PreviewText> {
     );
   }
 
-  String? _toLink(TextEntityType type, String text) {
-    if (type is TextEntityTypeTextUrl) {
-      return type.url;
+  String? _toLink(TdTextEntityDto entity, String text) {
+    if (entity.kind == TdTextEntityKind.textUrl) {
+      return entity.url;
     }
-    if (type is TextEntityTypeUrl) {
+    if (entity.kind == TdTextEntityKind.url) {
       return text;
     }
-    if (type is TextEntityTypeEmailAddress) {
+    if (entity.kind == TdTextEntityKind.emailAddress) {
       return 'mailto:$text';
     }
-    if (type is TextEntityTypePhoneNumber) {
+    if (entity.kind == TdTextEntityKind.phoneNumber) {
       return 'tel:$text';
     }
     return null;

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
@@ -12,6 +11,8 @@ import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
+import 'package:tgsorter/app/services/td_auth_state.dart';
+import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void main() {
@@ -92,20 +93,25 @@ void main() {
 }
 
 class _FakeTelegramService implements TelegramGateway {
-  final _connectionController = StreamController<ConnectionState>.broadcast();
+  final _connectionController = StreamController<TdConnectionState>.broadcast();
 
   final List<PipelineMessage?> nextMessages = <PipelineMessage?>[];
   final List<int> classifiedMessageIds = <int>[];
   int? lastFetchSourceChatId;
 
   @override
-  Stream<AuthorizationState> get authStates => const Stream.empty();
+  Stream<TdAuthState> get authStates => const Stream.empty();
 
   @override
-  Stream<ConnectionState> get connectionStates => _connectionController.stream;
+  Stream<TdConnectionState> get connectionStates => _connectionController.stream;
 
   void emitConnectionReady() {
-    _connectionController.add(const ConnectionStateReady());
+    _connectionController.add(
+      const TdConnectionState(
+        kind: TdConnectionStateKind.ready,
+        rawType: 'connectionStateReady',
+      ),
+    );
   }
 
   @override

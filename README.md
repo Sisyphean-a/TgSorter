@@ -6,6 +6,7 @@ TgSorter 是一个基于 Flutter + TDLib 的 Android 工具应用，目标是把
 
 - 单向流水线：一次只处理 1 条消息，避免 UI 和状态并发导致误操作。
 - TDLib 原生接入：仅使用 TDLib，不走 Bot API。
+- Raw JSON 调试优先：请求、响应、更新、解析失败都直接输出完整 payload，便于定位 schema 漂移。
 - 操作可见：遇到 FloodWait、断网、配置缺失时直接报错提示，不做静默降级。
 - 迭代优先：先搭建可运行骨架和核心闭环，再逐步完善更多消息类型和体验细节。
 
@@ -13,9 +14,10 @@ TgSorter 是一个基于 Flutter + TDLib 的 Android 工具应用，目标是把
 
 - Flutter Android 项目骨架。
 - TDLib 低层传输层：
-  - `tdCreate/tdSend/tdReceive` 轮询；
+  - `tdCreate/tdSend/tdReceive` raw JSON 轮询；
   - 通过 `@extra` 做请求-响应关联；
-  - 提供授权状态/连接状态更新流。
+  - 提供授权状态/连接状态更新流；
+  - 在 debug 模式输出完整 `TD SEND / TD RECV / TD UPDATE / TD PARSE ERROR` 日志。
 - 授权流程（基础版）：
   - `authorizationStateWaitPhoneNumber` 输入手机号；
   - `authorizationStateWaitCode` 输入验证码；
@@ -107,6 +109,21 @@ flutter run \
    - 直接按 `F5`；
    - 选择 `TgSorter (env.local debug)`；
    - 将自动携带 `--dart-define-from-file=.env.local.json`。
+
+## 调试日志
+
+F5 调试时，TDLib raw JSON 日志会直接出现在 VS Code / Flutter Debug Console。
+
+- 发送请求：`[TD SEND] request=... extra=... payload={...}`
+- 收到请求响应：`[TD RECV] type=... extra=... payload={...}`
+- 收到更新：`[TD UPDATE] type=... payload={...}`
+- 解析失败：`[TD PARSE ERROR] stage=... reason=... payload={...}`
+
+说明：
+
+- debug 模式默认输出完整 payload；
+- release 模式不要求输出完整调试日志；
+- 后续若 TDLib DLL schema 与 Dart 侧预期不一致，优先查看这里的原始 JSON。
 
 ### Windows 桌面端额外要求
 

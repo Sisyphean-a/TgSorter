@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:get/get.dart';
-import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
@@ -9,6 +8,7 @@ import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
+import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
@@ -32,7 +32,7 @@ class PipelineController extends GetxController {
   final logs = <ClassifyOperationLog>[].obs;
   final retryQueue = <RetryQueueItem>[].obs;
 
-  StreamSubscription<ConnectionState>? _connectionSub;
+  StreamSubscription<TdConnectionState>? _connectionSub;
   ClassifyReceipt? _lastSuccessReceipt;
 
   @override
@@ -41,10 +41,8 @@ class PipelineController extends GetxController {
     logs.assignAll(_journalRepository.loadLogs());
     retryQueue.assignAll(_journalRepository.loadRetryQueue());
     _connectionSub = _service.connectionStates.listen((state) {
-      isOnline.value = state is ConnectionStateReady;
-      if (state is ConnectionStateReady &&
-          currentMessage.value == null &&
-          !loading.value) {
+      isOnline.value = state.isReady;
+      if (state.isReady && currentMessage.value == null && !loading.value) {
         unawaited(fetchNext());
       }
     });

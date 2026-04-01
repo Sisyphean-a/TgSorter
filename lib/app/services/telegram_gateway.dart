@@ -1,6 +1,7 @@
-import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/td_auth_state.dart';
+import 'package:tgsorter/app/services/td_connection_state.dart';
 
 class SelectableChat {
   const SelectableChat({required this.id, required this.title});
@@ -24,8 +25,8 @@ class ClassifyReceipt {
 }
 
 abstract class TelegramGateway {
-  Stream<AuthorizationState> get authStates;
-  Stream<ConnectionState> get connectionStates;
+  Stream<TdAuthState> get authStates;
+  Stream<TdConnectionState> get connectionStates;
 
   Future<void> start();
   Future<void> submitPhoneNumber(String phoneNumber);

@@ -12,6 +12,7 @@ import 'package:tgsorter/app/services/td_json_logger.dart';
 import 'package:tgsorter/app/services/td_raw_transport.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
 import 'package:tgsorter/app/services/tdlib_schema_probe.dart';
+import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
 
 Future<void> initDependencies() async {
@@ -28,12 +29,17 @@ Future<void> initDependencies() async {
   final runtimePaths = await resolveTdlibRuntimePaths();
   final adapter = TdlibAdapter(
     transport: transport,
+    rawTransport: rawTransport,
     credentials: credentials,
     runtimePaths: runtimePaths,
     detectCapabilities: () {
       final probe = TdlibSchemaProbe(
-        send: (function) =>
-            transport.sendWithTimeout(function, const Duration(seconds: 8)),
+        send: (function) async => TdWireEnvelope.fromJson(
+          await rawTransport.send(
+            function,
+            timeout: const Duration(seconds: 8),
+          ),
+        ),
       );
       return probe.detect();
     },

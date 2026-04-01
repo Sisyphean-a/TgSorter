@@ -3,6 +3,7 @@ import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 import 'package:tgsorter/app/services/tdlib_schema_probe.dart';
+import 'package:tgsorter/app/services/td_wire_message.dart';
 
 void main() {
   group('TdlibSchemaProbe', () {
@@ -11,7 +12,7 @@ void main() {
       final probe = TdlibSchemaProbe(
         send: (function) async {
           requests.add(function);
-          return const Ok();
+          return TdWireEnvelope.fromTdObject(const Ok());
         },
       );
 
@@ -23,8 +24,9 @@ void main() {
 
     test('detects nested addProxy mode for legacy proxy shape error', () async {
       final probe = TdlibSchemaProbe(
-        send: (_) async =>
-            TdError(code: 400, message: 'Proxy must be non-empty'),
+        send: (_) async => TdWireEnvelope.fromTdObject(
+          TdError(code: 400, message: 'Proxy must be non-empty'),
+        ),
       );
 
       final capabilities = await probe.detect();
@@ -34,7 +36,8 @@ void main() {
 
     test('throws TdlibFailure for unexpected td error', () async {
       final probe = TdlibSchemaProbe(
-        send: (_) async => TdError(code: 500, message: 'INTERNAL'),
+        send: (_) async =>
+            TdWireEnvelope.fromTdObject(TdError(code: 500, message: 'INTERNAL')),
       );
 
       expect(

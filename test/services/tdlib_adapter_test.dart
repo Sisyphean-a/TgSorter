@@ -11,7 +11,7 @@ import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 
 void main() {
   group('TdlibAdapter', () {
-    test('getProxies returns typed proxies', () async {
+    test('getProxies returns local proxy dto', () async {
       final transport = _InspectableFakeTransport(
         responses: <String, List<TdObject>>{
           'getProxies': <TdObject>[
@@ -114,6 +114,7 @@ TdlibAdapter _buildAdapter(
 }) {
   return TdlibAdapter(
     transport: transport,
+    rawTransport: null,
     credentials: const TdlibCredentials(
       apiId: 1,
       apiHash: 'hash',

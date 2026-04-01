@@ -1,4 +1,4 @@
-import 'package:tdlib/td_api.dart';
+import 'package:tgsorter/app/services/td_message_dto.dart';
 
 enum MessagePreviewKind { text, photo, video, unsupported }
 
@@ -17,42 +17,45 @@ class MessagePreview {
   final MessagePreviewKind kind;
   final String title;
   final String? subtitle;
-  final FormattedText? text;
+  final TdFormattedTextDto? text;
   final String? localImagePath;
   final String? localVideoPath;
   final String? localVideoThumbnailPath;
   final int? videoDurationSeconds;
 }
 
-MessagePreview mapMessagePreview(MessageContent content) {
-  if (content is MessageText) {
+MessagePreview mapMessagePreview(TdMessageContentDto content) {
+  if (content.kind == TdMessageContentKind.text) {
+    final text = content.text;
+    if (text == null) {
+      throw StateError('Text message missing formatted text');
+    }
     return MessagePreview(
       kind: MessagePreviewKind.text,
-      title: content.text.text,
-      text: content.text,
+      title: text.text,
+      text: text,
     );
   }
 
-  if (content is MessagePhoto) {
-    final caption = content.caption.text.trim();
-    final path = _resolvePhotoPath(content.photo.sizes);
+  if (content.kind == TdMessageContentKind.photo) {
+    final caption = content.text?.text.trim() ?? '';
     return MessagePreview(
       kind: MessagePreviewKind.photo,
       title: caption.isEmpty ? '[图片]' : caption,
-      text: content.caption,
-      localImagePath: path,
+      text: content.text,
+      localImagePath: content.localImagePath,
     );
   }
 
-  if (content is MessageVideo) {
-    final caption = content.caption.text.trim();
+  if (content.kind == TdMessageContentKind.video) {
+    final caption = content.text?.text.trim() ?? '';
     return MessagePreview(
       kind: MessagePreviewKind.video,
       title: caption.isEmpty ? '[视频]' : caption,
-      text: content.caption,
-      localVideoPath: _resolveFilePath(content.video.video),
-      localVideoThumbnailPath: _resolveThumbnailPath(content.video.thumbnail),
-      videoDurationSeconds: content.video.duration,
+      text: content.text,
+      localVideoPath: content.localVideoPath,
+      localVideoThumbnailPath: content.localVideoThumbnailPath,
+      videoDurationSeconds: content.videoDurationSeconds,
     );
   }
 
@@ -60,30 +63,4 @@ MessagePreview mapMessagePreview(MessageContent content) {
     kind: MessagePreviewKind.unsupported,
     title: '[暂不支持预览的消息类型，请直接分类]',
   );
-}
-
-String? _resolvePhotoPath(List<PhotoSize> sizes) {
-  if (sizes.isEmpty) {
-    return null;
-  }
-  final photoFile = sizes.last.photo.local;
-  if (!photoFile.isDownloadingCompleted || photoFile.path.isEmpty) {
-    return null;
-  }
-  return photoFile.path;
-}
-
-String? _resolveFilePath(File file) {
-  final local = file.local;
-  if (local.path.isEmpty) {
-    return null;
-  }
-  return local.path;
-}
-
-String? _resolveThumbnailPath(Thumbnail? thumbnail) {
-  if (thumbnail == null) {
-    return null;
-  }
-  return _resolveFilePath(thumbnail.file);
 }

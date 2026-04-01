@@ -11,7 +11,7 @@ class TdlibAuthManager {
   final TdlibRequestExecutor _requestExecutor;
 
   Future<void> submitPhoneNumber(String phoneNumber) {
-    return _requestExecutor.sendExpectOk(
+    return _requestExecutor.sendWireExpectOk(
       SetAuthenticationPhoneNumber(phoneNumber: phoneNumber),
       request: 'setAuthenticationPhoneNumber',
       phase: TdlibPhase.auth,
@@ -20,7 +20,7 @@ class TdlibAuthManager {
   }
 
   Future<void> submitCode(String code) {
-    return _requestExecutor.sendExpectOk(
+    return _requestExecutor.sendWireExpectOk(
       CheckAuthenticationCode(code: code),
       request: 'checkAuthenticationCode',
       phase: TdlibPhase.auth,
@@ -29,7 +29,7 @@ class TdlibAuthManager {
   }
 
   Future<void> submitPassword(String password) {
-    return _requestExecutor.sendExpectOk(
+    return _requestExecutor.sendWireExpectOk(
       CheckAuthenticationPassword(password: password),
       request: 'checkAuthenticationPassword',
       phase: TdlibPhase.auth,

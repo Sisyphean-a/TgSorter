@@ -63,6 +63,23 @@ class TdlibRequestExecutor {
     }
   }
 
+  Future<void> sendWireExpectOk(
+    TdFunction function, {
+    required String request,
+    required TdlibPhase phase,
+    required Duration timeout,
+  }) async {
+    final envelope = await sendWire(
+      function,
+      request: request,
+      phase: phase,
+      timeout: timeout,
+    );
+    if (envelope.type != 'ok') {
+      throw StateError('请求返回非 Ok: ${envelope.type}');
+    }
+  }
+
   Future<TdWireEnvelope> sendWire(
     TdFunction function, {
     required String request,
@@ -70,12 +87,12 @@ class TdlibRequestExecutor {
     required Duration timeout,
   }) async {
     final transport = _rawTransport;
-    if (transport == null) {
-      throw StateError('Raw transport is not configured');
-    }
     try {
-      final payload = await transport.send(function, timeout: timeout);
-      final envelope = TdWireEnvelope.fromJson(payload);
+      final envelope = transport == null
+          ? TdWireEnvelope.fromTdObject(
+              await _transport.sendWithTimeout(function, timeout),
+            )
+          : TdWireEnvelope.fromJson(await transport.send(function, timeout: timeout));
       _assertNoWireError(envelope, request: request, phase: phase);
       return envelope;
     } on TimeoutException catch (error, stackTrace) {

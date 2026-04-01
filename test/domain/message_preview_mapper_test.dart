@@ -1,12 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/services/td_message_dto.dart';
 
 void main() {
   group('mapMessagePreview', () {
     test('maps MessageText to text preview', () {
-      const content = MessageText(
-        text: FormattedText(text: 'hello', entities: []),
+      const content = TdMessageContentDto(
+        kind: TdMessageContentKind.text,
+        text: TdFormattedTextDto(text: 'hello', entities: []),
       );
       final preview = mapMessagePreview(content);
       expect(preview.kind, MessagePreviewKind.text);
@@ -16,11 +17,9 @@ void main() {
     });
 
     test('maps MessagePhoto to photo preview with fallback title', () {
-      const photo = MessagePhoto(
-        photo: Photo(hasStickers: false, minithumbnail: null, sizes: []),
-        caption: FormattedText(text: '', entities: []),
-        hasSpoiler: false,
-        isSecret: false,
+      const photo = TdMessageContentDto(
+        kind: TdMessageContentKind.photo,
+        text: TdFormattedTextDto(text: '', entities: []),
       );
       final preview = mapMessagePreview(photo);
       expect(preview.kind, MessagePreviewKind.photo);
@@ -29,69 +28,12 @@ void main() {
     });
 
     test('maps MessageVideo to video preview with paths and duration', () {
-      const content = MessageVideo(
-        video: Video(
-          duration: 75,
-          width: 1080,
-          height: 1920,
-          fileName: 'clip.mp4',
-          mimeType: 'video/mp4',
-          hasStickers: false,
-          supportsStreaming: true,
-          minithumbnail: null,
-          thumbnail: Thumbnail(
-            format: ThumbnailFormatJpeg(),
-            width: 320,
-            height: 180,
-            file: File(
-              id: 11,
-              size: 0,
-              expectedSize: 0,
-              local: LocalFile(
-                path: '/tmp/thumb.jpg',
-                canBeDownloaded: true,
-                canBeDeleted: false,
-                isDownloadingActive: false,
-                isDownloadingCompleted: true,
-                downloadOffset: 0,
-                downloadedPrefixSize: 0,
-                downloadedSize: 0,
-              ),
-              remote: RemoteFile(
-                id: '',
-                uniqueId: '',
-                isUploadingActive: false,
-                isUploadingCompleted: false,
-                uploadedSize: 0,
-              ),
-            ),
-          ),
-          video: File(
-            id: 12,
-            size: 0,
-            expectedSize: 0,
-            local: LocalFile(
-              path: '/tmp/video.mp4',
-              canBeDownloaded: true,
-              canBeDeleted: false,
-              isDownloadingActive: false,
-              isDownloadingCompleted: true,
-              downloadOffset: 0,
-              downloadedPrefixSize: 0,
-              downloadedSize: 0,
-            ),
-            remote: RemoteFile(
-              id: '',
-              uniqueId: '',
-              isUploadingActive: false,
-              isUploadingCompleted: false,
-              uploadedSize: 0,
-            ),
-          ),
-        ),
-        caption: FormattedText(text: '', entities: []),
-        hasSpoiler: false,
-        isSecret: false,
+      const content = TdMessageContentDto(
+        kind: TdMessageContentKind.video,
+        text: TdFormattedTextDto(text: '', entities: []),
+        localVideoPath: '/tmp/video.mp4',
+        localVideoThumbnailPath: '/tmp/thumb.jpg',
+        videoDurationSeconds: 75,
       );
 
       final preview = mapMessagePreview(content);
@@ -103,19 +45,8 @@ void main() {
     });
 
     test('maps unsupported content to fallback preview', () {
-      const content = MessagePoll(
-        poll: Poll(
-          id: 1,
-          question: 'q',
-          options: [],
-          totalVoterCount: 0,
-          recentVoterIds: [],
-          isAnonymous: true,
-          type: PollTypeRegular(allowMultipleAnswers: false),
-          openPeriod: 0,
-          closeDate: 0,
-          isClosed: false,
-        ),
+      const content = TdMessageContentDto(
+        kind: TdMessageContentKind.unsupported,
       );
       final preview = mapMessagePreview(content);
       expect(preview.kind, MessagePreviewKind.unsupported);
