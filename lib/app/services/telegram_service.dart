@@ -1,28 +1,12 @@
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'dart:io';
-import 'dart:convert';
-
-import 'package:path_provider/path_provider.dart';
 import 'package:tdlib/td_api.dart';
-import 'package:tdlib/td_client.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/services/td_client_transport.dart';
-import 'package:tgsorter/app/services/tdlib_library_locator.dart';
-import 'package:tgsorter/app/services/tdlib_credentials.dart';
+import 'package:tgsorter/app/services/tdlib_adapter.dart';
+import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
-
-class TdlibRequestException implements Exception {
-  TdlibRequestException({required this.code, required this.message});
-
-  final int code;
-  final String message;
-
-  @override
-  String toString() => 'TDLib 请求失败($code): $message';
-}
 
 class TelegramService implements TelegramGateway {
   static const int _downloadPriorityPhotoPreview = 16;
@@ -33,107 +17,45 @@ class TelegramService implements TelegramGateway {
   static const int _historyBatchSize = 100;
   static const int _chatListLimit = 200;
   static const int _maxSelectableChats = 120;
-  static const Duration _authRequestTimeout = Duration(minutes: 2);
   static const Duration _authorizationReadyTimeout = Duration(seconds: 20);
   static const Duration _getMeTimeout = Duration(seconds: 60);
   static const Duration _getChatTimeout = Duration(seconds: 8);
-  static const Duration _proxyConfigureTimeout = Duration(seconds: 8);
-  static const Duration _proxyStatePropagationDelay = Duration(
-    milliseconds: 200,
-  );
+  static const Duration _defaultTimeout = Duration(seconds: 20);
 
-  TelegramService({
-    required TdClientTransport transport,
-    required TdlibCredentials credentials,
-  }) : _transport = transport,
-       _credentials = credentials;
+  TelegramService({required TdlibAdapter adapter}) : _adapter = adapter;
 
-  final TdClientTransport _transport;
-  final TdlibCredentials _credentials;
+  final TdlibAdapter _adapter;
 
-  final _authStateController = StreamController<AuthorizationState>.broadcast();
-  final _connectionController = StreamController<ConnectionState>.broadcast();
-
-  StreamSubscription<TdObject>? _updatesSub;
   int? _selfChatId;
-  bool _tdlibConfiguring = false;
-  bool _tdlibConfigured = false;
-  Completer<void>? _startCompleter;
-  Completer<void> _authorizationReady = Completer<void>();
 
   @override
-  Stream<AuthorizationState> get authStates => _authStateController.stream;
+  Stream<AuthorizationState> get authStates => _adapter.authorizationStates;
 
   @override
-  Stream<ConnectionState> get connectionStates => _connectionController.stream;
+  Stream<ConnectionState> get connectionStates => _adapter.connectionStates;
 
   @override
-  Future<void> start() async {
-    final runningStart = _startCompleter;
-    if (runningStart != null) {
-      await runningStart.future;
-      return;
-    }
-    final completer = Completer<void>();
-    _startCompleter = completer;
-    try {
-      final libraryPath = resolveTdlibLibraryPath(TdlibRuntimeInfo.current());
-      await TdPlugin.initialize(libraryPath);
-      await _transport.start();
-      _updatesSub ??= _transport.updates.listen(
-        _handleUpdate,
-        onError: _handleTransportError,
-      );
-      final state = await _bootstrapAuthorizationState();
-      if (state is! AuthorizationStateWaitTdlibParameters) {
-        await _configureProxyIfNeeded();
-      }
-      if (!completer.isCompleted) {
-        completer.complete();
-      }
-    } catch (error, stackTrace) {
-      if (!completer.isCompleted) {
-        completer.completeError(error, stackTrace);
-      }
-      _startCompleter = null;
-      rethrow;
-    }
-  }
+  Future<void> start() => _adapter.start();
 
   @override
-  Future<void> submitPhoneNumber(String phoneNumber) {
-    return _sendExpectOk(
-      SetAuthenticationPhoneNumber(phoneNumber: phoneNumber),
-      timeout: _authRequestTimeout,
-    );
-  }
+  Future<void> submitPhoneNumber(String phoneNumber) =>
+      _adapter.submitPhoneNumber(phoneNumber);
 
   @override
-  Future<void> submitCode(String code) {
-    return _sendExpectOk(
-      CheckAuthenticationCode(code: code),
-      timeout: _authRequestTimeout,
-    );
-  }
+  Future<void> submitCode(String code) => _adapter.submitCode(code);
 
   @override
-  Future<void> submitPassword(String password) {
-    return _sendExpectOk(
-      CheckAuthenticationPassword(password: password),
-      timeout: _authRequestTimeout,
-    );
-  }
+  Future<void> submitPassword(String password) =>
+      _adapter.submitPassword(password);
 
   @override
   Future<List<SelectableChat>> listSelectableChats() async {
     await _requireAuthorizationReady();
     await _loadChatsMainUntilDone();
-    final response = await _transport.send(
+    final object = await _adapter.send(
       const GetChats(chatList: ChatListMain(), limit: _chatListLimit),
-    );
-    final object = _assertNoErrorWithContext(
-      response,
-      requestLabel: 'getChats(main)',
+      request: 'getChats(main)',
+      phase: TdlibPhase.business,
     );
     if (object is! Chats) {
       throw StateError('GetChats 返回类型异常: ${object.getConstructor()}');
@@ -171,7 +93,7 @@ class TelegramService implements TelegramGateway {
           const LoadChats(chatList: ChatListMain(), limit: _chatListLimit),
           requestLabel: 'loadChats(main)',
         );
-      } on TdlibRequestException catch (error) {
+      } on TdlibFailure catch (error) {
         final isLoadedDone = error.code == 404;
         if (isLoadedDone) {
           return;
@@ -207,7 +129,7 @@ class TelegramService implements TelegramGateway {
   }) async {
     await _requireAuthorizationReady();
     final actualSourceChatId = await _resolveSourceChatId(sourceChatId);
-    final response = await _transport.send(
+    final object = await _adapter.send(
       ForwardMessages(
         chatId: targetChatId,
         messageThreadId: 0,
@@ -218,8 +140,9 @@ class TelegramService implements TelegramGateway {
         removeCaption: false,
         onlyPreview: false,
       ),
+      request: 'forwardMessages',
+      phase: TdlibPhase.business,
     );
-    final object = _assertNoError(response);
     if (object is! Messages || object.messages.isEmpty) {
       throw StateError('forwardMessages 返回异常，无法提取目标消息 ID');
     }
@@ -231,6 +154,8 @@ class TelegramService implements TelegramGateway {
         messageIds: [messageId],
         revoke: true,
       ),
+      request: 'deleteMessages',
+      phase: TdlibPhase.business,
     );
 
     return ClassifyReceipt(
@@ -248,7 +173,7 @@ class TelegramService implements TelegramGateway {
     required int targetMessageId,
   }) async {
     await _requireAuthorizationReady();
-    final response = await _transport.send(
+    final object = await _adapter.send(
       ForwardMessages(
         chatId: sourceChatId,
         messageThreadId: 0,
@@ -259,8 +184,9 @@ class TelegramService implements TelegramGateway {
         removeCaption: false,
         onlyPreview: false,
       ),
+      request: 'forwardMessages',
+      phase: TdlibPhase.business,
     );
-    final object = _assertNoError(response);
     if (object is! Messages) {
       throw StateError('undo forward 返回非 Messages: ${object.getConstructor()}');
     }
@@ -270,23 +196,27 @@ class TelegramService implements TelegramGateway {
         messageIds: [targetMessageId],
         revoke: true,
       ),
+      request: 'deleteMessages',
+      phase: TdlibPhase.business,
     );
   }
 
   Future<void> _loadSelfChatId() async {
-    final optionResponse = await _transport.send(
+    final option = await _adapter.send(
       const GetOption(name: 'my_id'),
+      request: 'getOption(my_id)',
+      phase: TdlibPhase.business,
     );
-    final option = _assertNoError(optionResponse);
     if (option is OptionValueInteger && option.value > 0) {
       _selfChatId = option.value;
       return;
     }
-    final response = await _transport.sendWithTimeout(
+    final object = await _adapter.send(
       const GetMe(),
-      _getMeTimeout,
+      request: 'getMe',
+      phase: TdlibPhase.business,
+      timeout: _getMeTimeout,
     );
-    final object = _assertNoError(response);
     if (object is! User) {
       throw StateError('GetMe 返回类型异常: ${object.getConstructor()}');
     }
@@ -342,7 +272,7 @@ class TelegramService implements TelegramGateway {
         !file.local.canBeDownloaded) {
       return;
     }
-    final response = await _transport.send(
+    await _adapter.send(
       DownloadFile(
         fileId: file.id,
         priority: priority,
@@ -350,8 +280,9 @@ class TelegramService implements TelegramGateway {
         limit: _downloadLimitUnlimited,
         synchronous: false,
       ),
+      request: 'downloadFile',
+      phase: TdlibPhase.business,
     );
-    _assertNoError(response);
   }
 
   Future<Message?> _fetchSavedMessage({
@@ -407,7 +338,7 @@ class TelegramService implements TelegramGateway {
     required int fromMessageId,
     required int limit,
   }) async {
-    final response = await _transport.send(
+    final object = await _adapter.send(
       GetChatHistory(
         chatId: chatId,
         fromMessageId: fromMessageId,
@@ -415,8 +346,9 @@ class TelegramService implements TelegramGateway {
         limit: limit,
         onlyLocal: false,
       ),
+      request: 'getChatHistory',
+      phase: TdlibPhase.business,
     );
-    final object = _assertNoError(response);
     if (object is! Messages) {
       throw StateError('GetChatHistory 返回类型异常: ${object.getConstructor()}');
     }
@@ -432,13 +364,11 @@ class TelegramService implements TelegramGateway {
   }
 
   Future<Chat> _loadChat(int chatId) async {
-    final response = await _transport.sendWithTimeout(
+    final object = await _adapter.send(
       GetChat(chatId: chatId),
-      _getChatTimeout,
-    );
-    final object = _assertNoErrorWithContext(
-      response,
-      requestLabel: 'getChat($chatId)',
+      request: 'getChat($chatId)',
+      phase: TdlibPhase.business,
+      timeout: _getChatTimeout,
     );
     if (object is! Chat) {
       throw StateError('GetChat 返回类型异常: ${object.getConstructor()}');
@@ -477,301 +407,43 @@ class TelegramService implements TelegramGateway {
 
   Future<void> _sendExpectOk(
     TdFunction function, {
-    Duration timeout = const Duration(seconds: 20),
+    required String request,
+    required TdlibPhase phase,
+    Duration timeout = _defaultTimeout,
   }) async {
-    final response = await _transport.sendWithTimeout(function, timeout);
-    final object = _assertNoError(response);
+    final object = await _adapter.send(
+      function,
+      request: request,
+      phase: phase,
+      timeout: timeout,
+    );
     if (object is! Ok) {
       throw StateError('请求返回非 Ok: ${object.getConstructor()}');
     }
-  }
-
-  TdObject _assertNoError(TdObject object) {
-    if (object is TdError) {
-      throw TdlibRequestException(code: object.code, message: object.message);
-    }
-    return object;
   }
 
   Future<void> _sendExpectOkWithContext(
     TdFunction function, {
     required String requestLabel,
-    Duration timeout = const Duration(seconds: 20),
+    Duration timeout = _defaultTimeout,
   }) async {
-    final response = await _transport.sendWithTimeout(function, timeout);
-    final object = _assertNoErrorWithContext(
-      response,
-      requestLabel: requestLabel,
+    final object = await _adapter.send(
+      function,
+      request: requestLabel,
+      phase: TdlibPhase.business,
+      timeout: timeout,
     );
     if (object is! Ok) {
       throw StateError('请求返回非 Ok: ${object.getConstructor()}');
     }
   }
 
-  TdObject _assertNoErrorWithContext(
-    TdObject object, {
-    required String requestLabel,
-  }) {
-    if (object is! TdError) {
-      return object;
-    }
-    throw TdlibRequestException(
-      code: object.code,
-      message: '$requestLabel -> ${object.message}',
-    );
-  }
-
-  void _handleUpdate(TdObject update) {
-    if (update is UpdateAuthorizationState) {
-      _authStateController.add(update.authorizationState);
-      _recordAuthorizationState(update.authorizationState);
-      _handleAuthTransition(update.authorizationState);
-      return;
-    }
-    if (update is UpdateConnectionState) {
-      _connectionController.add(update.state);
-    }
-  }
-
-  void _handleTransportError(Object error, StackTrace stack) {
-    developer.log(
-      'TDLib 传输层异常: $error',
-      name: 'TelegramService',
-      error: error,
-      stackTrace: stack,
-    );
-    _authStateController.addError(error, stack);
-    _connectionController.addError(error, stack);
-  }
-
-  void _recordAuthorizationState(AuthorizationState state) {
-    if (state is AuthorizationStateReady) {
-      if (!_authorizationReady.isCompleted) {
-        _authorizationReady.complete();
-      }
-      return;
-    }
-    if (state is AuthorizationStateClosed) {
-      _authorizationReady = Completer<void>();
-      _selfChatId = null;
-    }
-  }
-
-  void _handleAuthTransition(AuthorizationState state) {
-    if (state is! AuthorizationStateWaitTdlibParameters) {
-      return;
-    }
-    if (_tdlibConfiguring || _tdlibConfigured) {
-      return;
-    }
-    _tdlibConfiguring = true;
-    unawaited(
-      _configureTdlib()
-          .then((_) {
-            _tdlibConfigured = true;
-          })
-          .catchError((error, stack) {
-            _authStateController.addError(error, stack);
-          })
-          .whenComplete(() {
-            _tdlibConfiguring = false;
-          }),
-    );
-  }
-
-  Future<AuthorizationState> _bootstrapAuthorizationState() async {
-    final response = await _transport.send(const GetAuthorizationState());
-    final object = _assertNoError(response);
-    if (object is! AuthorizationState) {
-      throw StateError(
-        'GetAuthorizationState 返回类型异常: ${object.getConstructor()}',
-      );
-    }
-    _authStateController.add(object);
-    _recordAuthorizationState(object);
-    _handleAuthTransition(object);
-    return object;
-  }
-
   Future<void> _requireAuthorizationReady() {
-    if (_authorizationReady.isCompleted) {
-      return Future<void>.value();
-    }
-    return _authorizationReady.future.timeout(
+    return _adapter.waitUntilReady().timeout(
       _authorizationReadyTimeout,
       onTimeout: () {
         throw StateError('TDLib 授权未就绪，无法执行当前请求');
       },
     );
-  }
-
-  Future<void> _configureTdlib() async {
-    final baseDir = await getApplicationSupportDirectory();
-    final dbDir = Directory('${baseDir.path}/tgsorter/tdlib/db');
-    final filesDir = Directory('${baseDir.path}/tgsorter/tdlib/files');
-    await dbDir.create(recursive: true);
-    await filesDir.create(recursive: true);
-
-    await _sendExpectOk(
-      SetTdlibParameters(
-        useTestDc: false,
-        databaseDirectory: dbDir.path,
-        filesDirectory: filesDir.path,
-        databaseEncryptionKey: '',
-        useFileDatabase: true,
-        useChatInfoDatabase: true,
-        useMessageDatabase: true,
-        useSecretChats: false,
-        apiId: _credentials.apiId,
-        apiHash: _credentials.apiHash,
-        systemLanguageCode: 'zh-hans',
-        deviceModel: 'Flutter ${Platform.operatingSystem}',
-        systemVersion: Platform.operatingSystemVersion,
-        applicationVersion: '1.0.0',
-        enableStorageOptimizer: true,
-        ignoreFileNames: false,
-      ),
-    );
-    await _configureProxyIfNeeded();
-  }
-
-  Future<void> _configureProxyIfNeeded() async {
-    final server = _credentials.proxyServer;
-    final port = _credentials.proxyPort;
-    if (server == null || port == null) {
-      await _sendExpectOk(const DisableProxy());
-      return;
-    }
-    final request = AddProxy(
-      server: server,
-      port: port,
-      enable: true,
-      type: ProxyTypeSocks5(
-        username: _credentials.proxyUsername,
-        password: _credentials.proxyPassword,
-      ),
-    );
-    developer.log(
-      'configureProxy request=${jsonEncode(request.toJson())}',
-      name: 'TelegramService',
-    );
-    var response = await _sendProxyRequestWithTimeout(request);
-    if (_isLegacyProxyShapeError(response)) {
-      developer.log(
-        'configureProxy detected legacy API shape, retrying with proxy object payload',
-        name: 'TelegramService',
-      );
-      await _configureProxyWithCompatRequest(server: server, port: port);
-      return;
-    } else if (response is TdError && response.code == 408) {
-      developer.log(
-        'configureProxy first request timed out, retrying with proxy object payload',
-        name: 'TelegramService',
-      );
-      await _configureProxyWithCompatRequest(server: server, port: port);
-      return;
-    }
-    developer.log(
-      'configureProxy responseConstructor=${response.getConstructor()} '
-      'response=${jsonEncode(response.toJson())}',
-      name: 'TelegramService',
-    );
-    _assertNoError(response);
-  }
-
-  bool _isLegacyProxyShapeError(TdObject object) {
-    if (object is! TdError) {
-      return false;
-    }
-    if (object.code != 400) {
-      return false;
-    }
-    return object.message == 'Proxy must be non-empty';
-  }
-
-  Future<TdObject> _sendProxyRequestWithTimeout(TdFunction request) async {
-    try {
-      return await _transport.sendWithTimeout(request, _proxyConfigureTimeout);
-    } on TimeoutException catch (error) {
-      return TdError(
-        code: 408,
-        message:
-            'Proxy configure timeout: ${request.getConstructor()} (${error.message})',
-      );
-    }
-  }
-
-  Future<void> _configureProxyWithCompatRequest({
-    required String server,
-    required int port,
-  }) async {
-    final compatRequest = _AddProxyCompatRequest(
-      server: server,
-      port: port,
-      username: _credentials.proxyUsername,
-      password: _credentials.proxyPassword,
-    );
-    developer.log(
-      'configureProxy compatRequest=${jsonEncode(compatRequest.toJson())}',
-      name: 'TelegramService',
-    );
-    _transport.sendWithoutResponse(compatRequest);
-    await Future<void>.delayed(_proxyStatePropagationDelay);
-    final verifyResponse = await _transport.sendWithTimeout(
-      const GetProxies(),
-      _proxyConfigureTimeout,
-    );
-    final verifyObject = _assertNoError(verifyResponse);
-    if (verifyObject is! Proxies) {
-      throw StateError('GetProxies 返回类型异常: ${verifyObject.getConstructor()}');
-    }
-    final matched = verifyObject.proxies.where(
-      (item) => item.server == server && item.port == port && item.isEnabled,
-    );
-    if (matched.isEmpty) {
-      throw TdlibRequestException(
-        code: 502,
-        message: '代理兼容配置后校验失败，未发现已启用代理 $server:$port',
-      );
-    }
-    developer.log(
-      'configureProxy compat verified enabledProxy=$server:$port',
-      name: 'TelegramService',
-    );
-  }
-}
-
-class _AddProxyCompatRequest extends TdFunction {
-  const _AddProxyCompatRequest({
-    required this.server,
-    required this.port,
-    required this.username,
-    required this.password,
-  });
-
-  final String server;
-  final int port;
-  final String username;
-  final String password;
-
-  @override
-  String getConstructor() => 'addProxy';
-
-  @override
-  Map<String, dynamic> toJson([dynamic extra]) {
-    return {
-      '@type': getConstructor(),
-      'proxy': {
-        'server': server,
-        'port': port,
-        'type': {
-          '@type': 'proxyTypeSocks5',
-          'username': username,
-          'password': password,
-        },
-      },
-      'enable': true,
-      '@extra': extra,
-    };
   }
 }

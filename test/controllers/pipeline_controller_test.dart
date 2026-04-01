@@ -26,7 +26,10 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       service = _FakeTelegramService();
-      settingsController = SettingsController(SettingsRepository(prefs), service);
+      settingsController = SettingsController(
+        SettingsRepository(prefs),
+        service,
+      );
       settingsController.onInit();
       settingsController.settings.value = const AppSettings(
         categories: [

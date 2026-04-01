@@ -1,8 +1,8 @@
-import 'package:tgsorter/app/services/telegram_service.dart';
+import 'package:tgsorter/app/services/tdlib_failure.dart';
 
 enum TdErrorKind { rateLimit, network, auth, permission, tdlib }
 
-TdErrorKind classifyTdlibError(TdlibRequestException error) {
+TdErrorKind classifyTdlibError(TdlibFailure error) {
   if (error.code == 420 || error.code == 429) {
     return TdErrorKind.rateLimit;
   }
@@ -18,7 +18,7 @@ TdErrorKind classifyTdlibError(TdlibRequestException error) {
   return TdErrorKind.tdlib;
 }
 
-bool _isAuthError(TdlibRequestException error) {
+bool _isAuthError(TdlibFailure error) {
   if (error.code == 401) {
     return true;
   }

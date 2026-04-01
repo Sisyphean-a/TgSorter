@@ -9,8 +9,8 @@ import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
+import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
-import 'package:tgsorter/app/services/telegram_service.dart';
 
 class PipelineController extends GetxController {
   PipelineController({
@@ -65,7 +65,7 @@ class PipelineController extends GetxController {
         direction: _settingsController.settings.value.fetchDirection,
         sourceChatId: _settingsController.settings.value.sourceChatId,
       );
-    } on TdlibRequestException catch (error) {
+    } on TdlibFailure catch (error) {
       _showTdlibError(error);
     } catch (error) {
       _showGeneralError(error.toString());
@@ -148,7 +148,7 @@ class PipelineController extends GetxController {
       currentMessage.value = null;
       await fetchNext();
       return true;
-    } on TdlibRequestException catch (error) {
+    } on TdlibFailure catch (error) {
       await _appendFailureAndRetry(
         error: error,
         key: key,
@@ -191,7 +191,7 @@ class PipelineController extends GetxController {
       );
       _lastSuccessReceipt = null;
       await fetchNext();
-    } on TdlibRequestException catch (error) {
+    } on TdlibFailure catch (error) {
       await _appendLog(
         ClassifyOperationLog(
           id: _buildId('undo_fail', receipt.sourceMessageId),
@@ -217,7 +217,9 @@ class PipelineController extends GetxController {
     final item = retryQueue.first;
     try {
       await _service.classifyMessage(
-        sourceChatId: item.sourceChatId ?? _settingsController.settings.value.sourceChatId,
+        sourceChatId:
+            item.sourceChatId ??
+            _settingsController.settings.value.sourceChatId,
         messageId: item.messageId,
         targetChatId: item.targetChatId,
       );
@@ -233,7 +235,7 @@ class PipelineController extends GetxController {
           status: ClassifyOperationStatus.retrySuccess,
         ),
       );
-    } on TdlibRequestException catch (error) {
+    } on TdlibFailure catch (error) {
       await _appendLog(
         ClassifyOperationLog(
           id: _buildId('retry_fail', item.messageId),
@@ -256,7 +258,7 @@ class PipelineController extends GetxController {
   }
 
   Future<void> _appendFailureAndRetry({
-    required TdlibRequestException error,
+    required TdlibFailure error,
     required String key,
     required PipelineMessage message,
     required int targetChatId,
@@ -308,7 +310,7 @@ class PipelineController extends GetxController {
     return '$prefix-$messageId-$now';
   }
 
-  void _showTdlibError(TdlibRequestException error) {
+  void _showTdlibError(TdlibFailure error) {
     final kind = classifyTdlibError(error);
     if (kind == TdErrorKind.rateLimit) {
       final waitSeconds = parseFloodWaitSeconds(error.message);

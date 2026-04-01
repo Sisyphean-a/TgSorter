@@ -4,7 +4,17 @@ import 'dart:developer' as developer;
 import 'package:tdlib/td_api.dart';
 import 'package:tdlib/td_client.dart';
 
-class TdClientTransport {
+abstract class TdTransport {
+  Stream<TdObject> get updates;
+
+  Future<void> start();
+  Future<void> stop();
+  Future<TdObject> send(TdFunction function);
+  Future<TdObject> sendWithTimeout(TdFunction function, Duration timeout);
+  void sendWithoutResponse(TdFunction function);
+}
+
+class TdClientTransport implements TdTransport {
   static const Duration _pollInterval = Duration(milliseconds: 16);
   static const double _nonBlockingReceiveTimeoutSeconds = 0;
   static const int _maxEventsPerTick = 64;
@@ -21,8 +31,10 @@ class TdClientTransport {
   int? _clientId;
   Timer? _pollTimer;
 
+  @override
   Stream<TdObject> get updates => _updatesController.stream;
 
+  @override
   Future<void> start() async {
     if (_running) {
       return;
@@ -36,6 +48,7 @@ class TdClientTransport {
     _setTdlibLogLevelAsync();
   }
 
+  @override
   Future<void> stop() async {
     _running = false;
     _pollTimer?.cancel();
@@ -48,10 +61,12 @@ class TdClientTransport {
     _pending.clear();
   }
 
+  @override
   Future<TdObject> send(TdFunction function) async {
     return sendWithTimeout(function, const Duration(seconds: 20));
   }
 
+  @override
   void sendWithoutResponse(TdFunction function) {
     final clientId = _clientId;
     if (!_running || clientId == null) {
@@ -60,6 +75,7 @@ class TdClientTransport {
     tdSend(clientId, function);
   }
 
+  @override
   Future<TdObject> sendWithTimeout(
     TdFunction function,
     Duration timeout,

@@ -5,8 +5,8 @@ import 'package:get/get.dart';
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
+import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
-import 'package:tgsorter/app/services/telegram_service.dart';
 
 enum AuthStage {
   loading,
@@ -41,7 +41,7 @@ class AuthController extends GetxController {
     loading.value = true;
     try {
       await _service.submitPhoneNumber(phone.trim());
-    } on TdlibRequestException catch (error) {
+    } on TdlibFailure catch (error) {
       _showTdlibError(error, '发送验证码失败');
     } catch (error) {
       _showSafeError('发送验证码失败', error.toString());
@@ -54,7 +54,7 @@ class AuthController extends GetxController {
     loading.value = true;
     try {
       await _service.submitCode(code.trim());
-    } on TdlibRequestException catch (error) {
+    } on TdlibFailure catch (error) {
       _showTdlibError(error, '提交验证码失败');
     } catch (error) {
       _showSafeError('提交验证码失败', error.toString());
@@ -67,7 +67,7 @@ class AuthController extends GetxController {
     loading.value = true;
     try {
       await _service.submitPassword(password.trim());
-    } on TdlibRequestException catch (error) {
+    } on TdlibFailure catch (error) {
       _showTdlibError(error, '提交密码失败');
     } catch (error) {
       _showSafeError('提交密码失败', error.toString());
@@ -80,7 +80,7 @@ class AuthController extends GetxController {
     try {
       await _service.start();
       startupError.value = null;
-    } on TdlibRequestException catch (error) {
+    } on TdlibFailure catch (error) {
       _showTdlibError(error, '启动失败');
     } catch (error) {
       _showSafeError('启动失败', error.toString());
@@ -114,7 +114,7 @@ class AuthController extends GetxController {
     super.onClose();
   }
 
-  void _showTdlibError(TdlibRequestException error, String title) {
+  void _showTdlibError(TdlibFailure error, String title) {
     final kind = classifyTdlibError(error);
     if (kind == TdErrorKind.rateLimit) {
       final waitSeconds = parseFloodWaitSeconds(error.message);
@@ -144,7 +144,7 @@ class AuthController extends GetxController {
   }
 
   void _onAuthError(Object error, StackTrace stackTrace) {
-    if (error is TdlibRequestException) {
+    if (error is TdlibFailure) {
       _showTdlibError(error, '授权初始化失败');
       return;
     }

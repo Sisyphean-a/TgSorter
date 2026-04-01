@@ -28,8 +28,12 @@ class TdlibCredentials {
         '缺少 TDLib 凭据，请使用 --dart-define-from-file 传入 TDLIB_API_ID / TDLIB_API_HASH',
       );
     }
-    final proxyServer = proxyServerRaw.trim().isEmpty ? null : proxyServerRaw.trim();
-    final proxyPort = proxyPortRaw.trim().isEmpty ? null : int.tryParse(proxyPortRaw);
+    final proxyServer = proxyServerRaw.trim().isEmpty
+        ? null
+        : proxyServerRaw.trim();
+    final proxyPort = proxyPortRaw.trim().isEmpty
+        ? null
+        : int.tryParse(proxyPortRaw);
     if (proxyServer != null && (proxyPort == null || proxyPort <= 0)) {
       throw StateError('TDLIB_PROXY_PORT 无效，启用代理时必须提供有效端口');
     }

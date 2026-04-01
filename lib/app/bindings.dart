@@ -5,8 +5,11 @@ import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
+import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
+import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
+import 'package:tgsorter/app/services/tdlib_schema_probe.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
 
 Future<void> initDependencies() async {
@@ -15,15 +18,27 @@ Future<void> initDependencies() async {
   final journalRepo = OperationJournalRepository(prefs);
   final credentials = TdlibCredentials.fromEnvironment();
   final transport = TdClientTransport();
-  final telegram = TelegramService(
+  final runtimePaths = await resolveTdlibRuntimePaths();
+  final adapter = TdlibAdapter(
     transport: transport,
     credentials: credentials,
+    runtimePaths: runtimePaths,
+    detectCapabilities: () {
+      final probe = TdlibSchemaProbe(
+        send: (function) =>
+            transport.sendWithTimeout(function, const Duration(seconds: 8)),
+      );
+      return probe.detect();
+    },
+    initializeTdlib: defaultTdlibInitializer,
   );
+  final telegram = TelegramService(adapter: adapter);
 
   Get.put(settingsRepo, permanent: true);
   Get.put(journalRepo, permanent: true);
   Get.put(transport, permanent: true);
   Get.put(credentials, permanent: true);
+  Get.put(adapter, permanent: true);
   Get.put(telegram, permanent: true);
 
   Get.put(SettingsController(settingsRepo, telegram), permanent: true);

@@ -1,11 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
-import 'package:tgsorter/app/services/telegram_service.dart';
+import 'package:tgsorter/app/services/tdlib_failure.dart';
 
 void main() {
   group('classifyTdlibError', () {
     test('classifies flood wait as rateLimit', () {
-      final error = TdlibRequestException(code: 420, message: 'FLOOD_WAIT_9');
+      final error = TdlibFailure.tdError(
+        code: 420,
+        message: 'FLOOD_WAIT_9',
+        request: 'forwardMessages',
+        phase: TdlibPhase.business,
+      );
 
       final kind = classifyTdlibError(error);
 
@@ -13,7 +18,12 @@ void main() {
     });
 
     test('classifies auth error by code', () {
-      final error = TdlibRequestException(code: 401, message: 'Unauthorized');
+      final error = TdlibFailure.tdError(
+        code: 401,
+        message: 'Unauthorized',
+        request: 'checkAuthenticationCode',
+        phase: TdlibPhase.auth,
+      );
 
       final kind = classifyTdlibError(error);
 
@@ -21,9 +31,10 @@ void main() {
     });
 
     test('classifies network error by message', () {
-      final error = TdlibRequestException(
-        code: 500,
+      final error = TdlibFailure.transport(
         message: 'NETWORK_CHANGED',
+        request: 'getChats',
+        phase: TdlibPhase.business,
       );
 
       final kind = classifyTdlibError(error);
