@@ -20,14 +20,14 @@ class MessageViewerCard extends StatelessWidget {
     required this.message,
     required this.processing,
     required this.videoPreparing,
-    required this.onRequestVideoPlayback,
+    required this.onRequestMediaPlayback,
     this.videoControllerInitializer,
   });
 
   final PipelineMessage? message;
   final bool processing;
   final bool videoPreparing;
-  final Future<void> Function() onRequestVideoPlayback;
+  final Future<void> Function([int? messageId]) onRequestMediaPlayback;
   final VideoControllerInitializer? videoControllerInitializer;
 
   @override
@@ -93,7 +93,7 @@ class MessageViewerCard extends StatelessWidget {
             videoPath: preview.localVideoPath,
             thumbnailPath: preview.localVideoThumbnailPath,
             preparing: videoPreparing,
-            onRequestPlayback: onRequestVideoPlayback,
+            onRequestPlayback: onRequestMediaPlayback,
             controllerInitializer: videoControllerInitializer,
           ),
           const SizedBox(height: 12),
@@ -115,7 +115,8 @@ class MessageViewerCard extends StatelessWidget {
           _AudioPreview(
             audioPath: preview.localAudioPath,
             preparing: videoPreparing,
-            onRequestPlayback: onRequestVideoPlayback,
+            onRequestPlayback: onRequestMediaPlayback,
+            tracks: preview.audioTracks,
           ),
           const SizedBox(height: 12),
           if (preview.subtitle != null && preview.subtitle!.isNotEmpty)
@@ -344,7 +345,7 @@ class _VideoPreview extends StatefulWidget {
   final String? videoPath;
   final String? thumbnailPath;
   final bool preparing;
-  final Future<void> Function() onRequestPlayback;
+  final Future<void> Function([int? messageId]) onRequestPlayback;
   final VideoControllerInitializer? controllerInitializer;
 
   @override
@@ -425,7 +426,8 @@ class _VideoPreviewState extends State<_VideoPreview> {
     try {
       developer.log('initialize start path=$path', name: 'VideoPreview');
       final initialize =
-          widget.controllerInitializer ?? (VideoPlayerController c) => c.initialize();
+          widget.controllerInitializer ??
+          (VideoPlayerController c) => c.initialize();
       await initialize(next).timeout(_initializeTimeout);
       next.setLooping(true);
       if (!mounted) {
@@ -569,9 +571,7 @@ class _VideoPreviewState extends State<_VideoPreview> {
 
   Widget _buildPendingPreview({String? thumbnailPath}) {
     final body = thumbnailPath == null
-        ? _buildPlaceholder(
-            widget.preparing ? '视频下载中...' : '视频已识别（点击播放开始下载）',
-          )
+        ? _buildPlaceholder(widget.preparing ? '视频下载中...' : '视频已识别（点击播放开始下载）')
         : Stack(
             fit: StackFit.expand,
             children: [
@@ -648,11 +648,13 @@ class _AudioPreview extends StatefulWidget {
     required this.audioPath,
     required this.preparing,
     required this.onRequestPlayback,
+    required this.tracks,
   });
 
   final String? audioPath;
   final bool preparing;
-  final Future<void> Function() onRequestPlayback;
+  final Future<void> Function([int? messageId]) onRequestPlayback;
+  final List<AudioTrackPreview> tracks;
 
   @override
   State<_AudioPreview> createState() => _AudioPreviewState();
@@ -661,12 +663,14 @@ class _AudioPreview extends StatefulWidget {
 class _AudioPreviewState extends State<_AudioPreview> {
   AudioPlayer? _player;
   String? _currentPath;
+  int? _currentTrackMessageId;
   bool _initializing = false;
 
   @override
   void didUpdateWidget(covariant _AudioPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.audioPath != widget.audioPath) {
+    if (oldWidget.audioPath != widget.audioPath ||
+        oldWidget.tracks != widget.tracks) {
       unawaited(_disposePlayer());
     }
   }
@@ -681,15 +685,16 @@ class _AudioPreviewState extends State<_AudioPreview> {
     final player = _player;
     _player = null;
     _currentPath = null;
+    _currentTrackMessageId = null;
     if (player != null) {
       await player.dispose();
     }
   }
 
-  Future<void> _togglePlayback() async {
-    final path = widget.audioPath;
+  Future<void> _togglePlayback(AudioTrackPreview track) async {
+    final path = track.localAudioPath;
     if (path == null || path.isEmpty || !io.File(path).existsSync()) {
-      await widget.onRequestPlayback();
+      await widget.onRequestPlayback(track.messageId);
       return;
     }
     if (_player == null || _currentPath != path) {
@@ -706,6 +711,7 @@ class _AudioPreviewState extends State<_AudioPreview> {
         }
         _player = player;
         _currentPath = path;
+        _currentTrackMessageId = track.messageId;
       } finally {
         if (mounted) {
           setState(() {
@@ -730,43 +736,95 @@ class _AudioPreviewState extends State<_AudioPreview> {
 
   @override
   Widget build(BuildContext context) {
-    final path = widget.audioPath;
-    final hasLocalFile =
-        path != null && path.isNotEmpty && io.File(path).existsSync();
-    final isPlaying = _player?.playing == true;
-    final label = _initializing
-        ? '音频加载中...'
-        : hasLocalFile
-        ? '点击播放音频'
-        : widget.preparing
-        ? '音频下载中...'
-        : '音频已识别（点击播放开始下载）';
-    return Container(
-      width: double.infinity,
-      height: 96,
+    final tracks = widget.tracks.isEmpty
+        ? [
+            AudioTrackPreview(
+              messageId: 0,
+              title: '音频',
+              localAudioPath: widget.audioPath,
+            ),
+          ]
+        : widget.tracks;
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.black12,
         borderRadius: BorderRadius.circular(12),
       ),
+      child: Column(
+        children: [for (final track in tracks) _buildTrackRow(context, track)],
+      ),
+    );
+  }
+
+  Widget _buildTrackRow(BuildContext context, AudioTrackPreview track) {
+    final path = track.localAudioPath;
+    final hasLocalFile =
+        path != null && path.isNotEmpty && io.File(path).existsSync();
+    final isPlaying =
+        _player?.playing == true && _currentTrackMessageId == track.messageId;
+    final label = _initializing && _currentTrackMessageId == track.messageId
+        ? '音频加载中...'
+        : hasLocalFile
+        ? '点击播放音频'
+        : widget.preparing && _currentTrackMessageId == track.messageId
+        ? '音频下载中...'
+        : '音频已识别（点击播放开始下载）';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          const SizedBox(width: 12),
           IconButton.filled(
-            onPressed: widget.preparing || _initializing ? null : _togglePlayback,
+            onPressed: widget.preparing || _initializing
+                ? null
+                : () => _togglePlayback(track),
             icon: Icon(
               isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              label,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  track.title,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                if (track.subtitle != null && track.subtitle!.isNotEmpty)
+                  Text(
+                    track.subtitle!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 12),
+          if (track.audioDurationSeconds != null)
+            Text(
+              _formatDuration(track.audioDurationSeconds!),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  String _formatDuration(int totalSeconds) {
+    final safe = totalSeconds < 0 ? 0 : totalSeconds;
+    final minutes = safe ~/ 60;
+    final seconds = safe % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }

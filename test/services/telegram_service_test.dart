@@ -61,118 +61,162 @@ void main() {
       expect(adapter.downloadedFileIds, <int>[31]);
     });
 
-    test('fetchMessagePage skips duplicate cursor in latestFirst mode', () async {
-      final adapter = _FakeTdlibAdapter(
-        wireResponses: <String, List<TdWireEnvelope>>{
-          'getChatHistory': <TdWireEnvelope>[
-            TdWireEnvelope.fromJson(<String, dynamic>{
-              '@type': 'messages',
-              'messages': [
-                _textMessageJson(10, 'first'),
-                _textMessageJson(9, 'second'),
-              ],
-            }),
-          ],
-        },
-      );
-      final service = TelegramService(adapter: adapter);
+    test(
+      'fetchMessagePage skips duplicate cursor in latestFirst mode',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _textMessageJson(10, 'first'),
+                  _textMessageJson(9, 'second'),
+                ],
+              }),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
 
-      final page = await service.fetchMessagePage(
-        direction: MessageFetchDirection.latestFirst,
-        sourceChatId: 777,
-        fromMessageId: 10,
-        limit: 2,
-      );
-
-      expect(page.map((item) => item.id), [9]);
-    });
-
-    test('classifyMessage does not delete when forward returns empty', () async {
-      final adapter = _FakeTdlibAdapter(
-        wireResponses: <String, List<TdWireEnvelope>>{
-          'forwardMessages': <TdWireEnvelope>[
-            TdWireEnvelope.fromJson(<String, dynamic>{
-              '@type': 'messages',
-              'messages': [],
-            }),
-          ],
-        },
-      );
-      final service = TelegramService(adapter: adapter);
-
-      await expectLater(
-        () => service.classifyMessage(
+        final page = await service.fetchMessagePage(
+          direction: MessageFetchDirection.latestFirst,
           sourceChatId: 777,
-          messageId: 10,
+          fromMessageId: 10,
+          limit: 2,
+        );
+
+        expect(page.map((item) => item.id), [9]);
+      },
+    );
+
+    test(
+      'classifyMessage does not delete when forward returns empty',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'forwardMessages': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [],
+              }),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        await expectLater(
+          () => service.classifyMessage(
+            sourceChatId: 777,
+            messageIds: const [10],
+            targetChatId: 999,
+            asCopy: false,
+          ),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(adapter.deleteMessageCalls, 0);
+      },
+    );
+
+    test(
+      'classifyMessage uses sendCopy when no-reference mode is enabled',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'forwardMessages': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [_textMessageJson(88, 'copied')],
+              }),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        await service.classifyMessage(
+          sourceChatId: 777,
+          messageIds: const [10],
           targetChatId: 999,
-          asCopy: false,
-        ),
-        throwsA(isA<StateError>()),
-      );
+          asCopy: true,
+        );
 
-      expect(adapter.deleteMessageCalls, 0);
-    });
+        expect(adapter.lastForwardSendCopy, isTrue);
+      },
+    );
 
-    test('classifyMessage uses sendCopy when no-reference mode is enabled', () async {
-      final adapter = _FakeTdlibAdapter(
-        wireResponses: <String, List<TdWireEnvelope>>{
-          'forwardMessages': <TdWireEnvelope>[
-            TdWireEnvelope.fromJson(<String, dynamic>{
-              '@type': 'messages',
-              'messages': [_textMessageJson(88, 'copied')],
-            }),
-          ],
-        },
-      );
-      final service = TelegramService(adapter: adapter);
+    test(
+      'requireSelfChatId resolves real private chat id via createPrivateChat',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getOption': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'optionValueInteger',
+                'value': 1774463496,
+              }),
+            ],
+            'createPrivateChat': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'chat',
+                'id': 1234567890123,
+                'title': '收藏夹',
+                'type': {'@type': 'chatTypePrivate', 'user_id': 1774463496},
+              }),
+            ],
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [],
+              }),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
 
-      await service.classifyMessage(
-        sourceChatId: 777,
-        messageId: 10,
-        targetChatId: 999,
-        asCopy: true,
-      );
+        await service.fetchNextMessage(
+          direction: MessageFetchDirection.latestFirst,
+          sourceChatId: null,
+        );
 
-      expect(adapter.lastForwardSendCopy, isTrue);
-    });
+        expect(adapter.lastHistoryChatId, 1234567890123);
+      },
+    );
 
-    test('requireSelfChatId resolves real private chat id via createPrivateChat', () async {
-      final adapter = _FakeTdlibAdapter(
-        wireResponses: <String, List<TdWireEnvelope>>{
-          'getOption': <TdWireEnvelope>[
-            TdWireEnvelope.fromJson(<String, dynamic>{
-              '@type': 'optionValueInteger',
-              'value': 1774463496,
-            }),
-          ],
-          'createPrivateChat': <TdWireEnvelope>[
-            TdWireEnvelope.fromJson(<String, dynamic>{
-              '@type': 'chat',
-              'id': 1234567890123,
-              'title': '收藏夹',
-              'type': {
-                '@type': 'chatTypePrivate',
-                'user_id': 1774463496,
-              },
-            }),
-          ],
-          'getChatHistory': <TdWireEnvelope>[
-            TdWireEnvelope.fromJson(<String, dynamic>{
-              '@type': 'messages',
-              'messages': [],
-            }),
-          ],
-        },
-      );
-      final service = TelegramService(adapter: adapter);
+    test(
+      'fetchMessagePage groups audio album messages into one pipeline item',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _audioMessageJson(12, 'track 2', albumId: '700'),
+                  _audioMessageJson(11, 'track 1', albumId: '700'),
+                  _textMessageJson(10, 'tail'),
+                ],
+              }),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
 
-      await service.fetchNextMessage(
-        direction: MessageFetchDirection.latestFirst,
-        sourceChatId: null,
-      );
+        final page = await service.fetchMessagePage(
+          direction: MessageFetchDirection.latestFirst,
+          sourceChatId: 777,
+          fromMessageId: null,
+          limit: 3,
+        );
 
-      expect(adapter.lastHistoryChatId, 1234567890123);
-    });
+        expect(page.length, 2);
+        expect(page.first.messageIds, [11, 12]);
+        expect(page.first.preview.audioTracks.map((item) => item.title), [
+          'track 1',
+          'track 2',
+        ]);
+      },
+    );
   });
 }
 
@@ -262,6 +306,29 @@ Map<String, dynamic> _textMessageJson(int id, String text) {
     'content': {
       '@type': 'messageText',
       'text': {'text': text, 'entities': []},
+    },
+  };
+}
+
+Map<String, dynamic> _audioMessageJson(
+  int id,
+  String title, {
+  required String albumId,
+}) {
+  return <String, dynamic>{
+    'id': id,
+    'media_album_id': albumId,
+    'content': {
+      '@type': 'messageAudio',
+      'caption': {'text': '', 'entities': []},
+      'audio': {
+        'duration': 12,
+        'title': title,
+        'audio': {
+          'id': id + 100,
+          'local': {'path': ''},
+        },
+      },
     },
   };
 }

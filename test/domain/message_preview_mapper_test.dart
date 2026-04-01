@@ -7,6 +7,7 @@ void main() {
     test('maps MessageText to text preview', () {
       const content = TdMessageContentDto(
         kind: TdMessageContentKind.text,
+        messageId: 1,
         text: TdFormattedTextDto(text: 'hello', entities: []),
       );
       final preview = mapMessagePreview(content);
@@ -19,6 +20,7 @@ void main() {
     test('maps MessagePhoto to photo preview with fallback title', () {
       const photo = TdMessageContentDto(
         kind: TdMessageContentKind.photo,
+        messageId: 2,
         text: TdFormattedTextDto(text: '', entities: []),
       );
       final preview = mapMessagePreview(photo);
@@ -30,6 +32,7 @@ void main() {
     test('maps MessageVideo to video preview with paths and duration', () {
       const content = TdMessageContentDto(
         kind: TdMessageContentKind.video,
+        messageId: 3,
         text: TdFormattedTextDto(text: '', entities: []),
         localVideoPath: '/tmp/video.mp4',
         localVideoThumbnailPath: '/tmp/thumb.jpg',
@@ -47,6 +50,7 @@ void main() {
     test('maps MessageAudio to audio preview with file metadata', () {
       const content = TdMessageContentDto(
         kind: TdMessageContentKind.audio,
+        messageId: 4,
         fileName: 'track.mp3',
         audioTitle: 'Song',
         audioPerformer: 'Artist',
@@ -65,6 +69,7 @@ void main() {
     test('maps unsupported content to fallback preview', () {
       const content = TdMessageContentDto(
         kind: TdMessageContentKind.unsupported,
+        messageId: 5,
       );
       final preview = mapMessagePreview(content);
       expect(preview.kind, MessagePreviewKind.unsupported);

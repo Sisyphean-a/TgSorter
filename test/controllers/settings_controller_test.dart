@@ -10,27 +10,33 @@ import 'package:tgsorter/app/models/pipeline_message.dart';
 
 void main() {
   group('SettingsController', () {
-    test('saveProxySettings persists values and restarts when requested', () async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final gateway = _SettingsFakeGateway();
-      final controller = SettingsController(SettingsRepository(prefs), gateway);
-      controller.onInit();
+    test(
+      'saveProxySettings persists values and restarts when requested',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final gateway = _SettingsFakeGateway();
+        final controller = SettingsController(
+          SettingsRepository(prefs),
+          gateway,
+        );
+        controller.onInit();
 
-      await controller.saveProxySettings(
-        server: '127.0.0.1',
-        port: '7897',
-        username: 'user',
-        password: 'pass',
-        restart: true,
-      );
+        await controller.saveProxySettings(
+          server: '127.0.0.1',
+          port: '7897',
+          username: 'user',
+          password: 'pass',
+          restart: true,
+        );
 
-      expect(controller.settings.value.proxy.server, '127.0.0.1');
-      expect(controller.settings.value.proxy.port, 7897);
-      expect(prefs.getString('tdlib_proxy_server'), '127.0.0.1');
-      expect(prefs.getInt('tdlib_proxy_port'), 7897);
-      expect(gateway.restartCount, 1);
-    });
+        expect(controller.settings.value.proxy.server, '127.0.0.1');
+        expect(controller.settings.value.proxy.port, 7897);
+        expect(prefs.getString('tdlib_proxy_server'), '127.0.0.1');
+        expect(prefs.getInt('tdlib_proxy_port'), 7897);
+        expect(gateway.restartCount, 1);
+      },
+    );
 
     test('addCategory stores selected chat and blocks duplicates', () async {
       SharedPreferences.setMockInitialValues({});
@@ -39,12 +45,19 @@ void main() {
       final controller = SettingsController(SettingsRepository(prefs), gateway);
       controller.onInit();
 
-      await controller.addCategory(const SelectableChat(id: -1001, title: '频道一'));
-
-      expect(controller.settings.value.categories.single.targetChatTitle, '频道一');
+      await controller.addCategory(
+        const SelectableChat(id: -1001, title: '频道一'),
+      );
 
       expect(
-        () => controller.addCategory(const SelectableChat(id: -1001, title: '频道一')),
+        controller.settings.value.categories.single.targetChatTitle,
+        '频道一',
+      );
+
+      expect(
+        () => controller.addCategory(
+          const SelectableChat(id: -1001, title: '频道一'),
+        ),
         throwsA(isA<StateError>()),
       );
     });
@@ -112,7 +125,7 @@ class _SettingsFakeGateway implements TelegramGateway {
   }
 
   @override
-  Future<PipelineMessage> prepareVideoPlayback({
+  Future<PipelineMessage> prepareMediaPlayback({
     required int sourceChatId,
     required int messageId,
   }) async {
@@ -130,7 +143,7 @@ class _SettingsFakeGateway implements TelegramGateway {
   @override
   Future<ClassifyReceipt> classifyMessage({
     required int? sourceChatId,
-    required int messageId,
+    required List<int> messageIds,
     required int targetChatId,
     required bool asCopy,
   }) async {
@@ -141,6 +154,6 @@ class _SettingsFakeGateway implements TelegramGateway {
   Future<void> undoClassify({
     required int sourceChatId,
     required int targetChatId,
-    required int targetMessageId,
+    required List<int> targetMessageIds,
   }) async {}
 }

@@ -51,7 +51,7 @@ void main() {
           id: 'retry-1',
           categoryKey: 'b',
           sourceChatId: 5001,
-          messageId: 3001,
+          messageIds: const [3001, 3002],
           targetChatId: 4001,
           createdAtMs: 1720000000000,
           reason: 'TDLib 请求失败(429): Too Many Requests',
@@ -64,6 +64,7 @@ void main() {
       expect(actual.length, 1);
       expect(actual.first.id, 'retry-1');
       expect(actual.first.categoryKey, 'b');
+      expect(actual.first.messageIds, [3001, 3002]);
       expect(actual.first.reason, contains('429'));
     });
   });

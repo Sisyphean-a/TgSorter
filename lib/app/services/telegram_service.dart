@@ -127,9 +127,7 @@ class TelegramService implements TelegramGateway {
     for (final item in messages) {
       await _ensureMediaDownloadsStarted(item.content);
     }
-    return messages
-        .map((item) => _toPipelineMessage(item, chatId))
-        .toList(growable: false);
+    return _groupPipelineMessages(messages, chatId);
   }
 
   @override
@@ -147,11 +145,11 @@ class TelegramService implements TelegramGateway {
       return null;
     }
     await _ensureMediaDownloadsStarted(message.content);
-    return _toPipelineMessage(message, chatId);
+    return _toPipelineMessage([message], chatId);
   }
 
   @override
-  Future<PipelineMessage> prepareVideoPlayback({
+  Future<PipelineMessage> prepareMediaPlayback({
     required int sourceChatId,
     required int messageId,
   }) async {
@@ -167,7 +165,7 @@ class TelegramService implements TelegramGateway {
       return refreshMessage(sourceChatId: sourceChatId, messageId: messageId);
     }
     if (content.kind != TdMessageContentKind.video) {
-      return _toPipelineMessage(message, sourceChatId);
+      return _toPipelineMessage([message], sourceChatId);
     }
     await _ensureFileDownloadStarted(
       fileId: content.remoteVideoFileId,
@@ -184,13 +182,13 @@ class TelegramService implements TelegramGateway {
   }) async {
     await _requireAuthorizationReady();
     final message = await _loadMessage(sourceChatId, messageId);
-    return _toPipelineMessage(message, sourceChatId);
+    return _toPipelineMessage([message], sourceChatId);
   }
 
   @override
   Future<ClassifyReceipt> classifyMessage({
     required int? sourceChatId,
-    required int messageId,
+    required List<int> messageIds,
     required int targetChatId,
     required bool asCopy,
   }) async {
@@ -201,7 +199,7 @@ class TelegramService implements TelegramGateway {
         chatId: targetChatId,
         messageThreadId: 0,
         fromChatId: actualSourceChatId,
-        messageIds: [messageId],
+        messageIds: messageIds,
         options: null,
         sendCopy: asCopy,
         removeCaption: false,
@@ -214,12 +212,14 @@ class TelegramService implements TelegramGateway {
     if (forwarded.messages.isEmpty) {
       throw StateError('forwardMessages 返回异常，无法提取目标消息 ID');
     }
-    final targetMessageId = forwarded.messages.first.id;
+    final targetMessageIds = forwarded.messages
+        .map((item) => item.id)
+        .toList(growable: false);
 
     await _sendExpectOk(
       DeleteMessages(
         chatId: actualSourceChatId,
-        messageIds: [messageId],
+        messageIds: messageIds,
         revoke: true,
       ),
       request: 'deleteMessages',
@@ -228,9 +228,9 @@ class TelegramService implements TelegramGateway {
 
     return ClassifyReceipt(
       sourceChatId: actualSourceChatId,
-      sourceMessageId: messageId,
+      sourceMessageIds: messageIds,
       targetChatId: targetChatId,
-      targetMessageId: targetMessageId,
+      targetMessageIds: targetMessageIds,
     );
   }
 
@@ -238,7 +238,7 @@ class TelegramService implements TelegramGateway {
   Future<void> undoClassify({
     required int sourceChatId,
     required int targetChatId,
-    required int targetMessageId,
+    required List<int> targetMessageIds,
   }) async {
     await _requireAuthorizationReady();
     final envelope = await _adapter.sendWire(
@@ -246,7 +246,7 @@ class TelegramService implements TelegramGateway {
         chatId: sourceChatId,
         messageThreadId: 0,
         fromChatId: targetChatId,
-        messageIds: [targetMessageId],
+        messageIds: targetMessageIds,
         options: null,
         sendCopy: true,
         removeCaption: false,
@@ -262,7 +262,7 @@ class TelegramService implements TelegramGateway {
     await _sendExpectOk(
       DeleteMessages(
         chatId: targetChatId,
-        messageIds: [targetMessageId],
+        messageIds: targetMessageIds,
         revoke: true,
       ),
       request: 'deleteMessages',
@@ -414,9 +414,10 @@ class TelegramService implements TelegramGateway {
     if (fromMessageId == null) {
       return messages;
     }
-    return messages.where((item) => item.id != fromMessageId).take(limit).toList(
-      growable: false,
-    );
+    return messages
+        .where((item) => item.id != fromMessageId)
+        .take(limit)
+        .toList(growable: false);
   }
 
   Future<List<TdMessageDto>> _fetchOldestSavedMessagePage({
@@ -474,12 +475,87 @@ class TelegramService implements TelegramGateway {
     return TdMessagesDto.fromEnvelope(envelope).messages;
   }
 
-  PipelineMessage _toPipelineMessage(TdMessageDto message, int sourceChatId) {
+  List<PipelineMessage> _groupPipelineMessages(
+    List<TdMessageDto> messages,
+    int sourceChatId,
+  ) {
+    final result = <PipelineMessage>[];
+    var index = 0;
+    while (index < messages.length) {
+      final current = messages[index];
+      if (!_isAudioAlbumMessage(current)) {
+        result.add(_toPipelineMessage([current], sourceChatId));
+        index++;
+        continue;
+      }
+      final group = <TdMessageDto>[current];
+      final albumId = current.mediaAlbumId;
+      var next = index + 1;
+      while (next < messages.length) {
+        final candidate = messages[next];
+        if (candidate.mediaAlbumId != albumId ||
+            candidate.content.kind != TdMessageContentKind.audio) {
+          break;
+        }
+        group.add(candidate);
+        next++;
+      }
+      result.add(
+        _toPipelineMessage(
+          group.reversed.toList(growable: false),
+          sourceChatId,
+        ),
+      );
+      index = next;
+    }
+    return result;
+  }
+
+  bool _isAudioAlbumMessage(TdMessageDto message) {
+    return message.mediaAlbumId != null &&
+        message.content.kind == TdMessageContentKind.audio;
+  }
+
+  PipelineMessage _toPipelineMessage(
+    List<TdMessageDto> messages,
+    int sourceChatId,
+  ) {
+    final first = messages.first;
+    final preview = _buildPreview(messages);
     return PipelineMessage(
-      id: message.id,
+      id: first.id,
+      messageIds: messages.map((item) => item.id).toList(growable: false),
       sourceChatId: sourceChatId,
-      preview: mapMessagePreview(message.content),
+      preview: preview,
     );
+  }
+
+  MessagePreview _buildPreview(List<TdMessageDto> messages) {
+    final first = messages.first;
+    final primary = mapMessagePreview(first.content);
+    if (messages.length == 1 || primary.kind != MessagePreviewKind.audio) {
+      return primary;
+    }
+    final tracks = messages
+        .map((item) => mapAudioTrackPreview(item.content, messageId: item.id))
+        .toList(growable: false);
+    return primary.copyWith(
+      title: '音频组 (${tracks.length} 条)',
+      text: _firstNonEmptyText(messages) ?? primary.text,
+      localAudioPath: null,
+      audioDurationSeconds: null,
+      audioTracks: tracks,
+    );
+  }
+
+  TdFormattedTextDto? _firstNonEmptyText(List<TdMessageDto> messages) {
+    for (final item in messages) {
+      final text = item.content.text;
+      if (text != null && text.text.trim().isNotEmpty) {
+        return text;
+      }
+    }
+    return null;
   }
 
   Future<TdChatDto> _loadChat(int chatId) async {

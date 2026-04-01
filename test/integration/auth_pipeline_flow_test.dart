@@ -107,7 +107,10 @@ void main() {
     );
     await tester.pump();
 
-    await tester.enterText(find.widgetWithText(TextField, '代理服务器'), '127.0.0.1');
+    await tester.enterText(
+      find.widgetWithText(TextField, '代理服务器'),
+      '127.0.0.1',
+    );
     await tester.enterText(find.widgetWithText(TextField, '代理端口'), '7897');
     await tester.tap(find.text('保存代理并重试启动'));
     await tester.pump();
@@ -131,7 +134,8 @@ class _IntegrationFakeGateway implements TelegramGateway {
   Stream<TdAuthState> get authStates => _authController.stream;
 
   @override
-  Stream<TdConnectionState> get connectionStates => _connectionController.stream;
+  Stream<TdConnectionState> get connectionStates =>
+      _connectionController.stream;
 
   void emitAuthState(TdAuthState state) {
     _authController.add(state);
@@ -187,7 +191,7 @@ class _IntegrationFakeGateway implements TelegramGateway {
   }
 
   @override
-  Future<PipelineMessage> prepareVideoPlayback({
+  Future<PipelineMessage> prepareMediaPlayback({
     required int sourceChatId,
     required int messageId,
   }) async {
@@ -205,7 +209,7 @@ class _IntegrationFakeGateway implements TelegramGateway {
   @override
   Future<ClassifyReceipt> classifyMessage({
     required int? sourceChatId,
-    required int messageId,
+    required List<int> messageIds,
     required int targetChatId,
     required bool asCopy,
   }) async {
@@ -216,7 +220,7 @@ class _IntegrationFakeGateway implements TelegramGateway {
   Future<void> undoClassify({
     required int sourceChatId,
     required int targetChatId,
-    required int targetMessageId,
+    required List<int> targetMessageIds,
   }) async {
     throw UnimplementedError();
   }

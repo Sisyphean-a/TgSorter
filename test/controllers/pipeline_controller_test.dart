@@ -66,10 +66,7 @@ void main() {
     });
 
     test('skipCurrent advances to next cached message', () async {
-      service.pages.add([
-        _message(10, 'first'),
-        _message(11, 'second'),
-      ]);
+      service.pages.add([_message(10, 'first'), _message(11, 'second')]);
       await controller.fetchNext();
       expect(controller.currentMessage.value?.id, 10);
 
@@ -79,11 +76,7 @@ void main() {
     });
 
     test('runBatch uses settings batchSize as upper bound', () async {
-      service.pages.add([
-        _message(1, '1'),
-        _message(2, '2'),
-        _message(3, '3'),
-      ]);
+      service.pages.add([_message(1, '1'), _message(2, '2'), _message(3, '3')]);
       await controller.fetchNext();
 
       await controller.runBatch('a');
@@ -99,10 +92,7 @@ void main() {
     });
 
     test('showPreviousMessage returns to prior cached message', () async {
-      service.pages.add([
-        _message(31, 'a'),
-        _message(32, 'b'),
-      ]);
+      service.pages.add([_message(31, 'a'), _message(32, 'b')]);
       await controller.fetchNext();
       await controller.showNextMessage();
 
@@ -133,28 +123,30 @@ void main() {
       expect(service.fetchNextCalls, 1);
     });
 
-    test('prepareCurrentVideo requests download and refreshes current message', () async {
-      service.pages.add([
-        _videoMessage(
+    test(
+      'prepareCurrentMedia requests download and refreshes current message',
+      () async {
+        service.pages.add([
+          _videoMessage(id: 21, title: '#REDPMV 005 高跟鞋', localVideoPath: null),
+        ]);
+        service.refreshedMessage = _videoMessage(
           id: 21,
           title: '#REDPMV 005 高跟鞋',
-          localVideoPath: null,
-        ),
-      ]);
-      service.refreshedMessage = _videoMessage(
-        id: 21,
-        title: '#REDPMV 005 高跟鞋',
-        localVideoPath: 'C:/video.mp4',
-      );
-      await controller.fetchNext();
+          localVideoPath: 'C:/video.mp4',
+        );
+        await controller.fetchNext();
 
-      await controller.prepareCurrentVideo();
-      await Future<void>.delayed(const Duration(milliseconds: 1100));
+        await controller.prepareCurrentMedia();
+        await Future<void>.delayed(const Duration(milliseconds: 1100));
 
-      expect(service.videoRequestCount, 1);
-      expect(controller.currentMessage.value?.preview.localVideoPath, 'C:/video.mp4');
-      expect(controller.videoPreparing.value, isFalse);
-    });
+        expect(service.videoRequestCount, 1);
+        expect(
+          controller.currentMessage.value?.preview.localVideoPath,
+          'C:/video.mp4',
+        );
+        expect(controller.videoPreparing.value, isFalse);
+      },
+    );
   });
 }
 
@@ -174,7 +166,8 @@ class _FakeTelegramService implements TelegramGateway {
   Stream<TdAuthState> get authStates => _authController.stream;
 
   @override
-  Stream<TdConnectionState> get connectionStates => _connectionController.stream;
+  Stream<TdConnectionState> get connectionStates =>
+      _connectionController.stream;
 
   void emitConnectionReady() {
     _connectionController.add(
@@ -238,7 +231,7 @@ class _FakeTelegramService implements TelegramGateway {
   }
 
   @override
-  Future<PipelineMessage> prepareVideoPlayback({
+  Future<PipelineMessage> prepareMediaPlayback({
     required int sourceChatId,
     required int messageId,
   }) async {
@@ -257,17 +250,19 @@ class _FakeTelegramService implements TelegramGateway {
   @override
   Future<ClassifyReceipt> classifyMessage({
     required int? sourceChatId,
-    required int messageId,
+    required List<int> messageIds,
     required int targetChatId,
     required bool asCopy,
   }) async {
     lastAsCopy = asCopy;
-    classifiedMessageIds.add(messageId);
+    classifiedMessageIds.addAll(messageIds);
     return ClassifyReceipt(
       sourceChatId: 777,
-      sourceMessageId: messageId,
+      sourceMessageIds: messageIds,
       targetChatId: targetChatId,
-      targetMessageId: messageId + 1000,
+      targetMessageIds: messageIds
+          .map((item) => item + 1000)
+          .toList(growable: false),
     );
   }
 
@@ -275,13 +270,14 @@ class _FakeTelegramService implements TelegramGateway {
   Future<void> undoClassify({
     required int sourceChatId,
     required int targetChatId,
-    required int targetMessageId,
+    required List<int> targetMessageIds,
   }) async {}
 }
 
 PipelineMessage _message(int id, String title) {
   return PipelineMessage(
     id: id,
+    messageIds: [id],
     sourceChatId: 8888,
     preview: MessagePreview(kind: MessagePreviewKind.text, title: title),
   );
@@ -294,6 +290,7 @@ PipelineMessage _videoMessage({
 }) {
   return PipelineMessage(
     id: id,
+    messageIds: [id],
     sourceChatId: 8888,
     preview: MessagePreview(
       kind: MessagePreviewKind.video,

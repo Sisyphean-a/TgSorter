@@ -53,7 +53,9 @@ class DesktopShortcutCard extends StatelessWidget {
             const Text('快捷键映射', style: TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
             for (final action in ShortcutAction.values)
-              Text('${labelShortcutAction(action)}: ${labelShortcutBinding(bindings[action])}'),
+              Text(
+                '${labelShortcutAction(action)}: ${labelShortcutBinding(bindings[action])}',
+              ),
           ],
         ),
       ),
@@ -108,7 +110,9 @@ class DesktopActionButtons extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: canClick ? pipeline.skipCurrent : null,
+                    onPressed: canClick
+                        ? () => pipeline.skipCurrent('desktop_button')
+                        : null,
                     child: const Text('跳过当前'),
                   ),
                 ),

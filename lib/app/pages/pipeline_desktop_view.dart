@@ -65,7 +65,7 @@ class PipelineDesktopView extends StatelessWidget {
             message: pipeline.currentMessage.value,
             processing: pipeline.loading.value || processing,
             videoPreparing: pipeline.videoPreparing.value,
-            onRequestVideoPlayback: pipeline.prepareCurrentVideo,
+            onRequestMediaPlayback: pipeline.prepareCurrentMedia,
           ),
         ),
         const SizedBox(height: 12),
@@ -80,8 +80,9 @@ class PipelineDesktopView extends StatelessWidget {
                 SizedBox(
                   width: 180,
                   child: ElevatedButton(
-                    onPressed:
-                        canClick ? () => pipeline.classify(category.key) : null,
+                    onPressed: canClick
+                        ? () => pipeline.classify(category.key)
+                        : null,
                     child: Text(category.targetChatTitle),
                   ),
                 ),
@@ -121,7 +122,9 @@ class PipelineDesktopView extends StatelessWidget {
       result[SingleActivator(
         _logicalKeyFor(binding.trigger),
         control: binding.ctrl,
-      )] = _intentForAction(action);
+      )] = _intentForAction(
+        action,
+      );
     }
     return result;
   }
@@ -135,7 +138,7 @@ class PipelineDesktopView extends StatelessWidget {
         onInvoke: (_) => _fire(pipeline.showNextMessage),
       ),
       _SkipIntent: CallbackAction<_SkipIntent>(
-        onInvoke: (_) => _fire(pipeline.skipCurrent),
+        onInvoke: (_) => _fire(() => pipeline.skipCurrent('desktop_shortcut')),
       ),
       _UndoIntent: CallbackAction<_UndoIntent>(
         onInvoke: (_) => _fire(pipeline.undoLastStep),

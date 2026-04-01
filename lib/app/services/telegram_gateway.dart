@@ -13,15 +13,17 @@ class SelectableChat {
 class ClassifyReceipt {
   const ClassifyReceipt({
     required this.sourceChatId,
-    required this.sourceMessageId,
+    required this.sourceMessageIds,
     required this.targetChatId,
-    required this.targetMessageId,
+    required this.targetMessageIds,
   });
 
   final int sourceChatId;
-  final int sourceMessageId;
+  final List<int> sourceMessageIds;
   final int targetChatId;
-  final int targetMessageId;
+  final List<int> targetMessageIds;
+
+  int get primarySourceMessageId => sourceMessageIds.first;
 }
 
 abstract class TelegramGateway {
@@ -48,7 +50,7 @@ abstract class TelegramGateway {
     required int? sourceChatId,
   });
 
-  Future<PipelineMessage> prepareVideoPlayback({
+  Future<PipelineMessage> prepareMediaPlayback({
     required int sourceChatId,
     required int messageId,
   });
@@ -60,7 +62,7 @@ abstract class TelegramGateway {
 
   Future<ClassifyReceipt> classifyMessage({
     required int? sourceChatId,
-    required int messageId,
+    required List<int> messageIds,
     required int targetChatId,
     required bool asCopy,
   });
@@ -68,6 +70,6 @@ abstract class TelegramGateway {
   Future<void> undoClassify({
     required int sourceChatId,
     required int targetChatId,
-    required int targetMessageId,
+    required List<int> targetMessageIds,
   });
 }

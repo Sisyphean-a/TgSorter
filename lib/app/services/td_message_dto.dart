@@ -2,6 +2,7 @@ import 'package:tgsorter/app/services/td_response_reader.dart';
 import 'package:tgsorter/app/services/td_wire_message.dart';
 
 enum TdTextEntityKind { url, textUrl, emailAddress, phoneNumber, other }
+
 enum TdMessageContentKind { text, photo, video, audio, unsupported }
 
 class TdTextEntityDto {
@@ -74,6 +75,7 @@ class TdFormattedTextDto {
 class TdMessageContentDto {
   const TdMessageContentDto({
     required this.kind,
+    required this.messageId,
     this.text,
     this.localImagePath,
     this.localVideoPath,
@@ -91,6 +93,7 @@ class TdMessageContentDto {
   });
 
   final TdMessageContentKind kind;
+  final int messageId;
   final TdFormattedTextDto? text;
   final String? localImagePath;
   final String? localVideoPath;
@@ -108,42 +111,62 @@ class TdMessageContentDto {
 }
 
 class TdMessageDto {
-  const TdMessageDto({required this.id, required this.content});
+  const TdMessageDto({
+    required this.id,
+    required this.mediaAlbumId,
+    required this.content,
+  });
 
   factory TdMessageDto.fromJson(Map<String, dynamic> payload) {
+    final id = TdResponseReader.readInt(payload, 'id');
     return TdMessageDto(
-      id: TdResponseReader.readInt(payload, 'id'),
-      content: _parseContent(TdResponseReader.readMap(payload, 'content')),
+      id: id,
+      mediaAlbumId: _readMediaAlbumId(payload),
+      content: _parseContent(
+        TdResponseReader.readMap(payload, 'content'),
+        messageId: id,
+      ),
     );
   }
 
   final int id;
+  final String? mediaAlbumId;
   final TdMessageContentDto content;
 
-  static TdMessageContentDto _parseContent(Map<String, dynamic> content) {
+  static TdMessageContentDto _parseContent(
+    Map<String, dynamic> content, {
+    required int messageId,
+  }) {
     final type = TdResponseReader.readString(content, '@type');
     switch (type) {
       case 'messageText':
         return TdMessageContentDto(
           kind: TdMessageContentKind.text,
+          messageId: messageId,
           text: TdFormattedTextDto.fromJson(
             TdResponseReader.readMap(content, 'text'),
           ),
         );
       case 'messagePhoto':
-        return _parsePhotoContent(content);
+        return _parsePhotoContent(content, messageId: messageId);
       case 'messageVideo':
-        return _parseVideoContent(content);
+        return _parseVideoContent(content, messageId: messageId);
       case 'messageAudio':
-        return _parseAudioContent(content);
+        return _parseAudioContent(content, messageId: messageId);
       case 'messageVoiceNote':
-        return _parseVoiceNoteContent(content);
+        return _parseVoiceNoteContent(content, messageId: messageId);
       default:
-        return const TdMessageContentDto(kind: TdMessageContentKind.unsupported);
+        return TdMessageContentDto(
+          kind: TdMessageContentKind.unsupported,
+          messageId: messageId,
+        );
     }
   }
 
-  static TdMessageContentDto _parsePhotoContent(Map<String, dynamic> content) {
+  static TdMessageContentDto _parsePhotoContent(
+    Map<String, dynamic> content, {
+    required int messageId,
+  }) {
     final photo = TdResponseReader.readMap(content, 'photo');
     final sizes = TdResponseReader.readList(photo, 'sizes');
     if (sizes.isEmpty) {
@@ -151,10 +174,13 @@ class TdMessageDto {
         'Missing required list item at photo.sizes.last',
       );
     }
-    final last = TdResponseReader.readMap(<String, dynamic>{'item': sizes.last}, 'item');
+    final last = TdResponseReader.readMap(<String, dynamic>{
+      'item': sizes.last,
+    }, 'item');
     final photoFile = TdResponseReader.readMap(last, 'photo');
     return TdMessageContentDto(
       kind: TdMessageContentKind.photo,
+      messageId: messageId,
       text: TdFormattedTextDto.fromJson(
         TdResponseReader.readMap(content, 'caption'),
       ),
@@ -163,21 +189,24 @@ class TdMessageDto {
     );
   }
 
-  static TdMessageContentDto _parseVideoContent(Map<String, dynamic> content) {
+  static TdMessageContentDto _parseVideoContent(
+    Map<String, dynamic> content, {
+    required int messageId,
+  }) {
     final video = TdResponseReader.readMap(content, 'video');
     final videoFile = TdResponseReader.readMap(video, 'video');
     final thumbnail = video['thumbnail'];
     final thumbnailFile = thumbnail == null
         ? null
         : TdResponseReader.readMap(
-            TdResponseReader.readMap(
-              <String, dynamic>{'thumbnail': thumbnail},
-              'thumbnail',
-            ),
+            TdResponseReader.readMap(<String, dynamic>{
+              'thumbnail': thumbnail,
+            }, 'thumbnail'),
             'file',
           );
     return TdMessageContentDto(
       kind: TdMessageContentKind.video,
+      messageId: messageId,
       text: TdFormattedTextDto.fromJson(
         TdResponseReader.readMap(content, 'caption'),
       ),
@@ -193,11 +222,15 @@ class TdMessageDto {
     );
   }
 
-  static TdMessageContentDto _parseAudioContent(Map<String, dynamic> content) {
+  static TdMessageContentDto _parseAudioContent(
+    Map<String, dynamic> content, {
+    required int messageId,
+  }) {
     final audio = TdResponseReader.readMap(content, 'audio');
     final audioFile = TdResponseReader.readMap(audio, 'audio');
     return TdMessageContentDto(
       kind: TdMessageContentKind.audio,
+      messageId: messageId,
       text: TdFormattedTextDto.fromJson(
         TdResponseReader.readMap(content, 'caption'),
       ),
@@ -211,12 +244,14 @@ class TdMessageDto {
   }
 
   static TdMessageContentDto _parseVoiceNoteContent(
-    Map<String, dynamic> content,
-  ) {
+    Map<String, dynamic> content, {
+    required int messageId,
+  }) {
     final voiceNote = TdResponseReader.readMap(content, 'voice_note');
     final voiceFile = TdResponseReader.readMap(voiceNote, 'voice');
     return TdMessageContentDto(
       kind: TdMessageContentKind.audio,
+      messageId: messageId,
       text: TdFormattedTextDto.fromJson(
         TdResponseReader.readMap(content, 'caption'),
       ),
@@ -237,6 +272,18 @@ class TdMessageDto {
     }
     final path = local['path']?.toString() ?? '';
     return path.isEmpty ? null : path;
+  }
+
+  static String? _readMediaAlbumId(Map<String, dynamic> payload) {
+    final raw = payload['media_album_id'];
+    if (raw == null) {
+      return null;
+    }
+    final value = raw.toString();
+    if (value.isEmpty || value == '0') {
+      return null;
+    }
+    return value;
   }
 }
 

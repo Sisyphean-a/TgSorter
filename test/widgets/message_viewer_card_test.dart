@@ -16,6 +16,7 @@ void main() {
           body: MessageViewerCard(
             message: PipelineMessage(
               id: 1,
+              messageIds: const [1],
               sourceChatId: 100,
               preview: const MessagePreview(
                 kind: MessagePreviewKind.video,
@@ -25,7 +26,7 @@ void main() {
             ),
             processing: false,
             videoPreparing: false,
-            onRequestVideoPlayback: () async {
+            onRequestMediaPlayback: ([messageId]) async {
               playRequests++;
             },
           ),
@@ -47,6 +48,7 @@ void main() {
           body: MessageViewerCard(
             message: PipelineMessage(
               id: 2,
+              messageIds: const [2],
               sourceChatId: 100,
               preview: const MessagePreview(
                 kind: MessagePreviewKind.video,
@@ -56,7 +58,7 @@ void main() {
             ),
             processing: false,
             videoPreparing: false,
-            onRequestVideoPlayback: () async {},
+            onRequestMediaPlayback: ([messageId]) async {},
           ),
         ),
       ),
@@ -79,6 +81,7 @@ void main() {
           body: MessageViewerCard(
             message: PipelineMessage(
               id: 3,
+              messageIds: const [3],
               sourceChatId: 100,
               preview: const MessagePreview(
                 kind: MessagePreviewKind.video,
@@ -88,7 +91,7 @@ void main() {
             ),
             processing: false,
             videoPreparing: false,
-            onRequestVideoPlayback: () async {},
+            onRequestMediaPlayback: ([messageId]) async {},
           ),
         ),
       ),
@@ -98,71 +101,75 @@ void main() {
     expect(find.text('视频已识别（点击播放开始下载）'), findsOneWidget);
   });
 
-  testWidgets('shows play button instead of auto loading for ready local video', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData.dark(),
-        home: Scaffold(
-          body: MessageViewerCard(
-            message: PipelineMessage(
-              id: 4,
-              sourceChatId: 100,
-              preview: const MessagePreview(
-                kind: MessagePreviewKind.video,
-                title: '[视频]',
-                localVideoPath: 'C:/ready.mp4',
-                localVideoThumbnailPath: 'C:/thumb.jpg',
+  testWidgets(
+    'shows play button instead of auto loading for ready local video',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: Scaffold(
+            body: MessageViewerCard(
+              message: PipelineMessage(
+                id: 4,
+                messageIds: const [4],
+                sourceChatId: 100,
+                preview: const MessagePreview(
+                  kind: MessagePreviewKind.video,
+                  title: '[视频]',
+                  localVideoPath: 'C:/ready.mp4',
+                  localVideoThumbnailPath: 'C:/thumb.jpg',
+                ),
               ),
+              processing: false,
+              videoPreparing: false,
+              onRequestMediaPlayback: ([messageId]) async {},
             ),
-            processing: false,
-            videoPreparing: false,
-            onRequestVideoPlayback: () async {},
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('视频加载中...'), findsNothing);
-    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-  });
+      expect(find.text('视频加载中...'), findsNothing);
+      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+    },
+  );
 
-  testWidgets('audio preview shows download/play action before local file is ready', (
-    tester,
-  ) async {
-    var playRequests = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData.dark(),
-        home: Scaffold(
-          body: MessageViewerCard(
-            message: PipelineMessage(
-              id: 5,
-              sourceChatId: 100,
-              preview: const MessagePreview(
-                kind: MessagePreviewKind.audio,
-                title: 'Song',
-                subtitle: 'Artist',
-                localAudioPath: null,
-                audioDurationSeconds: 180,
+  testWidgets(
+    'audio preview shows download/play action before local file is ready',
+    (tester) async {
+      var playRequests = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: Scaffold(
+            body: MessageViewerCard(
+              message: PipelineMessage(
+                id: 5,
+                messageIds: const [5],
+                sourceChatId: 100,
+                preview: const MessagePreview(
+                  kind: MessagePreviewKind.audio,
+                  title: 'Song',
+                  subtitle: 'Artist',
+                  localAudioPath: null,
+                  audioDurationSeconds: 180,
+                ),
               ),
+              processing: false,
+              videoPreparing: false,
+              onRequestMediaPlayback: ([messageId]) async {
+                playRequests++;
+              },
             ),
-            processing: false,
-            videoPreparing: false,
-            onRequestVideoPlayback: () async {
-              playRequests++;
-            },
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('Song'), findsOneWidget);
-    expect(find.text('Artist'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
-    await tester.pump();
+      expect(find.text('Song'), findsOneWidget);
+      expect(find.text('Artist'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.pump();
 
-    expect(playRequests, 1);
-  });
+      expect(playRequests, 1);
+    },
+  );
 }

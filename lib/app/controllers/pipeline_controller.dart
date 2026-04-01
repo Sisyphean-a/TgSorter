@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
@@ -89,7 +90,7 @@ class PipelineController extends GetxController {
     }
   }
 
-  Future<void> prepareCurrentVideo() async {
+  Future<void> prepareCurrentMedia([int? targetMessageId]) async {
     final message = currentMessage.value;
     if (message == null ||
         (message.preview.kind != MessagePreviewKind.video &&
@@ -97,12 +98,14 @@ class PipelineController extends GetxController {
         videoPreparing.value) {
       return;
     }
+    final requestedMessageId = targetMessageId ?? message.id;
     videoPreparing.value = true;
     try {
-      currentMessage.value = await _service.prepareVideoPlayback(
+      final prepared = await _service.prepareMediaPlayback(
         sourceChatId: message.sourceChatId,
-        messageId: message.id,
+        messageId: requestedMessageId,
       );
+      currentMessage.value = _mergePreparedMessage(message, prepared);
       await _refreshCurrentMediaIfNeeded();
     } catch (error) {
       _showGeneralError(error.toString());
@@ -110,11 +113,17 @@ class PipelineController extends GetxController {
     }
   }
 
-  Future<void> skipCurrent() async {
+  Future<void> skipCurrent([String source = 'unknown']) async {
     if (processing.value || currentMessage.value == null) {
       return;
     }
-    final messageId = currentMessage.value!.id;
+    final message = currentMessage.value!;
+    developer.log(
+      'skipCurrent source=$source messageIds=${message.messageIds.join(",")}',
+      name: 'PipelineController',
+      stackTrace: StackTrace.current,
+    );
+    final messageId = message.id;
     await _appendLog(
       ClassifyOperationLog(
         id: _buildId('skip', messageId),
@@ -123,6 +132,7 @@ class PipelineController extends GetxController {
         targetChatId: 0,
         createdAtMs: DateTime.now().millisecondsSinceEpoch,
         status: ClassifyOperationStatus.skipped,
+        reason: source,
       ),
     );
     await showNextMessage();
@@ -162,7 +172,7 @@ class PipelineController extends GetxController {
     try {
       final receipt = await _service.classifyMessage(
         sourceChatId: message.sourceChatId,
-        messageId: message.id,
+        messageIds: message.messageIds,
         targetChatId: target.targetChatId,
         asCopy: _settingsController.settings.value.forwardAsCopy,
       );
@@ -236,13 +246,13 @@ class PipelineController extends GetxController {
       await _service.undoClassify(
         sourceChatId: receipt.sourceChatId,
         targetChatId: receipt.targetChatId,
-        targetMessageId: receipt.targetMessageId,
+        targetMessageIds: receipt.targetMessageIds,
       );
       await _appendLog(
         ClassifyOperationLog(
-          id: _buildId('undo_ok', receipt.sourceMessageId),
+          id: _buildId('undo_ok', receipt.primarySourceMessageId),
           categoryKey: '-',
-          messageId: receipt.sourceMessageId,
+          messageId: receipt.primarySourceMessageId,
           targetChatId: receipt.targetChatId,
           createdAtMs: DateTime.now().millisecondsSinceEpoch,
           status: ClassifyOperationStatus.undoSuccess,
@@ -253,9 +263,9 @@ class PipelineController extends GetxController {
     } on TdlibFailure catch (error) {
       await _appendLog(
         ClassifyOperationLog(
-          id: _buildId('undo_fail', receipt.sourceMessageId),
+          id: _buildId('undo_fail', receipt.primarySourceMessageId),
           categoryKey: '-',
-          messageId: receipt.sourceMessageId,
+          messageId: receipt.primarySourceMessageId,
           targetChatId: receipt.targetChatId,
           createdAtMs: DateTime.now().millisecondsSinceEpoch,
           status: ClassifyOperationStatus.undoFailed,
@@ -279,7 +289,7 @@ class PipelineController extends GetxController {
         sourceChatId:
             item.sourceChatId ??
             _settingsController.settings.value.sourceChatId,
-        messageId: item.messageId,
+        messageIds: item.messageIds,
         targetChatId: item.targetChatId,
         asCopy: _settingsController.settings.value.forwardAsCopy,
       );
@@ -287,9 +297,9 @@ class PipelineController extends GetxController {
       await _journalRepository.saveRetryQueue(retryQueue);
       await _appendLog(
         ClassifyOperationLog(
-          id: _buildId('retry_ok', item.messageId),
+          id: _buildId('retry_ok', item.primaryMessageId),
           categoryKey: item.categoryKey,
-          messageId: item.messageId,
+          messageId: item.primaryMessageId,
           targetChatId: item.targetChatId,
           createdAtMs: DateTime.now().millisecondsSinceEpoch,
           status: ClassifyOperationStatus.retrySuccess,
@@ -298,9 +308,9 @@ class PipelineController extends GetxController {
     } on TdlibFailure catch (error) {
       await _appendLog(
         ClassifyOperationLog(
-          id: _buildId('retry_fail', item.messageId),
+          id: _buildId('retry_fail', item.primaryMessageId),
           categoryKey: item.categoryKey,
-          messageId: item.messageId,
+          messageId: item.primaryMessageId,
           targetChatId: item.targetChatId,
           createdAtMs: DateTime.now().millisecondsSinceEpoch,
           status: ClassifyOperationStatus.retryFailed,
@@ -339,7 +349,7 @@ class PipelineController extends GetxController {
         id: _buildId('retry', message.id),
         categoryKey: key,
         sourceChatId: message.sourceChatId,
-        messageId: message.id,
+        messageIds: message.messageIds,
         targetChatId: targetChatId,
         createdAtMs: DateTime.now().millisecondsSinceEpoch,
         reason: error.toString(),
@@ -446,11 +456,13 @@ class PipelineController extends GetxController {
 
   void _syncPreparingState(MessagePreview preview) {
     if (preview.kind == MessagePreviewKind.video) {
-      videoPreparing.value = preview.localVideoPath == null && videoPreparing.value;
+      videoPreparing.value =
+          preview.localVideoPath == null && videoPreparing.value;
       return;
     }
     if (preview.kind == MessagePreviewKind.audio) {
-      videoPreparing.value = preview.localAudioPath == null && videoPreparing.value;
+      videoPreparing.value =
+          preview.localAudioPath == null && videoPreparing.value;
       return;
     }
     videoPreparing.value = false;
@@ -548,7 +560,35 @@ class PipelineController extends GetxController {
 
   void _syncNavigationState() {
     canShowPrevious.value = _currentIndex > 0;
-    canShowNext.value = _currentIndex >= 0 && _currentIndex < _messageCache.length - 1;
+    canShowNext.value =
+        _currentIndex >= 0 && _currentIndex < _messageCache.length - 1;
+  }
+
+  PipelineMessage _mergePreparedMessage(
+    PipelineMessage current,
+    PipelineMessage prepared,
+  ) {
+    if (current.preview.kind != MessagePreviewKind.audio ||
+        current.preview.audioTracks.length <= 1) {
+      return prepared;
+    }
+    final tracks = current.preview.audioTracks
+        .map((track) {
+          if (track.messageId != prepared.id) {
+            return track;
+          }
+          final preview = prepared.preview;
+          return track.copyWith(
+            localAudioPath: preview.localAudioPath,
+            audioDurationSeconds: preview.audioDurationSeconds,
+            title: preview.title,
+            subtitle: preview.subtitle,
+          );
+        })
+        .toList(growable: false);
+    return current.copyWith(
+      preview: current.preview.copyWith(audioTracks: tracks),
+    );
   }
 
   void _stopVideoRefresh() {
