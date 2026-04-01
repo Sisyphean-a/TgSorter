@@ -13,9 +13,10 @@
       ]
     },
     {
-      "name": "TgSorter (Windows env.local debug-terminal)",
+      "name": "TgSorter (Windows env.local run-fast)",
       "request": "launch",
       "type": "dart",
+      "noDebug": true,
       "flutterMode": "debug",
       "program": "lib/main.dart",
       "deviceId": "windows",
@@ -24,13 +25,12 @@
       ]
     },
     {
-      "name": "TgSorter (Windows env.local run-fast)",
+      "name": "TgSorter (Android env.local run-fast, use Ctrl+F5)",
       "request": "launch",
       "type": "dart",
       "noDebug": true,
       "flutterMode": "debug",
       "program": "lib/main.dart",
-      "deviceId": "windows",
       "toolArgs": [
         "--dart-define-from-file=.env.local.json"
       ]
