@@ -12,12 +12,12 @@ void main() {
         containsAll(ShortcutAction.values),
       );
       expect(
-        settings.shortcutBindings[ShortcutAction.classifyA]?.trigger,
+        settings.shortcutBindings[ShortcutAction.previousMessage]?.trigger,
         ShortcutTrigger.digit1,
       );
       expect(
-        settings.shortcutBindings[ShortcutAction.batchA]?.ctrl,
-        isTrue,
+        settings.shortcutBindings[ShortcutAction.nextMessage]?.trigger,
+        ShortcutTrigger.digit2,
       );
     });
 

@@ -37,9 +37,9 @@ void main() {
       settingsController.onInit();
       settingsController.settings.value = const AppSettings(
         categories: [
-          CategoryConfig(key: 'a', name: '分类 A', targetChatId: 10001),
-          CategoryConfig(key: 'b', name: '分类 B', targetChatId: 10002),
-          CategoryConfig(key: 'c', name: '分类 C', targetChatId: 10003),
+          CategoryConfig(key: 'a', targetChatId: 10001, targetChatTitle: '分类一'),
+          CategoryConfig(key: 'b', targetChatId: 10002, targetChatTitle: '分类二'),
+          CategoryConfig(key: 'c', targetChatId: 10003, targetChatTitle: '分类三'),
         ],
         sourceChatId: 8888,
         fetchDirection: MessageFetchDirection.latestFirst,
@@ -64,8 +64,8 @@ void main() {
       controller.onClose();
     });
 
-    test('skipCurrent fetches next message', () async {
-      service.nextMessages.addAll([
+    test('skipCurrent advances to next cached message', () async {
+      service.pages.add([
         _message(10, 'first'),
         _message(11, 'second'),
       ]);
@@ -78,7 +78,7 @@ void main() {
     });
 
     test('runBatch uses settings batchSize as upper bound', () async {
-      service.nextMessages.addAll([
+      service.pages.add([
         _message(1, '1'),
         _message(2, '2'),
         _message(3, '3'),
@@ -95,6 +95,21 @@ void main() {
       await controller.fetchNext();
 
       expect(service.lastFetchSourceChatId, 8888);
+    });
+
+    test('showPreviousMessage returns to prior cached message', () async {
+      service.pages.add([
+        _message(31, 'a'),
+        _message(32, 'b'),
+      ]);
+      await controller.fetchNext();
+      await controller.showNextMessage();
+
+      expect(controller.currentMessage.value?.id, 32);
+
+      await controller.showPreviousMessage();
+
+      expect(controller.currentMessage.value?.id, 31);
     });
 
     test('does not auto fetch before authorization is ready', () async {
@@ -118,13 +133,13 @@ void main() {
     });
 
     test('prepareCurrentVideo requests download and refreshes current message', () async {
-      service.nextMessages.add(
+      service.pages.add([
         _videoMessage(
           id: 21,
           title: '#REDPMV 005 高跟鞋',
           localVideoPath: null,
         ),
-      );
+      ]);
       service.refreshedMessage = _videoMessage(
         id: 21,
         title: '#REDPMV 005 高跟鞋',
@@ -146,7 +161,7 @@ class _FakeTelegramService implements TelegramGateway {
   final _authController = StreamController<TdAuthState>.broadcast();
   final _connectionController = StreamController<TdConnectionState>.broadcast();
 
-  final List<PipelineMessage?> nextMessages = <PipelineMessage?>[];
+  final List<List<PipelineMessage>> pages = <List<PipelineMessage>>[];
   final List<int> classifiedMessageIds = <int>[];
   int? lastFetchSourceChatId;
   int fetchNextCalls = 0;
@@ -198,16 +213,26 @@ class _FakeTelegramService implements TelegramGateway {
   }
 
   @override
+  Future<List<PipelineMessage>> fetchMessagePage({
+    required MessageFetchDirection direction,
+    required int? sourceChatId,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    fetchNextCalls++;
+    lastFetchSourceChatId = sourceChatId;
+    if (pages.isEmpty) {
+      return const [];
+    }
+    return pages.removeAt(0);
+  }
+
+  @override
   Future<PipelineMessage?> fetchNextMessage({
     required MessageFetchDirection direction,
     required int? sourceChatId,
   }) async {
-    fetchNextCalls++;
-    lastFetchSourceChatId = sourceChatId;
-    if (nextMessages.isEmpty) {
-      return null;
-    }
-    return nextMessages.removeAt(0);
+    throw UnimplementedError();
   }
 
   @override

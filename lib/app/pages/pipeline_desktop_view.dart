@@ -66,24 +66,24 @@ class PipelineDesktopView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 56,
-          child: Row(
+        if (categories.isEmpty)
+          const Text('暂无分类，请先到设置页新增')
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               for (final category in categories)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ElevatedButton(
-                      onPressed:
-                          canClick ? () => pipeline.classify(category.key) : null,
-                      child: Text(category.name),
-                    ),
+                SizedBox(
+                  width: 180,
+                  child: ElevatedButton(
+                    onPressed:
+                        canClick ? () => pipeline.classify(category.key) : null,
+                    child: Text(category.targetChatTitle),
                   ),
                 ),
             ],
           ),
-        ),
       ],
     );
   }
@@ -125,14 +125,11 @@ class PipelineDesktopView extends StatelessWidget {
 
   Map<Type, Action<Intent>> _buildActionMap() {
     return {
-      _ClassifyAIntent: CallbackAction<_ClassifyAIntent>(
-        onInvoke: (_) => _fire(() => pipeline.classify('a')),
+      _PreviousIntent: CallbackAction<_PreviousIntent>(
+        onInvoke: (_) => _fire(pipeline.showPreviousMessage),
       ),
-      _ClassifyBIntent: CallbackAction<_ClassifyBIntent>(
-        onInvoke: (_) => _fire(() => pipeline.classify('b')),
-      ),
-      _ClassifyCIntent: CallbackAction<_ClassifyCIntent>(
-        onInvoke: (_) => _fire(() => pipeline.classify('c')),
+      _NextIntent: CallbackAction<_NextIntent>(
+        onInvoke: (_) => _fire(pipeline.showNextMessage),
       ),
       _SkipIntent: CallbackAction<_SkipIntent>(
         onInvoke: (_) => _fire(pipeline.skipCurrent),
@@ -143,28 +140,21 @@ class PipelineDesktopView extends StatelessWidget {
       _RetryIntent: CallbackAction<_RetryIntent>(
         onInvoke: (_) => _fire(pipeline.retryNextFailed),
       ),
-      _BatchAIntent: CallbackAction<_BatchAIntent>(
-        onInvoke: (_) => _fire(() => pipeline.runBatch('a')),
-      ),
     };
   }
 
   Intent _intentForAction(ShortcutAction action) {
     switch (action) {
-      case ShortcutAction.classifyA:
-        return const _ClassifyAIntent();
-      case ShortcutAction.classifyB:
-        return const _ClassifyBIntent();
-      case ShortcutAction.classifyC:
-        return const _ClassifyCIntent();
+      case ShortcutAction.previousMessage:
+        return const _PreviousIntent();
+      case ShortcutAction.nextMessage:
+        return const _NextIntent();
       case ShortcutAction.skipCurrent:
         return const _SkipIntent();
       case ShortcutAction.undoLastStep:
         return const _UndoIntent();
       case ShortcutAction.retryNextFailed:
         return const _RetryIntent();
-      case ShortcutAction.batchA:
-        return const _BatchAIntent();
     }
   }
 
@@ -193,16 +183,12 @@ class PipelineDesktopView extends StatelessWidget {
   }
 }
 
-class _ClassifyAIntent extends Intent {
-  const _ClassifyAIntent();
+class _PreviousIntent extends Intent {
+  const _PreviousIntent();
 }
 
-class _ClassifyBIntent extends Intent {
-  const _ClassifyBIntent();
-}
-
-class _ClassifyCIntent extends Intent {
-  const _ClassifyCIntent();
+class _NextIntent extends Intent {
+  const _NextIntent();
 }
 
 class _SkipIntent extends Intent {
@@ -215,8 +201,4 @@ class _UndoIntent extends Intent {
 
 class _RetryIntent extends Intent {
   const _RetryIntent();
-}
-
-class _BatchAIntent extends Intent {
-  const _BatchAIntent();
 }

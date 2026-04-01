@@ -59,6 +59,57 @@ void main() {
 
       expect(adapter.downloadedFileIds, <int>[31]);
     });
+
+    test('fetchMessagePage skips duplicate cursor in latestFirst mode', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<TdWireEnvelope>>{
+          'getChatHistory': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'messages',
+              'messages': [
+                _textMessageJson(10, 'first'),
+                _textMessageJson(9, 'second'),
+              ],
+            }),
+          ],
+        },
+      );
+      final service = TelegramService(adapter: adapter);
+
+      final page = await service.fetchMessagePage(
+        direction: MessageFetchDirection.latestFirst,
+        sourceChatId: 777,
+        fromMessageId: 10,
+        limit: 2,
+      );
+
+      expect(page.map((item) => item.id), [9]);
+    });
+
+    test('classifyMessage does not delete when forward returns empty', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<TdWireEnvelope>>{
+          'forwardMessages': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'messages',
+              'messages': [],
+            }),
+          ],
+        },
+      );
+      final service = TelegramService(adapter: adapter);
+
+      await expectLater(
+        () => service.classifyMessage(
+          sourceChatId: 777,
+          messageId: 10,
+          targetChatId: 999,
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(adapter.deleteMessageCalls, 0);
+    });
   });
 }
 
@@ -93,6 +144,7 @@ class _FakeTdlibAdapter extends TdlibAdapter {
 
   final Map<String, List<TdWireEnvelope>> wireResponses;
   final List<int> downloadedFileIds = <int>[];
+  int deleteMessageCalls = 0;
 
   @override
   Future<void> waitUntilReady() async {}
@@ -108,12 +160,25 @@ class _FakeTdlibAdapter extends TdlibAdapter {
     if (function is DownloadFile) {
       downloadedFileIds.add(function.fileId);
     }
+    if (function is DeleteMessages) {
+      deleteMessageCalls++;
+    }
     final queue = wireResponses[constructor];
     if (queue == null || queue.isEmpty) {
       throw StateError('Missing fake wire response for $constructor');
     }
     return queue.removeAt(0);
   }
+}
+
+Map<String, dynamic> _textMessageJson(int id, String text) {
+  return <String, dynamic>{
+    'id': id,
+    'content': {
+      '@type': 'messageText',
+      'text': {'text': text, 'entities': []},
+    },
+  };
 }
 
 class _NoopTransport implements TdTransport {

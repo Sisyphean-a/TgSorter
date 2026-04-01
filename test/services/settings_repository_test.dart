@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
@@ -15,6 +16,7 @@ void main() {
       final settings = repo.load();
 
       expect(settings.fetchDirection, MessageFetchDirection.latestFirst);
+      expect(settings.categories, isEmpty);
     });
 
     test('load parses oldestFirst from storage', () async {
@@ -61,6 +63,51 @@ void main() {
       await repo.save(settings);
 
       expect(prefs.getString('source_chat_id'), '123456789');
+    });
+
+    test('save persists dynamic categories and load restores them', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults()
+          .addCategory(
+            const CategoryConfig(
+              key: 'cat_1',
+              targetChatId: -1001,
+              targetChatTitle: '频道一',
+            ),
+          )
+          .addCategory(
+            const CategoryConfig(
+              key: 'cat_2',
+              targetChatId: -1002,
+              targetChatTitle: '群组二',
+            ),
+          );
+
+      await repo.save(settings);
+      final loaded = repo.load();
+
+      expect(prefs.getStringList('category_keys'), ['cat_1', 'cat_2']);
+      expect(loaded.categories.length, 2);
+      expect(loaded.categories.first.targetChatTitle, '频道一');
+      expect(loaded.categories.last.targetChatId, -1002);
+    });
+
+    test('save removes stale category keys', () async {
+      SharedPreferences.setMockInitialValues({
+        'category_keys': ['old_1'],
+        'category_chat_id_old_1': -1009,
+        'category_chat_title_old_1': '旧分类',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      await repo.save(AppSettings.defaults());
+
+      expect(prefs.getStringList('category_keys'), isEmpty);
+      expect(prefs.getInt('category_chat_id_old_1'), isNull);
+      expect(prefs.getString('category_chat_title_old_1'), isNull);
     });
 
     test('load uses batch defaults when storage is empty', () async {

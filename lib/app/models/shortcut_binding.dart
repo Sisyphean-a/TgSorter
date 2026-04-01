@@ -1,11 +1,9 @@
 enum ShortcutAction {
-  classifyA,
-  classifyB,
-  classifyC,
+  previousMessage,
+  nextMessage,
   skipCurrent,
   undoLastStep,
   retryNextFailed,
-  batchA,
 }
 
 enum ShortcutTrigger {

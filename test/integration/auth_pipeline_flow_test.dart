@@ -169,6 +169,16 @@ class _IntegrationFakeGateway implements TelegramGateway {
   }
 
   @override
+  Future<List<PipelineMessage>> fetchMessagePage({
+    required MessageFetchDirection direction,
+    required int? sourceChatId,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    return const [];
+  }
+
+  @override
   Future<PipelineMessage?> fetchNextMessage({
     required MessageFetchDirection direction,
     required int? sourceChatId,

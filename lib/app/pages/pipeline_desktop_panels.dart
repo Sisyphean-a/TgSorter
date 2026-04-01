@@ -73,6 +73,7 @@ class DesktopActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canBrowse = !pipeline.processing.value;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -80,6 +81,28 @@ class DesktopActionButtons extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text('控制台', style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: canBrowse && pipeline.canShowPrevious.value
+                        ? pipeline.showPreviousMessage
+                        : null,
+                    child: const Text('上一条'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: canBrowse && pipeline.canShowNext.value
+                        ? pipeline.showNextMessage
+                        : null,
+                    child: const Text('下一条'),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -97,11 +120,6 @@ class DesktopActionButtons extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: canClick ? () => pipeline.runBatch('a') : null,
-              child: const Text('批处理 A'),
             ),
           ],
         ),
@@ -181,20 +199,16 @@ class DesktopLogsCard extends StatelessWidget {
 
 String labelShortcutAction(ShortcutAction action) {
   switch (action) {
-    case ShortcutAction.classifyA:
-      return '分类 A';
-    case ShortcutAction.classifyB:
-      return '分类 B';
-    case ShortcutAction.classifyC:
-      return '分类 C';
+    case ShortcutAction.previousMessage:
+      return '上一条';
+    case ShortcutAction.nextMessage:
+      return '下一条';
     case ShortcutAction.skipCurrent:
       return '跳过当前';
     case ShortcutAction.undoLastStep:
       return '撤销上一步';
     case ShortcutAction.retryNextFailed:
       return '重试下一条';
-    case ShortcutAction.batchA:
-      return '批处理 A';
   }
 }
 

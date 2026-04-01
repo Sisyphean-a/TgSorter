@@ -47,28 +47,55 @@ class PipelineMobileView extends StatelessWidget {
                     const Padding(
                       padding: EdgeInsets.only(bottom: 8),
                       child: Text(
-                        '当前网络不可用，按钮已禁用',
+                        '当前网络不可用，分类按钮已禁用',
                         style: TextStyle(color: Colors.red),
                       ),
                     ),
-                  SizedBox(
-                    height: 56,
-                    child: Row(
+                  if (categories.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: Text('暂无分类，请先到设置页新增'),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         for (final category in categories)
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: ElevatedButton(
-                                onPressed: canClick
-                                    ? () => pipeline.classify(category.key)
-                                    : null,
-                                child: Text(category.name),
-                              ),
+                          SizedBox(
+                            width: 150,
+                            child: ElevatedButton(
+                              onPressed: canClick
+                                  ? () => pipeline.classify(category.key)
+                                  : null,
+                              child: Text(category.targetChatTitle),
                             ),
                           ),
                       ],
                     ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed:
+                              !processing && pipeline.canShowPrevious.value
+                                  ? pipeline.showPreviousMessage
+                                  : null,
+                          child: const Text('上一条'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed:
+                              !processing && pipeline.canShowNext.value
+                                  ? pipeline.showNextMessage
+                                  : null,
+                          child: const Text('下一条'),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -87,14 +114,6 @@ class PipelineMobileView extends StatelessWidget {
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: canClick ? () => pipeline.runBatch('a') : null,
-                      child: Text('批处理 ${settings.settings.value.batchSize} 条 (A)'),
-                    ),
                   ),
                   const SizedBox(height: 8),
                   Row(

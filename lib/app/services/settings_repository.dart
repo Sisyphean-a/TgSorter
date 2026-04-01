@@ -9,8 +9,9 @@ class SettingsRepository {
 
   final SharedPreferences _prefs;
 
-  static const _namePrefix = 'category_name_';
+  static const _categoryKeysKey = 'category_keys';
   static const _chatIdPrefix = 'category_chat_id_';
+  static const _chatTitlePrefix = 'category_chat_title_';
   static const _fetchDirectionKey = 'message_fetch_direction';
   static const _sourceChatIdKey = 'source_chat_id';
   static const _fetchDirectionLatest = 'latest_first';
@@ -46,12 +47,19 @@ class SettingsRepository {
       final parsed = _parseShortcutBinding(action, raw);
       settings = settings.updateShortcutBinding(parsed.action, parsed);
     }
-    for (final item in settings.categories) {
-      final name = _prefs.getString('$_namePrefix${item.key}') ?? item.name;
-      final chatIdRaw = _prefs.getString('$_chatIdPrefix${item.key}');
-      final chatId = int.tryParse(chatIdRaw ?? '');
-      settings = settings.updateCategory(
-        CategoryConfig(key: item.key, name: name, targetChatId: chatId),
+    final categoryKeys = _prefs.getStringList(_categoryKeysKey) ?? const <String>[];
+    for (final key in categoryKeys) {
+      final chatId = _prefs.getInt('$_chatIdPrefix$key');
+      final chatTitle = _prefs.getString('$_chatTitlePrefix$key') ?? '';
+      if (chatId == null || chatTitle.trim().isEmpty) {
+        continue;
+      }
+      settings = settings.addCategory(
+        CategoryConfig(
+          key: key,
+          targetChatId: chatId,
+          targetChatTitle: chatTitle,
+        ),
       );
     }
     return settings;
@@ -77,14 +85,26 @@ class SettingsRepository {
     await _prefs.setInt(_batchSizeKey, settings.batchSize);
     await _prefs.setInt(_throttleMsKey, settings.throttleMs);
     await _saveProxySettings(settings.proxy);
-    for (final item in settings.categories) {
-      await _prefs.setString('$_namePrefix${item.key}', item.name);
-      final value = item.targetChatId;
-      if (value == null) {
-        await _prefs.remove('$_chatIdPrefix${item.key}');
-      } else {
-        await _prefs.setString('$_chatIdPrefix${item.key}', value.toString());
+    await _saveCategories(settings.categories);
+  }
+
+  Future<void> _saveCategories(List<CategoryConfig> categories) async {
+    final previousKeys = _prefs.getStringList(_categoryKeysKey) ?? const <String>[];
+    final nextKeys = categories.map((item) => item.key).toList(growable: false);
+    await _prefs.setStringList(_categoryKeysKey, nextKeys);
+    for (final key in previousKeys) {
+      if (nextKeys.contains(key)) {
+        continue;
       }
+      await _prefs.remove('$_chatIdPrefix$key');
+      await _prefs.remove('$_chatTitlePrefix$key');
+    }
+    for (final item in categories) {
+      await _prefs.setInt('$_chatIdPrefix${item.key}', item.targetChatId);
+      await _prefs.setString(
+        '$_chatTitlePrefix${item.key}',
+        item.targetChatTitle,
+      );
     }
   }
 

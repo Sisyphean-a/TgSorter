@@ -36,6 +36,13 @@ abstract class TelegramGateway {
 
   Future<List<SelectableChat>> listSelectableChats();
 
+  Future<List<PipelineMessage>> fetchMessagePage({
+    required MessageFetchDirection direction,
+    required int? sourceChatId,
+    required int? fromMessageId,
+    required int limit,
+  });
+
   Future<PipelineMessage?> fetchNextMessage({
     required MessageFetchDirection direction,
     required int? sourceChatId,

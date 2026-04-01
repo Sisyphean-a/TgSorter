@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
+import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/pages/settings_common_editors.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/widgets/shortcut_bindings_editor.dart';
-import 'package:tgsorter/app/pages/settings_common_editors.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -86,13 +87,7 @@ class _SettingsPageState extends State<SettingsPage> {
               bindings: config.shortcutBindings,
             ),
             const SizedBox(height: 8),
-            for (final item in config.categories)
-              _CategoryEditor(
-                key: ValueKey(item.key),
-                categoryKey: item.key,
-                initialName: item.name,
-                initialTargetChatId: item.targetChatId,
-              ),
+            _CategorySection(categories: config.categories),
           ],
         );
       }),
@@ -168,7 +163,7 @@ class _SourceChatEditor extends StatelessWidget {
                 ...chats.map(
                   (item) => DropdownMenuItem<int?>(
                     value: item.id,
-                    child: Text(_chatLabel(item)),
+                    child: Text(item.title),
                   ),
                 ),
               ],
@@ -189,73 +184,106 @@ class _SourceChatEditor extends StatelessWidget {
   }
 }
 
-class _CategoryEditor extends StatefulWidget {
-  const _CategoryEditor({
-    super.key,
-    required this.categoryKey,
-    required this.initialName,
-    required this.initialTargetChatId,
-  });
+class _CategorySection extends StatelessWidget {
+  const _CategorySection({required this.categories});
 
-  final String categoryKey;
-  final String initialName;
-  final int? initialTargetChatId;
+  final List<CategoryConfig> categories;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.find<SettingsController>();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('分类', style: TextStyle(fontSize: 16)),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: controller.chats.isEmpty
+                      ? null
+                      : () async {
+                          await showDialog<void>(
+                            context: context,
+                            builder: (_) => const _AddCategoryDialog(),
+                          );
+                        },
+                  icon: const Icon(Icons.add),
+                  label: const Text('新增分类'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (categories.isEmpty) const Text('当前没有分类'),
+            for (final item in categories)
+              _CategoryEditor(
+                key: ValueKey(item.key),
+                category: item,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryEditor extends StatefulWidget {
+  const _CategoryEditor({super.key, required this.category});
+
+  final CategoryConfig category;
 
   @override
   State<_CategoryEditor> createState() => _CategoryEditorState();
 }
 
 class _CategoryEditorState extends State<_CategoryEditor> {
-  late final TextEditingController _nameCtrl;
   final SettingsController _controller = Get.find<SettingsController>();
-  int? _selectedChatId;
+  late int _selectedChatId;
 
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController(text: widget.initialName);
-    _selectedChatId = widget.initialTargetChatId;
-  }
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    super.dispose();
+    _selectedChatId = widget.category.targetChatId;
   }
 
   @override
   Widget build(BuildContext context) {
     final chats = _controller.chats.toList(growable: true);
-    if (_selectedChatId != null &&
-        !chats.any((item) => item.id == _selectedChatId)) {
-      chats.add(SelectableChat(id: _selectedChatId!, title: '未知会话'));
+    if (!chats.any((item) => item.id == _selectedChatId)) {
+      chats.add(SelectableChat(id: _selectedChatId, title: '未知会话'));
     }
+    final current = chats.firstWhere((item) => item.id == _selectedChatId);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: '按钮名称'),
-            ),
+            Text(current.title, style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
               initialValue: _selectedChatId,
               decoration: const InputDecoration(
-                labelText: '目标会话（群组/频道）',
+                labelText: '目标会话',
                 border: OutlineInputBorder(),
               ),
               items: chats
                   .map(
                     (item) => DropdownMenuItem<int>(
                       value: item.id,
-                      child: Text(_chatLabel(item)),
+                      child: Text(item.title),
                     ),
                   )
                   .toList(growable: false),
               onChanged: (next) {
+                if (next == null) {
+                  return;
+                }
                 setState(() {
                   _selectedChatId = next;
                 });
@@ -264,28 +292,38 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             const SizedBox(height: 8),
             Row(
               children: [
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _selectedChatId = null;
-                    });
+                TextButton.icon(
+                  onPressed: () async {
+                    await _controller.removeCategory(widget.category.key);
                   },
-                  child: const Text('清空目标'),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('删除'),
                 ),
                 const Spacer(),
                 ElevatedButton(
                   onPressed: () async {
-                    await _controller.saveCategory(
-                      key: widget.categoryKey,
-                      name: _nameCtrl.text,
-                      targetChatId: _selectedChatId,
+                    final selected = chats.firstWhere(
+                      (item) => item.id == _selectedChatId,
                     );
-                    if (!context.mounted) {
-                      return;
+                    try {
+                      await _controller.updateCategoryTarget(
+                        key: widget.category.key,
+                        chat: selected,
+                      );
+                      if (!context.mounted) {
+                        return;
+                      }
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(const SnackBar(content: Text('已保存')));
+                    } catch (error) {
+                      if (!context.mounted) {
+                        return;
+                      }
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(error.toString())));
                     }
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(const SnackBar(content: Text('已保存')));
                   },
                   child: const Text('保存'),
                 ),
@@ -298,6 +336,72 @@ class _CategoryEditorState extends State<_CategoryEditor> {
   }
 }
 
-String _chatLabel(SelectableChat chat) {
-  return '${chat.title} (${chat.id})';
+class _AddCategoryDialog extends StatefulWidget {
+  const _AddCategoryDialog();
+
+  @override
+  State<_AddCategoryDialog> createState() => _AddCategoryDialogState();
+}
+
+class _AddCategoryDialogState extends State<_AddCategoryDialog> {
+  int? _selectedChatId;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.find<SettingsController>();
+    final chats = controller.chats.toList(growable: false);
+    return AlertDialog(
+      title: const Text('新增分类'),
+      content: DropdownButtonFormField<int>(
+        initialValue: _selectedChatId,
+        decoration: const InputDecoration(
+          labelText: '目标会话',
+          border: OutlineInputBorder(),
+        ),
+        items: chats
+            .map(
+              (item) => DropdownMenuItem<int>(
+                value: item.id,
+                child: Text(item.title),
+              ),
+            )
+            .toList(growable: false),
+        onChanged: (next) {
+          setState(() {
+            _selectedChatId = next;
+          });
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: _selectedChatId == null
+              ? null
+              : () async {
+                  final selected = chats.firstWhere(
+                    (item) => item.id == _selectedChatId,
+                  );
+                  try {
+                    await controller.addCategory(selected);
+                    if (!context.mounted) {
+                      return;
+                    }
+                    Navigator.of(context).pop();
+                  } catch (error) {
+                    if (!context.mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(error.toString())));
+                  }
+                },
+          child: const Text('添加'),
+        ),
+      ],
+    );
+  }
 }

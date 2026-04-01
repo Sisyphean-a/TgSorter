@@ -1,19 +1,19 @@
 class CategoryConfig {
   const CategoryConfig({
     required this.key,
-    required this.name,
     required this.targetChatId,
+    required this.targetChatTitle,
   });
 
   final String key;
-  final String name;
-  final int? targetChatId;
+  final int targetChatId;
+  final String targetChatTitle;
 
-  CategoryConfig copyWith({String? name, int? targetChatId}) {
+  CategoryConfig copyWith({int? targetChatId, String? targetChatTitle}) {
     return CategoryConfig(
       key: key,
-      name: name ?? this.name,
       targetChatId: targetChatId ?? this.targetChatId,
+      targetChatTitle: targetChatTitle ?? this.targetChatTitle,
     );
   }
 }

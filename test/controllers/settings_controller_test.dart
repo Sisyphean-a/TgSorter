@@ -31,6 +31,23 @@ void main() {
       expect(prefs.getInt('tdlib_proxy_port'), 7897);
       expect(gateway.restartCount, 1);
     });
+
+    test('addCategory stores selected chat and blocks duplicates', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final gateway = _SettingsFakeGateway();
+      final controller = SettingsController(SettingsRepository(prefs), gateway);
+      controller.onInit();
+
+      await controller.addCategory(const SelectableChat(id: -1001, title: '频道一'));
+
+      expect(controller.settings.value.categories.single.targetChatTitle, '频道一');
+
+      expect(
+        () => controller.addCategory(const SelectableChat(id: -1001, title: '频道一')),
+        throwsA(isA<StateError>()),
+      );
+    });
   });
 }
 
@@ -62,6 +79,16 @@ class _SettingsFakeGateway implements TelegramGateway {
 
   @override
   Future<List<SelectableChat>> listSelectableChats() async => const [];
+
+  @override
+  Future<List<PipelineMessage>> fetchMessagePage({
+    required MessageFetchDirection direction,
+    required int? sourceChatId,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    return const [];
+  }
 
   @override
   Future<PipelineMessage?> fetchNextMessage({

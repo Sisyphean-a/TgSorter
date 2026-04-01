@@ -109,6 +109,29 @@ class TelegramService implements TelegramGateway {
   }
 
   @override
+  Future<List<PipelineMessage>> fetchMessagePage({
+    required MessageFetchDirection direction,
+    required int? sourceChatId,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    await _requireAuthorizationReady();
+    final chatId = await _resolveSourceChatId(sourceChatId);
+    final messages = await _fetchSavedMessagePage(
+      chatId: chatId,
+      direction: direction,
+      fromMessageId: fromMessageId,
+      limit: limit,
+    );
+    for (final item in messages) {
+      await _ensureMediaDownloadsStarted(item.content);
+    }
+    return messages
+        .map((item) => _toPipelineMessage(item, chatId))
+        .toList(growable: false);
+  }
+
+  @override
   Future<PipelineMessage?> fetchNextMessage({
     required MessageFetchDirection direction,
     required int? sourceChatId,
@@ -322,48 +345,90 @@ class TelegramService implements TelegramGateway {
     required int chatId,
     required MessageFetchDirection direction,
   }) async {
-    if (direction == MessageFetchDirection.oldestFirst) {
-      return _fetchOldestSavedMessage(chatId);
-    }
-    return _fetchLatestSavedMessage(chatId);
-  }
-
-  Future<TdMessageDto?> _fetchLatestSavedMessage(int chatId) async {
-    final messages = await _fetchHistoryPage(
+    final page = await _fetchSavedMessagePage(
       chatId: chatId,
-      fromMessageId: 0,
+      direction: direction,
+      fromMessageId: null,
       limit: 1,
     );
-    if (messages.isEmpty) {
+    if (page.isEmpty) {
       return null;
     }
-    return messages.first;
+    return page.first;
   }
 
-  Future<TdMessageDto?> _fetchOldestSavedMessage(int chatId) async {
-    var fromMessageId = 0;
-    TdMessageDto? oldest;
+  Future<List<TdMessageDto>> _fetchSavedMessagePage({
+    required int chatId,
+    required MessageFetchDirection direction,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    if (direction == MessageFetchDirection.oldestFirst) {
+      return _fetchOldestSavedMessagePage(
+        chatId: chatId,
+        fromMessageId: fromMessageId,
+        limit: limit,
+      );
+    }
+    return _fetchLatestSavedMessagePage(
+      chatId: chatId,
+      fromMessageId: fromMessageId,
+      limit: limit,
+    );
+  }
 
+  Future<List<TdMessageDto>> _fetchLatestSavedMessagePage({
+    required int chatId,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    final messages = await _fetchHistoryPage(
+      chatId: chatId,
+      fromMessageId: fromMessageId ?? 0,
+      limit: fromMessageId == null ? limit : limit + 1,
+    );
+    if (fromMessageId == null) {
+      return messages;
+    }
+    return messages.where((item) => item.id != fromMessageId).take(limit).toList(
+      growable: false,
+    );
+  }
+
+  Future<List<TdMessageDto>> _fetchOldestSavedMessagePage({
+    required int chatId,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    final all = <TdMessageDto>[];
+    var cursor = 0;
     while (true) {
       final page = await _fetchHistoryPage(
         chatId: chatId,
-        fromMessageId: fromMessageId,
+        fromMessageId: cursor,
         limit: _historyBatchSize,
       );
       if (page.isEmpty) {
-        return oldest;
+        break;
       }
-
-      oldest = page.last;
+      all.addAll(page);
       if (page.length < _historyBatchSize) {
-        return oldest;
+        break;
       }
-
-      if (page.last.id == fromMessageId) {
-        throw StateError('获取最旧消息时游标未推进，history_id=$fromMessageId');
+      if (page.last.id == cursor) {
+        throw StateError('获取最旧消息时游标未推进，history_id=$cursor');
       }
-      fromMessageId = page.last.id;
+      cursor = page.last.id;
     }
+    final ordered = all.reversed.toList(growable: false);
+    if (fromMessageId == null) {
+      return ordered.take(limit).toList(growable: false);
+    }
+    final start = ordered.indexWhere((item) => item.id == fromMessageId);
+    if (start < 0) {
+      return const [];
+    }
+    return ordered.skip(start + 1).take(limit).toList(growable: false);
   }
 
   Future<List<TdMessageDto>> _fetchHistoryPage({

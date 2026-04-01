@@ -32,9 +32,9 @@ class ShortcutBindingsEditor extends StatelessWidget {
                     if (!context.mounted) {
                       return;
                     }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('快捷键已恢复默认')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('快捷键已恢复默认')));
                   },
                   child: const Text('恢复默认'),
                 ),
@@ -140,35 +140,31 @@ class _ShortcutRow extends StatelessWidget {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_labelAction(action)} 快捷键已保存')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${_labelAction(action)} 快捷键已保存')));
     } catch (error) {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
   String _labelAction(ShortcutAction value) {
     switch (value) {
-      case ShortcutAction.classifyA:
-        return '分类 A';
-      case ShortcutAction.classifyB:
-        return '分类 B';
-      case ShortcutAction.classifyC:
-        return '分类 C';
+      case ShortcutAction.previousMessage:
+        return '上一条';
+      case ShortcutAction.nextMessage:
+        return '下一条';
       case ShortcutAction.skipCurrent:
         return '跳过当前';
       case ShortcutAction.undoLastStep:
         return '撤销上一步';
       case ShortcutAction.retryNextFailed:
         return '重试下一条';
-      case ShortcutAction.batchA:
-        return '批处理 A';
     }
   }
 

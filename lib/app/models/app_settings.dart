@@ -25,11 +25,7 @@ class AppSettings {
 
   static AppSettings defaults() {
     return const AppSettings(
-      categories: [
-        CategoryConfig(key: 'a', name: '分类 A', targetChatId: null),
-        CategoryConfig(key: 'b', name: '分类 B', targetChatId: null),
-        CategoryConfig(key: 'c', name: '分类 C', targetChatId: null),
-      ],
+      categories: [],
       sourceChatId: null,
       fetchDirection: MessageFetchDirection.latestFirst,
       batchSize: 5,
@@ -40,19 +36,14 @@ class AppSettings {
   }
 
   static const Map<ShortcutAction, ShortcutBinding> defaultShortcutBindings = {
-    ShortcutAction.classifyA: ShortcutBinding(
-      action: ShortcutAction.classifyA,
+    ShortcutAction.previousMessage: ShortcutBinding(
+      action: ShortcutAction.previousMessage,
       trigger: ShortcutTrigger.digit1,
       ctrl: false,
     ),
-    ShortcutAction.classifyB: ShortcutBinding(
-      action: ShortcutAction.classifyB,
+    ShortcutAction.nextMessage: ShortcutBinding(
+      action: ShortcutAction.nextMessage,
       trigger: ShortcutTrigger.digit2,
-      ctrl: false,
-    ),
-    ShortcutAction.classifyC: ShortcutBinding(
-      action: ShortcutAction.classifyC,
-      trigger: ShortcutTrigger.digit3,
       ctrl: false,
     ),
     ShortcutAction.skipCurrent: ShortcutBinding(
@@ -70,11 +61,6 @@ class AppSettings {
       trigger: ShortcutTrigger.keyR,
       ctrl: false,
     ),
-    ShortcutAction.batchA: ShortcutBinding(
-      action: ShortcutAction.batchA,
-      trigger: ShortcutTrigger.keyB,
-      ctrl: true,
-    ),
   };
 
   AppSettings updateCategory(CategoryConfig config) {
@@ -83,6 +69,30 @@ class AppSettings {
         .toList(growable: false);
     return AppSettings(
       categories: updated,
+      sourceChatId: sourceChatId,
+      fetchDirection: fetchDirection,
+      batchSize: batchSize,
+      throttleMs: throttleMs,
+      proxy: proxy,
+      shortcutBindings: shortcutBindings,
+    );
+  }
+
+  AppSettings addCategory(CategoryConfig config) {
+    return AppSettings(
+      categories: [...categories, config],
+      sourceChatId: sourceChatId,
+      fetchDirection: fetchDirection,
+      batchSize: batchSize,
+      throttleMs: throttleMs,
+      proxy: proxy,
+      shortcutBindings: shortcutBindings,
+    );
+  }
+
+  AppSettings removeCategory(String key) {
+    return AppSettings(
+      categories: categories.where((item) => item.key != key).toList(growable: false),
       sourceChatId: sourceChatId,
       fetchDirection: fetchDirection,
       batchSize: batchSize,

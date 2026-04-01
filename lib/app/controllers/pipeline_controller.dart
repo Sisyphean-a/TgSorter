@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
+import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
@@ -17,6 +17,7 @@ import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class PipelineController extends GetxController {
   static const Duration _videoRefreshInterval = Duration(seconds: 1);
+  static const int _messagePageSize = 20;
 
   PipelineController({
     required TelegramGateway service,
@@ -40,12 +41,17 @@ class PipelineController extends GetxController {
   final isOnline = false.obs;
   final logs = <ClassifyOperationLog>[].obs;
   final retryQueue = <RetryQueueItem>[].obs;
+  final canShowPrevious = false.obs;
+  final canShowNext = false.obs;
 
   StreamSubscription<TdConnectionState>? _connectionSub;
   StreamSubscription<TdAuthState>? _authSub;
   Timer? _videoRefreshTimer;
   ClassifyReceipt? _lastSuccessReceipt;
   bool _isAuthorized = false;
+  final List<PipelineMessage> _messageCache = <PipelineMessage>[];
+  int _currentIndex = -1;
+  int? _tailMessageId;
 
   @override
   void onInit() {
@@ -72,10 +78,7 @@ class PipelineController extends GetxController {
     _stopVideoRefresh();
     loading.value = true;
     try {
-      currentMessage.value = await _service.fetchNextMessage(
-        direction: _settingsController.settings.value.fetchDirection,
-        sourceChatId: _settingsController.settings.value.sourceChatId,
-      );
+      await _loadInitialMessages();
     } on TdlibFailure catch (error) {
       _showTdlibError(error);
     } catch (error) {
@@ -106,7 +109,7 @@ class PipelineController extends GetxController {
   }
 
   Future<void> skipCurrent() async {
-    if (processing.value || !isOnline.value || currentMessage.value == null) {
+    if (processing.value || currentMessage.value == null) {
       return;
     }
     final messageId = currentMessage.value!.id;
@@ -120,8 +123,7 @@ class PipelineController extends GetxController {
         status: ClassifyOperationStatus.skipped,
       ),
     );
-    currentMessage.value = null;
-    await fetchNext();
+    await showNextMessage();
   }
 
   Future<void> runBatch(String key) async {
@@ -153,17 +155,13 @@ class PipelineController extends GetxController {
     }
 
     final target = _settingsController.getCategory(key);
-    if (target.targetChatId == null) {
-      Get.snackbar('未配置目标会话', '请先在设置里选择 ${target.name} 的目标会话');
-      return false;
-    }
 
     processing.value = true;
     try {
       final receipt = await _service.classifyMessage(
         sourceChatId: message.sourceChatId,
         messageId: message.id,
-        targetChatId: target.targetChatId!,
+        targetChatId: target.targetChatId,
       );
       _lastSuccessReceipt = receipt;
       await _appendLog(
@@ -171,25 +169,52 @@ class PipelineController extends GetxController {
           id: _buildId('ok', message.id),
           categoryKey: key,
           messageId: message.id,
-          targetChatId: target.targetChatId!,
+          targetChatId: target.targetChatId,
           createdAtMs: DateTime.now().millisecondsSinceEpoch,
           status: ClassifyOperationStatus.success,
         ),
       );
-      currentMessage.value = null;
-      await fetchNext();
+      _removeCurrentMessage();
+      await _ensureVisibleMessage();
       return true;
     } on TdlibFailure catch (error) {
       await _appendFailureAndRetry(
         error: error,
         key: key,
         message: message,
-        targetChatId: target.targetChatId!,
+        targetChatId: target.targetChatId,
       );
       _showTdlibError(error);
       return false;
     } finally {
       processing.value = false;
+    }
+  }
+
+  Future<void> showPreviousMessage() async {
+    if (processing.value || _currentIndex <= 0) {
+      return;
+    }
+    _stopVideoRefresh();
+    _currentIndex--;
+    _syncCurrentMessage();
+  }
+
+  Future<void> showNextMessage() async {
+    if (processing.value || currentMessage.value == null) {
+      return;
+    }
+    _stopVideoRefresh();
+    if (_currentIndex + 1 < _messageCache.length) {
+      _currentIndex++;
+      _syncCurrentMessage();
+      await _prefetchIfNeeded();
+      return;
+    }
+    await _appendMoreMessages();
+    if (_currentIndex + 1 < _messageCache.length) {
+      _currentIndex++;
+      _syncCurrentMessage();
     }
   }
 
@@ -400,6 +425,101 @@ class PipelineController extends GetxController {
         _stopVideoRefresh();
       }
     });
+  }
+
+  Future<void> _loadInitialMessages() async {
+    _messageCache.clear();
+    _currentIndex = -1;
+    _tailMessageId = null;
+    final page = await _service.fetchMessagePage(
+      direction: _settingsController.settings.value.fetchDirection,
+      sourceChatId: _settingsController.settings.value.sourceChatId,
+      fromMessageId: null,
+      limit: _messagePageSize,
+    );
+    _messageCache.addAll(page);
+    _tailMessageId = page.isEmpty ? null : page.last.id;
+    if (_messageCache.isEmpty) {
+      currentMessage.value = null;
+      _syncNavigationState();
+      return;
+    }
+    _currentIndex = 0;
+    _syncCurrentMessage();
+    await _prefetchIfNeeded();
+  }
+
+  Future<void> _appendMoreMessages() async {
+    if (!isOnline.value || _tailMessageId == null) {
+      return;
+    }
+    final page = await _service.fetchMessagePage(
+      direction: _settingsController.settings.value.fetchDirection,
+      sourceChatId: _settingsController.settings.value.sourceChatId,
+      fromMessageId: _tailMessageId,
+      limit: _messagePageSize,
+    );
+    if (page.isEmpty) {
+      return;
+    }
+    final knownIds = _messageCache.map((item) => item.id).toSet();
+    for (final item in page) {
+      if (knownIds.add(item.id)) {
+        _messageCache.add(item);
+      }
+    }
+    _tailMessageId = _messageCache.last.id;
+    _syncNavigationState();
+  }
+
+  Future<void> _prefetchIfNeeded() async {
+    final remaining = _messageCache.length - _currentIndex - 1;
+    if (remaining > 2) {
+      return;
+    }
+    await _appendMoreMessages();
+  }
+
+  void _removeCurrentMessage() {
+    if (_currentIndex < 0 || _currentIndex >= _messageCache.length) {
+      return;
+    }
+    _messageCache.removeAt(_currentIndex);
+    if (_currentIndex >= _messageCache.length) {
+      _currentIndex = _messageCache.length - 1;
+    }
+  }
+
+  Future<void> _ensureVisibleMessage() async {
+    if (_messageCache.isEmpty) {
+      await _appendMoreMessages();
+    }
+    if (_messageCache.isEmpty) {
+      currentMessage.value = null;
+      _currentIndex = -1;
+      _syncNavigationState();
+      return;
+    }
+    if (_currentIndex < 0) {
+      _currentIndex = 0;
+    }
+    _syncCurrentMessage();
+    await _prefetchIfNeeded();
+  }
+
+  void _syncCurrentMessage() {
+    if (_currentIndex < 0 || _currentIndex >= _messageCache.length) {
+      currentMessage.value = null;
+      _syncNavigationState();
+      return;
+    }
+    currentMessage.value = _messageCache[_currentIndex];
+    _syncNavigationState();
+  }
+
+  void _syncNavigationState() {
+    canShowPrevious.value = _currentIndex > 0;
+    canShowNext.value = _currentIndex >= 0 && _currentIndex < _messageCache.length - 1;
   }
 
   void _stopVideoRefresh() {

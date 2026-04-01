@@ -26,18 +26,37 @@ class SettingsController extends GetxController {
     return settings.value.categories.firstWhere((item) => item.key == key);
   }
 
-  Future<void> saveCategory({
+  Future<void> addCategory(SelectableChat chat) async {
+    _assertNoDuplicateChat(chat.id);
+    final updated = settings.value.addCategory(
+      CategoryConfig(
+        key: _buildCategoryKey(),
+        targetChatId: chat.id,
+        targetChatTitle: chat.title,
+      ),
+    );
+    settings.value = updated;
+    await _repository.save(updated);
+  }
+
+  Future<void> updateCategoryTarget({
     required String key,
-    required String name,
-    required int? targetChatId,
+    required SelectableChat chat,
   }) async {
+    _assertNoDuplicateChat(chat.id, exceptKey: key);
     final updated = settings.value.updateCategory(
       CategoryConfig(
         key: key,
-        name: name.trim().isEmpty ? '未命名分类' : name.trim(),
-        targetChatId: targetChatId,
+        targetChatId: chat.id,
+        targetChatTitle: chat.title,
       ),
     );
+    settings.value = updated;
+    await _repository.save(updated);
+  }
+
+  Future<void> removeCategory(String key) async {
+    final updated = settings.value.removeCategory(key);
     settings.value = updated;
     await _repository.save(updated);
   }
@@ -142,5 +161,21 @@ class SettingsController extends GetxController {
         throw StateError('快捷键冲突：${entry.key.name} 已使用该组合');
       }
     }
+  }
+
+  void _assertNoDuplicateChat(int chatId, {String? exceptKey}) {
+    for (final item in settings.value.categories) {
+      if (item.key == exceptKey) {
+        continue;
+      }
+      if (item.targetChatId == chatId) {
+        throw StateError('该群组或频道已经添加过了');
+      }
+    }
+  }
+
+  String _buildCategoryKey() {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    return 'cat_$now';
   }
 }
