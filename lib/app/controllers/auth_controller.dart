@@ -24,6 +24,7 @@ class AuthController extends GetxController {
   final stage = AuthStage.loading.obs;
   final loading = false.obs;
   final startupError = RxnString();
+  final errorHistory = <String>[].obs;
 
   StreamSubscription<AuthorizationState>? _authSub;
 
@@ -122,7 +123,7 @@ class AuthController extends GetxController {
       return;
     }
     if (kind == TdErrorKind.network) {
-      _showSafeError(title, '网络异常，请检查连接后重试');
+      _showSafeError(title, '网络异常：${error.message}');
       return;
     }
     if (kind == TdErrorKind.auth) {
@@ -137,11 +138,9 @@ class AuthController extends GetxController {
   }
 
   void _showSafeError(String title, String message) {
-    startupError.value = '$title：$message';
-    if (Get.context == null) {
-      return;
-    }
-    Get.snackbar(title, message);
+    final line = _formatErrorLine(title, message);
+    startupError.value = line;
+    errorHistory.insert(0, line);
   }
 
   void _onAuthError(Object error, StackTrace stackTrace) {
@@ -150,5 +149,17 @@ class AuthController extends GetxController {
       return;
     }
     _showSafeError('授权初始化失败', error.toString());
+  }
+
+  void clearErrorHistory() {
+    errorHistory.clear();
+  }
+
+  String _formatErrorLine(String title, String message) {
+    final now = DateTime.now();
+    final hh = now.hour.toString().padLeft(2, '0');
+    final mm = now.minute.toString().padLeft(2, '0');
+    final ss = now.second.toString().padLeft(2, '0');
+    return '[$hh:$mm:$ss] $title：$message';
   }
 }

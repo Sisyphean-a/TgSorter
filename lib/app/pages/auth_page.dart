@@ -18,6 +18,7 @@ class AuthPage extends StatelessWidget {
         final stage = controller.stage.value;
         final isLoading = controller.loading.value;
         final startupError = controller.startupError.value;
+        final errorHistory = controller.errorHistory;
         return Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -32,6 +33,43 @@ class AuthPage extends StatelessWidget {
                 Text(
                   startupError,
                   style: const TextStyle(color: Colors.redAccent),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (errorHistory.isNotEmpty) ...[
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        '错误历史',
+                        style: TextStyle(fontSize: 13, color: Colors.white70),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: controller.clearErrorHistory,
+                      child: const Text('清空'),
+                    ),
+                  ],
+                ),
+                Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.black26,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: ListView.separated(
+                    itemCount: errorHistory.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
+                    itemBuilder: (_, index) => SelectableText(
+                      errorHistory[index],
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
               ],

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:path_provider/path_provider.dart';
 import 'package:tdlib/td_api.dart';
@@ -36,6 +37,10 @@ class TelegramService implements TelegramGateway {
   static const Duration _authorizationReadyTimeout = Duration(seconds: 20);
   static const Duration _getMeTimeout = Duration(seconds: 60);
   static const Duration _getChatTimeout = Duration(seconds: 8);
+  static const Duration _proxyConfigureTimeout = Duration(seconds: 8);
+  static const Duration _proxyStatePropagationDelay = Duration(
+    milliseconds: 200,
+  );
 
   TelegramService({
     required TdClientTransport transport,
@@ -53,6 +58,7 @@ class TelegramService implements TelegramGateway {
   int? _selfChatId;
   bool _tdlibConfiguring = false;
   bool _tdlibConfigured = false;
+  Completer<void>? _startCompleter;
   Completer<void> _authorizationReady = Completer<void>();
 
   @override
@@ -63,16 +69,34 @@ class TelegramService implements TelegramGateway {
 
   @override
   Future<void> start() async {
-    final libraryPath = resolveTdlibLibraryPath(TdlibRuntimeInfo.current());
-    await TdPlugin.initialize(libraryPath);
-    await _transport.start();
-    _updatesSub ??= _transport.updates.listen(
-      _handleUpdate,
-      onError: _handleTransportError,
-    );
-    final state = await _bootstrapAuthorizationState();
-    if (state is! AuthorizationStateWaitTdlibParameters) {
-      await _configureProxyIfNeeded();
+    final runningStart = _startCompleter;
+    if (runningStart != null) {
+      await runningStart.future;
+      return;
+    }
+    final completer = Completer<void>();
+    _startCompleter = completer;
+    try {
+      final libraryPath = resolveTdlibLibraryPath(TdlibRuntimeInfo.current());
+      await TdPlugin.initialize(libraryPath);
+      await _transport.start();
+      _updatesSub ??= _transport.updates.listen(
+        _handleUpdate,
+        onError: _handleTransportError,
+      );
+      final state = await _bootstrapAuthorizationState();
+      if (state is! AuthorizationStateWaitTdlibParameters) {
+        await _configureProxyIfNeeded();
+      }
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    } catch (error, stackTrace) {
+      if (!completer.isCompleted) {
+        completer.completeError(error, stackTrace);
+      }
+      _startCompleter = null;
+      rethrow;
     }
   }
 
@@ -250,13 +274,18 @@ class TelegramService implements TelegramGateway {
   }
 
   Future<void> _loadSelfChatId() async {
-    final optionResponse = await _transport.send(const GetOption(name: 'my_id'));
+    final optionResponse = await _transport.send(
+      const GetOption(name: 'my_id'),
+    );
     final option = _assertNoError(optionResponse);
     if (option is OptionValueInteger && option.value > 0) {
       _selfChatId = option.value;
       return;
     }
-    final response = await _transport.sendWithTimeout(const GetMe(), _getMeTimeout);
+    final response = await _transport.sendWithTimeout(
+      const GetMe(),
+      _getMeTimeout,
+    );
     final object = _assertNoError(response);
     if (object is! User) {
       throw StateError('GetMe 返回类型异常: ${object.getConstructor()}');
@@ -613,17 +642,136 @@ class TelegramService implements TelegramGateway {
       await _sendExpectOk(const DisableProxy());
       return;
     }
-    final response = await _transport.send(
-      AddProxy(
-        server: server,
-        port: port,
-        enable: true,
-        type: ProxyTypeSocks5(
-          username: _credentials.proxyUsername,
-          password: _credentials.proxyPassword,
-        ),
+    final request = AddProxy(
+      server: server,
+      port: port,
+      enable: true,
+      type: ProxyTypeSocks5(
+        username: _credentials.proxyUsername,
+        password: _credentials.proxyPassword,
       ),
     );
+    developer.log(
+      'configureProxy request=${jsonEncode(request.toJson())}',
+      name: 'TelegramService',
+    );
+    var response = await _sendProxyRequestWithTimeout(request);
+    if (_isLegacyProxyShapeError(response)) {
+      developer.log(
+        'configureProxy detected legacy API shape, retrying with proxy object payload',
+        name: 'TelegramService',
+      );
+      await _configureProxyWithCompatRequest(server: server, port: port);
+      return;
+    } else if (response is TdError && response.code == 408) {
+      developer.log(
+        'configureProxy first request timed out, retrying with proxy object payload',
+        name: 'TelegramService',
+      );
+      await _configureProxyWithCompatRequest(server: server, port: port);
+      return;
+    }
+    developer.log(
+      'configureProxy responseConstructor=${response.getConstructor()} '
+      'response=${jsonEncode(response.toJson())}',
+      name: 'TelegramService',
+    );
     _assertNoError(response);
+  }
+
+  bool _isLegacyProxyShapeError(TdObject object) {
+    if (object is! TdError) {
+      return false;
+    }
+    if (object.code != 400) {
+      return false;
+    }
+    return object.message == 'Proxy must be non-empty';
+  }
+
+  Future<TdObject> _sendProxyRequestWithTimeout(TdFunction request) async {
+    try {
+      return await _transport.sendWithTimeout(request, _proxyConfigureTimeout);
+    } on TimeoutException catch (error) {
+      return TdError(
+        code: 408,
+        message:
+            'Proxy configure timeout: ${request.getConstructor()} (${error.message})',
+      );
+    }
+  }
+
+  Future<void> _configureProxyWithCompatRequest({
+    required String server,
+    required int port,
+  }) async {
+    final compatRequest = _AddProxyCompatRequest(
+      server: server,
+      port: port,
+      username: _credentials.proxyUsername,
+      password: _credentials.proxyPassword,
+    );
+    developer.log(
+      'configureProxy compatRequest=${jsonEncode(compatRequest.toJson())}',
+      name: 'TelegramService',
+    );
+    _transport.sendWithoutResponse(compatRequest);
+    await Future<void>.delayed(_proxyStatePropagationDelay);
+    final verifyResponse = await _transport.sendWithTimeout(
+      const GetProxies(),
+      _proxyConfigureTimeout,
+    );
+    final verifyObject = _assertNoError(verifyResponse);
+    if (verifyObject is! Proxies) {
+      throw StateError('GetProxies 返回类型异常: ${verifyObject.getConstructor()}');
+    }
+    final matched = verifyObject.proxies.where(
+      (item) => item.server == server && item.port == port && item.isEnabled,
+    );
+    if (matched.isEmpty) {
+      throw TdlibRequestException(
+        code: 502,
+        message: '代理兼容配置后校验失败，未发现已启用代理 $server:$port',
+      );
+    }
+    developer.log(
+      'configureProxy compat verified enabledProxy=$server:$port',
+      name: 'TelegramService',
+    );
+  }
+}
+
+class _AddProxyCompatRequest extends TdFunction {
+  const _AddProxyCompatRequest({
+    required this.server,
+    required this.port,
+    required this.username,
+    required this.password,
+  });
+
+  final String server;
+  final int port;
+  final String username;
+  final String password;
+
+  @override
+  String getConstructor() => 'addProxy';
+
+  @override
+  Map<String, dynamic> toJson([dynamic extra]) {
+    return {
+      '@type': getConstructor(),
+      'proxy': {
+        'server': server,
+        'port': port,
+        'type': {
+          '@type': 'proxyTypeSocks5',
+          'username': username,
+          'password': password,
+        },
+      },
+      'enable': true,
+      '@extra': extra,
+    };
   }
 }

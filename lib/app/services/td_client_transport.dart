@@ -52,6 +52,14 @@ class TdClientTransport {
     return sendWithTimeout(function, const Duration(seconds: 20));
   }
 
+  void sendWithoutResponse(TdFunction function) {
+    final clientId = _clientId;
+    if (!_running || clientId == null) {
+      throw StateError('TDLib 客户端尚未启动');
+    }
+    tdSend(clientId, function);
+  }
+
   Future<TdObject> sendWithTimeout(
     TdFunction function,
     Duration timeout,
