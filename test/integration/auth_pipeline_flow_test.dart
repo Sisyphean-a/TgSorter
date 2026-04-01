@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:ui';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +22,7 @@ void main() {
   testWidgets('Auth ready navigates to pipeline page', (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1280, 2200);
+    Get.reset();
     Get.testMode = true;
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
@@ -34,7 +35,7 @@ void main() {
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
-    final auth = AuthController(service, errors);
+    final auth = AuthController(service, errors, settings);
 
     Get.put<AppErrorController>(errors);
     Get.put<SettingsController>(settings);
@@ -69,11 +70,62 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
   });
+
+  testWidgets('save proxy and retry persists settings then restarts tdlib', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1280, 2200);
+    Get.reset();
+    Get.testMode = true;
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final service = _IntegrationFakeGateway();
+    final errors = AppErrorController();
+    final settings = SettingsController(SettingsRepository(prefs), service);
+    final pipeline = PipelineController(
+      service: service,
+      settingsController: settings,
+      journalRepository: OperationJournalRepository(prefs),
+      errorController: errors,
+    );
+    final auth = AuthController(service, errors, settings);
+
+    Get.put<AppErrorController>(errors);
+    Get.put<SettingsController>(settings);
+    Get.put<PipelineController>(pipeline);
+    Get.put<AuthController>(auth);
+    settings.onInit();
+    pipeline.onInit();
+    auth.onInit();
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        initialRoute: '/auth',
+        getPages: [GetPage(name: '/auth', page: () => const AuthPage())],
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(find.widgetWithText(TextField, '代理服务器'), '127.0.0.1');
+    await tester.enterText(find.widgetWithText(TextField, '代理端口'), '7897');
+    await tester.tap(find.text('保存代理并重试启动'));
+    await tester.pump();
+
+    expect(prefs.getString('tdlib_proxy_server'), '127.0.0.1');
+    expect(prefs.getInt('tdlib_proxy_port'), 7897);
+    expect(service.restartCalls, 1);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+  });
 }
 
 class _IntegrationFakeGateway implements TelegramGateway {
   final _authController = StreamController<TdAuthState>.broadcast();
   final _connectionController = StreamController<TdConnectionState>.broadcast();
+  int restartCalls = 0;
 
   @override
   Stream<TdAuthState> get authStates => _authController.stream;
@@ -96,6 +148,11 @@ class _IntegrationFakeGateway implements TelegramGateway {
 
   @override
   Future<void> start() async {}
+
+  @override
+  Future<void> restart() async {
+    restartCalls++;
+  }
 
   @override
   Future<void> submitCode(String code) async {}

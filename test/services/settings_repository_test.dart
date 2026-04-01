@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 
@@ -86,6 +87,43 @@ void main() {
 
       expect(prefs.getInt('pipeline_batch_size'), 12);
       expect(prefs.getInt('pipeline_throttle_ms'), 1800);
+    });
+
+    test('save persists proxy settings', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().updateProxySettings(
+        const ProxySettings(
+          server: '127.0.0.1',
+          port: 7897,
+          username: '',
+          password: '',
+        ),
+      );
+
+      await repo.save(settings);
+
+      expect(prefs.getString('tdlib_proxy_server'), '127.0.0.1');
+      expect(prefs.getInt('tdlib_proxy_port'), 7897);
+    });
+
+    test('load parses proxy settings from storage', () async {
+      SharedPreferences.setMockInitialValues({
+        'tdlib_proxy_server': '127.0.0.1',
+        'tdlib_proxy_port': 7897,
+        'tdlib_proxy_username': 'user',
+        'tdlib_proxy_password': 'pass',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final settings = repo.load();
+
+      expect(settings.proxy.server, '127.0.0.1');
+      expect(settings.proxy.port, 7897);
+      expect(settings.proxy.username, 'user');
+      expect(settings.proxy.password, 'pass');
     });
 
     test('save persists shortcut bindings', () async {

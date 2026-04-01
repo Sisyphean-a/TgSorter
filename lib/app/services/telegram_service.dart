@@ -42,6 +42,9 @@ class TelegramService implements TelegramGateway {
   Future<void> start() => _adapter.start();
 
   @override
+  Future<void> restart() => _adapter.restart();
+
+  @override
   Future<void> submitPhoneNumber(String phoneNumber) =>
       _adapter.submitPhoneNumber(phoneNumber);
 

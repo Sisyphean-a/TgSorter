@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tdlib/td_api.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
@@ -37,6 +38,12 @@ void main() {
             libraryPath: 'tdjson.dll',
             databaseDirectory: 'db',
             filesDirectory: 'files',
+          ),
+          readProxySettings: () => const ProxySettings(
+            server: '127.0.0.1',
+            port: 1080,
+            username: '',
+            password: '',
           ),
           detectCapabilities: () async {
             calls.add('detectCapabilities');
@@ -92,6 +99,12 @@ void main() {
           libraryPath: 'tdjson.dll',
           databaseDirectory: 'db',
           filesDirectory: 'files',
+        ),
+        readProxySettings: () => const ProxySettings(
+          server: '',
+          port: null,
+          username: '',
+          password: '',
         ),
         detectCapabilities: () async => const TdlibSchemaCapabilities(
           addProxyMode: TdlibAddProxyMode.flatArgs,

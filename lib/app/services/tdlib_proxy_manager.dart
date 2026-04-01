@@ -10,14 +10,14 @@ import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 class TdlibProxyManager {
   const TdlibProxyManager({
     required TdTransport transport,
-    required TdlibCredentials credentials,
+    required TdlibCredentials Function() readCredentials,
     required TdlibRequestExecutor requestExecutor,
   }) : _transport = transport,
-       _credentials = credentials,
+       _readCredentials = readCredentials,
        _requestExecutor = requestExecutor;
 
   final TdTransport _transport;
-  final TdlibCredentials _credentials;
+  final TdlibCredentials Function() _readCredentials;
   final TdlibRequestExecutor _requestExecutor;
 
   Future<TdProxyList> getProxies() async {
@@ -31,8 +31,9 @@ class TdlibProxyManager {
   }
 
   Future<void> addProxy(TdlibSchemaCapabilities capabilities) async {
-    final server = _credentials.proxyServer;
-    final port = _credentials.proxyPort;
+    final credentials = _readCredentials();
+    final server = credentials.proxyServer;
+    final port = credentials.proxyPort;
     if (server == null || port == null) {
       throw StateError('代理未配置，无法执行 addProxy');
     }
@@ -43,8 +44,8 @@ class TdlibProxyManager {
           port: port,
           enable: true,
           type: ProxyTypeSocks5(
-            username: _credentials.proxyUsername,
-            password: _credentials.proxyPassword,
+            username: credentials.proxyUsername,
+            password: credentials.proxyPassword,
           ),
         ),
         request: 'addProxy',
@@ -56,8 +57,8 @@ class TdlibProxyManager {
     final request = AddProxyCompatRequest(
       server: server,
       port: port,
-      username: _credentials.proxyUsername,
-      password: _credentials.proxyPassword,
+      username: credentials.proxyUsername,
+      password: credentials.proxyPassword,
     );
     _transport.sendWithoutResponse(request);
     final proxies = await getProxies();

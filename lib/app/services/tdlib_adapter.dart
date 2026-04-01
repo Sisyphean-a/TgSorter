@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:tdlib/td_api.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_adapter_support.dart';
@@ -19,17 +20,21 @@ import 'package:tgsorter/app/services/td_wire_message.dart';
 
 export 'package:tgsorter/app/services/tdlib_adapter_support.dart';
 
+typedef ProxySettingsReader = ProxySettings Function();
+
 class TdlibAdapter {
   TdlibAdapter({
     required TdTransport transport,
     TdRawTransport? rawTransport,
     required TdlibCredentials credentials,
+    required ProxySettingsReader readProxySettings,
     required TdlibRuntimePaths runtimePaths,
     required TdlibCapabilitiesDetector detectCapabilities,
     required TdlibInitializer initializeTdlib,
   }) : _transport = transport,
        _rawTransport = rawTransport,
        _credentials = credentials,
+       _readProxySettings = readProxySettings,
        _runtimePaths = runtimePaths,
        _detectCapabilities = detectCapabilities,
        _initializeTdlib = initializeTdlib;
@@ -38,6 +43,7 @@ class TdlibAdapter {
   final TdTransport _transport;
   final TdRawTransport? _rawTransport;
   final TdlibCredentials _credentials;
+  final ProxySettingsReader _readProxySettings;
   final TdlibRuntimePaths _runtimePaths;
   final TdlibCapabilitiesDetector _detectCapabilities;
   final TdlibInitializer _initializeTdlib;
@@ -47,7 +53,7 @@ class TdlibAdapter {
   );
   late final TdlibProxyManager _proxyManager = TdlibProxyManager(
     transport: _transport,
-    credentials: _credentials,
+    readCredentials: _resolveCredentials,
     requestExecutor: _requestExecutor,
   );
   late final TdlibAuthManager _authManager = TdlibAuthManager(
@@ -278,11 +284,16 @@ class TdlibAdapter {
   }
 
   Future<void> _syncProxy() async {
-    if (_credentials.proxyServer == null || _credentials.proxyPort == null) {
+    final credentials = _resolveCredentials();
+    if (credentials.proxyServer == null || credentials.proxyPort == null) {
       await disableProxy();
       return;
     }
     await addProxy();
+  }
+
+  TdlibCredentials _resolveCredentials() {
+    return _credentials.withProxySettings(_readProxySettings());
   }
 
   Future<void> _sendExpectOk(

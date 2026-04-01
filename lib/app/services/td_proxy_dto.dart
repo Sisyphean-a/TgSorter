@@ -29,9 +29,36 @@ class TdProxy {
       return payload;
     }
     if (payload['proxy'] is Map) {
-      return TdResponseReader.readMap(payload, 'proxy');
+      final endpoint = _findEndpointMap(TdResponseReader.readMap(payload, 'proxy'));
+      if (endpoint != null) {
+        return endpoint;
+      }
+    }
+    if (payload['type'] is Map) {
+      final endpoint = _findEndpointMap(TdResponseReader.readMap(payload, 'type'));
+      if (endpoint != null) {
+        return endpoint;
+      }
     }
     return payload;
+  }
+
+  static Map<String, dynamic>? _findEndpointMap(Map<String, dynamic> source) {
+    if (source.containsKey('server') && source.containsKey('port')) {
+      return source;
+    }
+    for (final value in source.values) {
+      if (value is! Map) {
+        continue;
+      }
+      final endpoint = _findEndpointMap(
+        Map<String, dynamic>.from(value.cast<String, dynamic>()),
+      );
+      if (endpoint != null) {
+        return endpoint;
+      }
+    }
+    return null;
   }
 }
 

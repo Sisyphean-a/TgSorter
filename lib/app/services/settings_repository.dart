@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 
 class SettingsRepository {
@@ -20,6 +21,10 @@ class SettingsRepository {
   static const _shortcutCtrlPrefix = 'ctrl+';
   static const _defaultBatchSize = 5;
   static const _defaultThrottleMs = 1200;
+  static const _proxyServerKey = 'tdlib_proxy_server';
+  static const _proxyPortKey = 'tdlib_proxy_port';
+  static const _proxyUsernameKey = 'tdlib_proxy_username';
+  static const _proxyPasswordKey = 'tdlib_proxy_password';
 
   AppSettings load() {
     var settings = AppSettings.defaults();
@@ -35,6 +40,7 @@ class SettingsRepository {
       batchSize: batchSize,
       throttleMs: throttleMs,
     );
+    settings = settings.updateProxySettings(_loadProxySettings());
     for (final action in ShortcutAction.values) {
       final raw = _prefs.getString('$_shortcutPrefix${action.name}');
       final parsed = _parseShortcutBinding(action, raw);
@@ -70,6 +76,7 @@ class SettingsRepository {
     }
     await _prefs.setInt(_batchSizeKey, settings.batchSize);
     await _prefs.setInt(_throttleMsKey, settings.throttleMs);
+    await _saveProxySettings(settings.proxy);
     for (final item in settings.categories) {
       await _prefs.setString('$_namePrefix${item.key}', item.name);
       final value = item.targetChatId;
@@ -79,6 +86,31 @@ class SettingsRepository {
         await _prefs.setString('$_chatIdPrefix${item.key}', value.toString());
       }
     }
+  }
+
+  ProxySettings _loadProxySettings() {
+    return ProxySettings(
+      server: _prefs.getString(_proxyServerKey) ?? '',
+      port: _prefs.getInt(_proxyPortKey),
+      username: _prefs.getString(_proxyUsernameKey) ?? '',
+      password: _prefs.getString(_proxyPasswordKey) ?? '',
+    ).sanitize();
+  }
+
+  Future<void> _saveProxySettings(ProxySettings proxy) async {
+    final sanitized = proxy.sanitize();
+    if (sanitized.server.isEmpty) {
+      await _prefs.remove(_proxyServerKey);
+    } else {
+      await _prefs.setString(_proxyServerKey, sanitized.server);
+    }
+    if (sanitized.port == null) {
+      await _prefs.remove(_proxyPortKey);
+    } else {
+      await _prefs.setInt(_proxyPortKey, sanitized.port!);
+    }
+    await _prefs.setString(_proxyUsernameKey, sanitized.username);
+    await _prefs.setString(_proxyPasswordKey, sanitized.password);
   }
 
   MessageFetchDirection _parseFetchDirection(String? raw) {

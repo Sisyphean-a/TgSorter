@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
@@ -79,6 +80,29 @@ class SettingsController extends GetxController {
     );
     settings.value = updated;
     await _repository.save(updated);
+  }
+
+  Future<void> saveProxySettings({
+    required String server,
+    required String port,
+    required String username,
+    required String password,
+    bool restart = false,
+  }) async {
+    final updated = settings.value.updateProxySettings(
+      ProxySettings(
+        server: server,
+        port: int.tryParse(port.trim()),
+        username: username,
+        password: password,
+      ),
+    );
+    settings.value = updated;
+    await _repository.save(updated);
+    if (!restart) {
+      return;
+    }
+    await _telegram.restart();
   }
 
   Future<void> saveShortcutBinding({

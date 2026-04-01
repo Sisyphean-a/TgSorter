@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -19,10 +20,11 @@ enum AuthStage {
 }
 
 class AuthController extends GetxController {
-  AuthController(this._service, this._errors);
+  AuthController(this._service, this._errors, this._settingsController);
 
   final TelegramGateway _service;
   final AppErrorController _errors;
+  final SettingsController _settingsController;
   final stage = AuthStage.loading.obs;
   final loading = false.obs;
 
@@ -74,6 +76,33 @@ class AuthController extends GetxController {
       _showTdlibError(error, '提交密码失败');
     } catch (error) {
       _showSafeError('提交密码失败', error.toString());
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  Future<void> saveProxyAndRetry({
+    required String server,
+    required String port,
+    required String username,
+    required String password,
+  }) async {
+    loading.value = true;
+    try {
+      await _settingsController.saveProxySettings(
+        server: server,
+        port: port,
+        username: username,
+        password: password,
+      );
+      _errors.clear();
+      stage.value = AuthStage.loading;
+      await _service.restart();
+      startupError.value = null;
+    } on TdlibFailure catch (error) {
+      _showTdlibError(error, '启动失败');
+    } catch (error) {
+      _showSafeError('启动失败', error.toString());
     } finally {
       loading.value = false;
     }

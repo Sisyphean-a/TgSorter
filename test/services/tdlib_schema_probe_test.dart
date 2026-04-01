@@ -34,6 +34,25 @@ void main() {
       expect(capabilities.addProxyMode, TdlibAddProxyMode.nestedProxyObject);
     });
 
+    test('treats proxy response as successful flat addProxy mode', () async {
+      final probe = TdlibSchemaProbe(
+        send: (_) async => TdWireEnvelope.fromTdObject(
+          Proxy(
+            id: 1,
+            server: '127.0.0.1',
+            port: 1080,
+            lastUsedDate: 0,
+            isEnabled: true,
+            type: const ProxyTypeSocks5(username: '', password: ''),
+          ),
+        ),
+      );
+
+      final capabilities = await probe.detect();
+
+      expect(capabilities.addProxyMode, TdlibAddProxyMode.flatArgs);
+    });
+
     test('throws TdlibFailure for unexpected td error', () async {
       final probe = TdlibSchemaProbe(
         send: (_) async =>

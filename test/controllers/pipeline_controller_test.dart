@@ -10,6 +10,7 @@ import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -44,6 +45,7 @@ void main() {
         fetchDirection: MessageFetchDirection.latestFirst,
         batchSize: 2,
         throttleMs: 0,
+        proxy: ProxySettings.empty,
       );
       journalRepository = OperationJournalRepository(prefs);
       errorController = AppErrorController();
@@ -152,6 +154,9 @@ class _FakeTelegramService implements TelegramGateway {
 
   @override
   Future<void> start() async {}
+
+  @override
+  Future<void> restart() async {}
 
   @override
   Future<void> submitCode(String code) async {}

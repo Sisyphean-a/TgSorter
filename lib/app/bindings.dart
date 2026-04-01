@@ -33,6 +33,7 @@ Future<void> initDependencies() async {
     transport: transport,
     rawTransport: rawTransport,
     credentials: credentials,
+    readProxySettings: () => settingsRepo.load().proxy,
     runtimePaths: runtimePaths,
     detectCapabilities: () {
       final probe = TdlibSchemaProbe(
@@ -60,7 +61,10 @@ Future<void> initDependencies() async {
   Get.put(telegram, permanent: true);
 
   Get.put(SettingsController(settingsRepo, telegram), permanent: true);
-  Get.put(AuthController(telegram, appErrors), permanent: true);
+  Get.put(
+    AuthController(telegram, appErrors, Get.find<SettingsController>()),
+    permanent: true,
+  );
   Get.put(
     PipelineController(
       service: telegram,

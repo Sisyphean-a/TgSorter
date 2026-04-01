@@ -1,4 +1,5 @@
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 
 enum MessageFetchDirection { latestFirst, oldestFirst }
@@ -10,6 +11,7 @@ class AppSettings {
     required this.fetchDirection,
     required this.batchSize,
     required this.throttleMs,
+    required this.proxy,
     this.shortcutBindings = defaultShortcutBindings,
   });
 
@@ -18,6 +20,7 @@ class AppSettings {
   final MessageFetchDirection fetchDirection;
   final int batchSize;
   final int throttleMs;
+  final ProxySettings proxy;
   final Map<ShortcutAction, ShortcutBinding> shortcutBindings;
 
   static AppSettings defaults() {
@@ -31,6 +34,7 @@ class AppSettings {
       fetchDirection: MessageFetchDirection.latestFirst,
       batchSize: 5,
       throttleMs: 1200,
+      proxy: ProxySettings.empty,
       shortcutBindings: defaultShortcutBindings,
     );
   }
@@ -83,6 +87,7 @@ class AppSettings {
       fetchDirection: fetchDirection,
       batchSize: batchSize,
       throttleMs: throttleMs,
+      proxy: proxy,
       shortcutBindings: shortcutBindings,
     );
   }
@@ -94,6 +99,7 @@ class AppSettings {
       fetchDirection: fetchDirection,
       batchSize: batchSize,
       throttleMs: throttleMs,
+      proxy: proxy,
       shortcutBindings: shortcutBindings,
     );
   }
@@ -105,6 +111,7 @@ class AppSettings {
       fetchDirection: direction,
       batchSize: batchSize,
       throttleMs: throttleMs,
+      proxy: proxy,
       shortcutBindings: shortcutBindings,
     );
   }
@@ -119,6 +126,19 @@ class AppSettings {
       fetchDirection: fetchDirection,
       batchSize: batchSize,
       throttleMs: throttleMs,
+      proxy: proxy,
+      shortcutBindings: shortcutBindings,
+    );
+  }
+
+  AppSettings updateProxySettings(ProxySettings nextProxy) {
+    return AppSettings(
+      categories: categories,
+      sourceChatId: sourceChatId,
+      fetchDirection: fetchDirection,
+      batchSize: batchSize,
+      throttleMs: throttleMs,
+      proxy: nextProxy.sanitize(),
       shortcutBindings: shortcutBindings,
     );
   }
@@ -135,6 +155,7 @@ class AppSettings {
       fetchDirection: fetchDirection,
       batchSize: batchSize,
       throttleMs: throttleMs,
+      proxy: proxy,
       shortcutBindings: Map.unmodifiable(updated),
     );
   }

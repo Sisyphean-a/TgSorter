@@ -49,6 +49,22 @@ class _SettingsPageState extends State<SettingsPage> {
               onReload: _loadChats,
             ),
             const SizedBox(height: 8),
+            ProxySettingsEditor(
+              value: config.proxy,
+              onSave: ({
+                required server,
+                required port,
+                required username,
+                required password,
+              }) => controller.saveProxySettings(
+                server: server,
+                port: port,
+                username: username,
+                password: password,
+                restart: true,
+              ),
+            ),
+            const SizedBox(height: 8),
             _SourceChatEditor(
               sourceChatId: config.sourceChatId,
               onSave: controller.saveSourceChat,

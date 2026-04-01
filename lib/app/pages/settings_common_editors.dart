@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 
 class BatchOptionsEditor extends StatefulWidget {
   const BatchOptionsEditor({
@@ -127,6 +128,105 @@ class FetchDirectionEditor extends StatelessWidget {
                   context,
                 ).showSnackBar(const SnackBar(content: Text('拉取方向已保存')));
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProxySettingsEditor extends StatefulWidget {
+  const ProxySettingsEditor({
+    super.key,
+    required this.value,
+    required this.onSave,
+  });
+
+  final ProxySettings value;
+  final Future<void> Function({
+    required String server,
+    required String port,
+    required String username,
+    required String password,
+  }) onSave;
+
+  @override
+  State<ProxySettingsEditor> createState() => _ProxySettingsEditorState();
+}
+
+class _ProxySettingsEditorState extends State<ProxySettingsEditor> {
+  late final TextEditingController _serverCtrl;
+  late final TextEditingController _portCtrl;
+  late final TextEditingController _usernameCtrl;
+  late final TextEditingController _passwordCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _serverCtrl = TextEditingController(text: widget.value.server);
+    _portCtrl = TextEditingController(text: widget.value.port?.toString() ?? '');
+    _usernameCtrl = TextEditingController(text: widget.value.username);
+    _passwordCtrl = TextEditingController(text: widget.value.password);
+  }
+
+  @override
+  void dispose() {
+    _serverCtrl.dispose();
+    _portCtrl.dispose();
+    _usernameCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('TDLib 代理', style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _serverCtrl,
+              decoration: const InputDecoration(labelText: '代理服务器'),
+            ),
+            TextField(
+              controller: _portCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: '代理端口'),
+            ),
+            TextField(
+              controller: _usernameCtrl,
+              decoration: const InputDecoration(labelText: '代理用户名（可选）'),
+            ),
+            TextField(
+              controller: _passwordCtrl,
+              decoration: const InputDecoration(labelText: '代理密码（可选）'),
+              obscureText: true,
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton(
+                onPressed: () async {
+                  await widget.onSave(
+                    server: _serverCtrl.text,
+                    port: _portCtrl.text,
+                    username: _usernameCtrl.text,
+                    password: _passwordCtrl.text,
+                  );
+                  if (!context.mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('代理设置已保存并重新连接')),
+                  );
+                },
+                child: const Text('保存代理'),
+              ),
             ),
           ],
         ),

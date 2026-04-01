@@ -32,5 +32,32 @@ void main() {
       expect(dto.proxies.single.port, 443);
       expect(dto.proxies.single.isEnabled, isTrue);
     });
+
+    test('parses mobile proxy endpoint nested in type payload', () {
+      final dto = TdProxyList.fromEnvelope(
+        TdWireEnvelope.fromJson(<String, dynamic>{
+          '@type': 'proxies',
+          'proxies': [
+            {
+              '@type': 'proxy',
+              'id': 9,
+              'last_used_date': 0,
+              'is_enabled': true,
+              'type': {
+                '@type': 'proxyTypeSocks5',
+                'server': '10.10.10.10',
+                'port': 7897,
+                'username': '',
+                'password': '',
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(dto.proxies.single.server, '10.10.10.10');
+      expect(dto.proxies.single.port, 7897);
+      expect(dto.proxies.single.isEnabled, isTrue);
+    });
   });
 }

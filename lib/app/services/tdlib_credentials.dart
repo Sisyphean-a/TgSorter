@@ -1,3 +1,5 @@
+import 'package:tgsorter/app/models/proxy_settings.dart';
+
 class TdlibCredentials {
   const TdlibCredentials({
     required this.apiId,
@@ -44,6 +46,18 @@ class TdlibCredentials {
       proxyPort: proxyPort,
       proxyUsername: proxyUsername,
       proxyPassword: proxyPassword,
+    );
+  }
+
+  TdlibCredentials withProxySettings(ProxySettings settings) {
+    final proxy = settings.sanitize();
+    return TdlibCredentials(
+      apiId: apiId,
+      apiHash: apiHash,
+      proxyServer: proxy.server.isEmpty ? null : proxy.server,
+      proxyPort: proxy.port,
+      proxyUsername: proxy.username,
+      proxyPassword: proxy.password,
     );
   }
 }

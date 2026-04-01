@@ -24,6 +24,11 @@ class TdlibSchemaProbe {
         addProxyMode: TdlibAddProxyMode.flatArgs,
       );
     }
+    if (response.type == 'proxy') {
+      return const TdlibSchemaCapabilities(
+        addProxyMode: TdlibAddProxyMode.flatArgs,
+      );
+    }
     if (_isLegacyProxyShapeError(response)) {
       return const TdlibSchemaCapabilities(
         addProxyMode: TdlibAddProxyMode.nestedProxyObject,
