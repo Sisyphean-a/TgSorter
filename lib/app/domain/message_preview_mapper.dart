@@ -1,6 +1,6 @@
 import 'package:tgsorter/app/services/td_message_dto.dart';
 
-enum MessagePreviewKind { text, photo, video, unsupported }
+enum MessagePreviewKind { text, photo, video, audio, unsupported }
 
 class MessagePreview {
   const MessagePreview({
@@ -12,6 +12,8 @@ class MessagePreview {
     this.localVideoPath,
     this.localVideoThumbnailPath,
     this.videoDurationSeconds,
+    this.localAudioPath,
+    this.audioDurationSeconds,
   });
 
   final MessagePreviewKind kind;
@@ -22,6 +24,8 @@ class MessagePreview {
   final String? localVideoPath;
   final String? localVideoThumbnailPath;
   final int? videoDurationSeconds;
+  final String? localAudioPath;
+  final int? audioDurationSeconds;
 }
 
 MessagePreview mapMessagePreview(TdMessageContentDto content) {
@@ -56,6 +60,27 @@ MessagePreview mapMessagePreview(TdMessageContentDto content) {
       localVideoPath: content.localVideoPath,
       localVideoThumbnailPath: content.localVideoThumbnailPath,
       videoDurationSeconds: content.videoDurationSeconds,
+    );
+  }
+
+  if (content.kind == TdMessageContentKind.audio) {
+    final title =
+        content.audioTitle?.trim().isNotEmpty == true
+            ? content.audioTitle!.trim()
+            : content.fileName?.trim().isNotEmpty == true
+            ? content.fileName!.trim()
+            : '[音频]';
+    final subtitle =
+        content.audioPerformer?.trim().isNotEmpty == true
+            ? content.audioPerformer!.trim()
+            : null;
+    return MessagePreview(
+      kind: MessagePreviewKind.audio,
+      title: title,
+      subtitle: subtitle,
+      text: content.text,
+      localAudioPath: content.localAudioPath,
+      audioDurationSeconds: content.audioDurationSeconds,
     );
   }
 

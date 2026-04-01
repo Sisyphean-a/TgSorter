@@ -79,6 +79,7 @@ class PipelineController extends GetxController {
     loading.value = true;
     try {
       await _loadInitialMessages();
+      _refreshCurrentMediaIfNeeded();
     } on TdlibFailure catch (error) {
       _showTdlibError(error);
     } catch (error) {
@@ -91,7 +92,8 @@ class PipelineController extends GetxController {
   Future<void> prepareCurrentVideo() async {
     final message = currentMessage.value;
     if (message == null ||
-        message.preview.kind != MessagePreviewKind.video ||
+        (message.preview.kind != MessagePreviewKind.video &&
+            message.preview.kind != MessagePreviewKind.audio) ||
         videoPreparing.value) {
       return;
     }
@@ -101,7 +103,7 @@ class PipelineController extends GetxController {
         sourceChatId: message.sourceChatId,
         messageId: message.id,
       );
-      await _refreshCurrentVideoIfNeeded();
+      await _refreshCurrentMediaIfNeeded();
     } catch (error) {
       _showGeneralError(error.toString());
       videoPreparing.value = false;
@@ -405,16 +407,17 @@ class PipelineController extends GetxController {
     unawaited(fetchNext());
   }
 
-  Future<void> _refreshCurrentVideoIfNeeded() async {
+  Future<void> _refreshCurrentMediaIfNeeded() async {
     final message = currentMessage.value;
-    if (message == null || message.preview.localVideoPath != null) {
+    if (message == null || !_needsMediaRefresh(message.preview)) {
       videoPreparing.value = false;
       return;
     }
+    _syncPreparingState(message.preview);
     _videoRefreshTimer?.cancel();
     _videoRefreshTimer = Timer.periodic(_videoRefreshInterval, (_) async {
       final current = currentMessage.value;
-      if (current == null || current.preview.kind != MessagePreviewKind.video) {
+      if (current == null || !_needsMediaRefresh(current.preview)) {
         _stopVideoRefresh();
         return;
       }
@@ -423,10 +426,34 @@ class PipelineController extends GetxController {
         messageId: current.id,
       );
       currentMessage.value = refreshed;
-      if (refreshed.preview.localVideoPath != null) {
+      _syncPreparingState(refreshed.preview);
+      if (!_needsMediaRefresh(refreshed.preview)) {
         _stopVideoRefresh();
       }
     });
+  }
+
+  bool _needsMediaRefresh(MessagePreview preview) {
+    if (preview.kind == MessagePreviewKind.video) {
+      return preview.localVideoThumbnailPath == null ||
+          (videoPreparing.value && preview.localVideoPath == null);
+    }
+    if (preview.kind == MessagePreviewKind.audio) {
+      return videoPreparing.value && preview.localAudioPath == null;
+    }
+    return false;
+  }
+
+  void _syncPreparingState(MessagePreview preview) {
+    if (preview.kind == MessagePreviewKind.video) {
+      videoPreparing.value = preview.localVideoPath == null && videoPreparing.value;
+      return;
+    }
+    if (preview.kind == MessagePreviewKind.audio) {
+      videoPreparing.value = preview.localAudioPath == null && videoPreparing.value;
+      return;
+    }
+    videoPreparing.value = false;
   }
 
   Future<void> _loadInitialMessages() async {

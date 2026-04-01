@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/td_message_dto.dart';
@@ -102,6 +103,39 @@ class MessageViewerCard extends StatelessWidget {
             text: preview.text,
             fallbackText: preview.title,
             fontSize: 16,
+          ),
+        ],
+      );
+    }
+
+    if (preview.kind == MessagePreviewKind.audio) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AudioPreview(
+            audioPath: preview.localAudioPath,
+            preparing: videoPreparing,
+            onRequestPlayback: onRequestVideoPlayback,
+          ),
+          const SizedBox(height: 12),
+          if (preview.subtitle != null && preview.subtitle!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                preview.subtitle!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          _buildVideoMeta(context, preview.audioDurationSeconds),
+          const SizedBox(height: 8),
+          Text(
+            preview.title,
+            style: TextStyle(
+              fontSize: 18,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
         ],
       );
@@ -603,6 +637,134 @@ class _VideoPreviewState extends State<_VideoPreview> {
               icon: const Icon(Icons.refresh_rounded),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AudioPreview extends StatefulWidget {
+  const _AudioPreview({
+    required this.audioPath,
+    required this.preparing,
+    required this.onRequestPlayback,
+  });
+
+  final String? audioPath;
+  final bool preparing;
+  final Future<void> Function() onRequestPlayback;
+
+  @override
+  State<_AudioPreview> createState() => _AudioPreviewState();
+}
+
+class _AudioPreviewState extends State<_AudioPreview> {
+  AudioPlayer? _player;
+  String? _currentPath;
+  bool _initializing = false;
+
+  @override
+  void didUpdateWidget(covariant _AudioPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.audioPath != widget.audioPath) {
+      unawaited(_disposePlayer());
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_disposePlayer());
+    super.dispose();
+  }
+
+  Future<void> _disposePlayer() async {
+    final player = _player;
+    _player = null;
+    _currentPath = null;
+    if (player != null) {
+      await player.dispose();
+    }
+  }
+
+  Future<void> _togglePlayback() async {
+    final path = widget.audioPath;
+    if (path == null || path.isEmpty || !io.File(path).existsSync()) {
+      await widget.onRequestPlayback();
+      return;
+    }
+    if (_player == null || _currentPath != path) {
+      setState(() {
+        _initializing = true;
+      });
+      await _disposePlayer();
+      final player = AudioPlayer();
+      try {
+        await player.setFilePath(path);
+        if (!mounted) {
+          await player.dispose();
+          return;
+        }
+        _player = player;
+        _currentPath = path;
+      } finally {
+        if (mounted) {
+          setState(() {
+            _initializing = false;
+          });
+        }
+      }
+    }
+    final player = _player;
+    if (player == null) {
+      return;
+    }
+    if (player.playing) {
+      await player.pause();
+    } else {
+      await player.play();
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final path = widget.audioPath;
+    final hasLocalFile =
+        path != null && path.isNotEmpty && io.File(path).existsSync();
+    final isPlaying = _player?.playing == true;
+    final label = _initializing
+        ? '音频加载中...'
+        : hasLocalFile
+        ? '点击播放音频'
+        : widget.preparing
+        ? '音频下载中...'
+        : '音频已识别（点击播放开始下载）';
+    return Container(
+      width: double.infinity,
+      height: 96,
+      decoration: BoxDecoration(
+        color: Colors.black12,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 12),
+          IconButton.filled(
+            onPressed: widget.preparing || _initializing ? null : _togglePlayback,
+            icon: Icon(
+              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
+          ),
+          const SizedBox(width: 12),
         ],
       ),
     );

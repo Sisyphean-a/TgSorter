@@ -4,7 +4,7 @@ import 'package:tgsorter/app/services/td_wire_message.dart';
 
 void main() {
   group('TD wire message parser', () {
-    test('parses text/photo/video/unsupported messages', () {
+    test('parses text/photo/video/audio/unsupported messages', () {
       final dto = TdMessagesDto.fromEnvelope(
         TdWireEnvelope.fromJson(<String, dynamic>{
           '@type': 'messages',
@@ -55,6 +55,23 @@ void main() {
             },
             {
               'id': 4,
+              'content': {
+                '@type': 'messageAudio',
+                'caption': {'text': '', 'entities': []},
+                'audio': {
+                  'duration': 180,
+                  'file_name': 'track.mp3',
+                  'title': 'Song',
+                  'performer': 'Artist',
+                  'audio': {
+                    'id': '41',
+                    'local': {'path': '/tmp/track.mp3'},
+                  },
+                },
+              },
+            },
+            {
+              'id': 5,
               'content': {'@type': 'messagePoll'},
             },
           ],
@@ -71,7 +88,41 @@ void main() {
       expect(dto.messages[2].content.remoteVideoFileId, 32);
       expect(dto.messages[2].content.remoteVideoThumbnailFileId, 31);
       expect(dto.messages[2].content.videoDurationSeconds, 9);
-      expect(dto.messages[3].content.kind, TdMessageContentKind.unsupported);
+      expect(dto.messages[3].content.kind, TdMessageContentKind.audio);
+      expect(dto.messages[3].content.localAudioPath, '/tmp/track.mp3');
+      expect(dto.messages[3].content.remoteAudioFileId, 41);
+      expect(dto.messages[3].content.audioDurationSeconds, 180);
+      expect(dto.messages[3].content.fileName, 'track.mp3');
+      expect(dto.messages[4].content.kind, TdMessageContentKind.unsupported);
+    });
+
+    test('parses voice note metadata and local file path', () {
+      final dto = TdMessagesDto.fromEnvelope(
+        TdWireEnvelope.fromJson(<String, dynamic>{
+          '@type': 'messages',
+          'messages': [
+            {
+              'id': 6,
+              'content': {
+                '@type': 'messageVoiceNote',
+                'caption': {'text': '', 'entities': []},
+                'voice_note': {
+                  'duration': 12,
+                  'voice': {
+                    'id': '61',
+                    'local': {'path': '/tmp/voice.ogg'},
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(dto.messages.single.content.kind, TdMessageContentKind.audio);
+      expect(dto.messages.single.content.localAudioPath, '/tmp/voice.ogg');
+      expect(dto.messages.single.content.remoteAudioFileId, 61);
+      expect(dto.messages.single.content.audioDurationSeconds, 12);
     });
 
     test('does not expose local video path before file download completes', () {

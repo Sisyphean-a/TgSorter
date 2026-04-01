@@ -44,6 +44,24 @@ void main() {
       expect(preview.videoDurationSeconds, 75);
     });
 
+    test('maps MessageAudio to audio preview with file metadata', () {
+      const content = TdMessageContentDto(
+        kind: TdMessageContentKind.audio,
+        fileName: 'track.mp3',
+        audioTitle: 'Song',
+        audioPerformer: 'Artist',
+        localAudioPath: '/tmp/track.mp3',
+        audioDurationSeconds: 180,
+      );
+
+      final preview = mapMessagePreview(content);
+      expect(preview.kind, MessagePreviewKind.audio);
+      expect(preview.title, 'Song');
+      expect(preview.subtitle, 'Artist');
+      expect(preview.localAudioPath, '/tmp/track.mp3');
+      expect(preview.audioDurationSeconds, 180);
+    });
+
     test('maps unsupported content to fallback preview', () {
       const content = TdMessageContentDto(
         kind: TdMessageContentKind.unsupported,

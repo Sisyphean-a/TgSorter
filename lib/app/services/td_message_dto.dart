@@ -2,7 +2,7 @@ import 'package:tgsorter/app/services/td_response_reader.dart';
 import 'package:tgsorter/app/services/td_wire_message.dart';
 
 enum TdTextEntityKind { url, textUrl, emailAddress, phoneNumber, other }
-enum TdMessageContentKind { text, photo, video, unsupported }
+enum TdMessageContentKind { text, photo, video, audio, unsupported }
 
 class TdTextEntityDto {
   const TdTextEntityDto({
@@ -82,6 +82,12 @@ class TdMessageContentDto {
     this.remoteImageFileId,
     this.remoteVideoFileId,
     this.remoteVideoThumbnailFileId,
+    this.localAudioPath,
+    this.remoteAudioFileId,
+    this.audioDurationSeconds,
+    this.fileName,
+    this.audioTitle,
+    this.audioPerformer,
   });
 
   final TdMessageContentKind kind;
@@ -93,6 +99,12 @@ class TdMessageContentDto {
   final int? remoteImageFileId;
   final int? remoteVideoFileId;
   final int? remoteVideoThumbnailFileId;
+  final String? localAudioPath;
+  final int? remoteAudioFileId;
+  final int? audioDurationSeconds;
+  final String? fileName;
+  final String? audioTitle;
+  final String? audioPerformer;
 }
 
 class TdMessageDto {
@@ -122,6 +134,10 @@ class TdMessageDto {
         return _parsePhotoContent(content);
       case 'messageVideo':
         return _parseVideoContent(content);
+      case 'messageAudio':
+        return _parseAudioContent(content);
+      case 'messageVoiceNote':
+        return _parseVoiceNoteContent(content);
       default:
         return const TdMessageContentDto(kind: TdMessageContentKind.unsupported);
     }
@@ -174,6 +190,42 @@ class TdMessageDto {
       remoteVideoThumbnailFileId: thumbnailFile == null
           ? null
           : TdResponseReader.readInt(thumbnailFile, 'id'),
+    );
+  }
+
+  static TdMessageContentDto _parseAudioContent(Map<String, dynamic> content) {
+    final audio = TdResponseReader.readMap(content, 'audio');
+    final audioFile = TdResponseReader.readMap(audio, 'audio');
+    return TdMessageContentDto(
+      kind: TdMessageContentKind.audio,
+      text: TdFormattedTextDto.fromJson(
+        TdResponseReader.readMap(content, 'caption'),
+      ),
+      localAudioPath: _readLocalPath(audioFile),
+      remoteAudioFileId: TdResponseReader.readInt(audioFile, 'id'),
+      audioDurationSeconds: TdResponseReader.readInt(audio, 'duration'),
+      fileName: audio['file_name']?.toString(),
+      audioTitle: audio['title']?.toString(),
+      audioPerformer: audio['performer']?.toString(),
+    );
+  }
+
+  static TdMessageContentDto _parseVoiceNoteContent(
+    Map<String, dynamic> content,
+  ) {
+    final voiceNote = TdResponseReader.readMap(content, 'voice_note');
+    final voiceFile = TdResponseReader.readMap(voiceNote, 'voice');
+    return TdMessageContentDto(
+      kind: TdMessageContentKind.audio,
+      text: TdFormattedTextDto.fromJson(
+        TdResponseReader.readMap(content, 'caption'),
+      ),
+      localAudioPath: _readLocalPath(voiceFile),
+      remoteAudioFileId: TdResponseReader.readInt(voiceFile, 'id'),
+      audioDurationSeconds: TdResponseReader.readInt(voiceNote, 'duration'),
+      fileName: voiceNote['mime_type']?.toString(),
+      audioTitle: '语音消息',
+      audioPerformer: null,
     );
   }
 

@@ -127,4 +127,42 @@ void main() {
     expect(find.text('视频加载中...'), findsNothing);
     expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
   });
+
+  testWidgets('audio preview shows download/play action before local file is ready', (
+    tester,
+  ) async {
+    var playRequests = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: PipelineMessage(
+              id: 5,
+              sourceChatId: 100,
+              preview: const MessagePreview(
+                kind: MessagePreviewKind.audio,
+                title: 'Song',
+                subtitle: 'Artist',
+                localAudioPath: null,
+                audioDurationSeconds: 180,
+              ),
+            ),
+            processing: false,
+            videoPreparing: false,
+            onRequestVideoPlayback: () async {
+              playRequests++;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Song'), findsOneWidget);
+    expect(find.text('Artist'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.pump();
+
+    expect(playRequests, 1);
+  });
 }

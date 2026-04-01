@@ -16,6 +16,7 @@ class TelegramService implements TelegramGateway {
   static const int _downloadPriorityPhotoPreview = 16;
   static const int _downloadPriorityVideoPreview = 17;
   static const int _downloadPriorityVideoFile = 20;
+  static const int _downloadPriorityAudioFile = 19;
   static const int _downloadOffsetStart = 0;
   static const int _downloadLimitUnlimited = 0;
   static const int _historyBatchSize = 100;
@@ -157,6 +158,14 @@ class TelegramService implements TelegramGateway {
     await _requireAuthorizationReady();
     final message = await _loadMessage(sourceChatId, messageId);
     final content = message.content;
+    if (content.kind == TdMessageContentKind.audio) {
+      await _ensureFileDownloadStarted(
+        fileId: content.remoteAudioFileId,
+        localPath: content.localAudioPath,
+        priority: _downloadPriorityAudioFile,
+      );
+      return refreshMessage(sourceChatId: sourceChatId, messageId: messageId);
+    }
     if (content.kind != TdMessageContentKind.video) {
       return _toPipelineMessage(message, sourceChatId);
     }
@@ -328,6 +337,10 @@ class TelegramService implements TelegramGateway {
         localPath: content.localVideoThumbnailPath,
         priority: _downloadPriorityVideoPreview,
       );
+      return;
+    }
+    if (content.kind == TdMessageContentKind.audio) {
+      return;
     }
   }
 
