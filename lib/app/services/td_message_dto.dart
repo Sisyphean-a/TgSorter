@@ -179,6 +179,10 @@ class TdMessageDto {
 
   static String? _readLocalPath(Map<String, dynamic> file) {
     final local = TdResponseReader.readMap(file, 'local');
+    final completed = local['is_downloading_completed'];
+    if (completed is bool && !completed) {
+      return null;
+    }
     final path = local['path']?.toString() ?? '';
     return path.isEmpty ? null : path;
   }

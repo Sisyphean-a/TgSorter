@@ -41,6 +41,16 @@ abstract class TelegramGateway {
     required int? sourceChatId,
   });
 
+  Future<PipelineMessage> prepareVideoPlayback({
+    required int sourceChatId,
+    required int messageId,
+  });
+
+  Future<PipelineMessage> refreshMessage({
+    required int sourceChatId,
+    required int messageId,
+  });
+
   Future<ClassifyReceipt> classifyMessage({
     required int? sourceChatId,
     required int messageId,

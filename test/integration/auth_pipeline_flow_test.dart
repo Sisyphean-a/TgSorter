@@ -177,6 +177,22 @@ class _IntegrationFakeGateway implements TelegramGateway {
   }
 
   @override
+  Future<PipelineMessage> prepareVideoPlayback({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PipelineMessage> refreshMessage({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<ClassifyReceipt> classifyMessage({
     required int? sourceChatId,
     required int messageId,

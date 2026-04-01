@@ -1,5 +1,6 @@
 import 'dart:io' as io;
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -9,15 +10,24 @@ import 'package:tgsorter/app/services/td_message_dto.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
+typedef VideoControllerInitializer =
+    Future<void> Function(VideoPlayerController controller);
+
 class MessageViewerCard extends StatelessWidget {
   const MessageViewerCard({
     super.key,
     required this.message,
     required this.processing,
+    required this.videoPreparing,
+    required this.onRequestVideoPlayback,
+    this.videoControllerInitializer,
   });
 
   final PipelineMessage? message;
   final bool processing;
+  final bool videoPreparing;
+  final Future<void> Function() onRequestVideoPlayback;
+  final VideoControllerInitializer? videoControllerInitializer;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +39,7 @@ class MessageViewerCard extends StatelessWidget {
           Positioned.fill(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              child: _buildContent(),
+              child: _buildContent(context),
             ),
           ),
           if (processing)
@@ -44,7 +54,7 @@ class MessageViewerCard extends StatelessWidget {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
     final data = message;
     if (data == null) {
       return const Column(
@@ -81,9 +91,12 @@ class MessageViewerCard extends StatelessWidget {
           _VideoPreview(
             videoPath: preview.localVideoPath,
             thumbnailPath: preview.localVideoThumbnailPath,
+            preparing: videoPreparing,
+            onRequestPlayback: onRequestVideoPlayback,
+            controllerInitializer: videoControllerInitializer,
           ),
           const SizedBox(height: 12),
-          _buildVideoMeta(preview.videoDurationSeconds),
+          _buildVideoMeta(context, preview.videoDurationSeconds),
           const SizedBox(height: 8),
           _PreviewText(
             text: preview.text,
@@ -129,13 +142,13 @@ class MessageViewerCard extends StatelessWidget {
     );
   }
 
-  Widget _buildVideoMeta(int? durationSeconds) {
+  Widget _buildVideoMeta(BuildContext context, int? durationSeconds) {
     if (durationSeconds == null) {
       return const SizedBox.shrink();
     }
     return Text(
       '时长 ${_formatDuration(durationSeconds)}',
-      style: const TextStyle(color: Colors.black54),
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
     );
   }
 
@@ -178,7 +191,11 @@ class _PreviewTextState extends State<_PreviewText> {
     if (text == null || text.entities.isEmpty) {
       return Text(
         widget.fallbackText,
-        style: TextStyle(fontSize: widget.fontSize, height: 1.4),
+        style: TextStyle(
+          fontSize: widget.fontSize,
+          height: 1.4,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       );
     }
 
@@ -187,7 +204,7 @@ class _PreviewTextState extends State<_PreviewText> {
         style: TextStyle(
           fontSize: widget.fontSize,
           height: 1.4,
-          color: Colors.black87,
+          color: Theme.of(context).colorScheme.onSurface,
         ),
         children: _buildSpans(context, text),
       ),
@@ -282,32 +299,45 @@ class _PreviewTextState extends State<_PreviewText> {
 }
 
 class _VideoPreview extends StatefulWidget {
-  const _VideoPreview({required this.videoPath, required this.thumbnailPath});
+  const _VideoPreview({
+    required this.videoPath,
+    required this.thumbnailPath,
+    required this.preparing,
+    required this.onRequestPlayback,
+    required this.controllerInitializer,
+  });
 
   final String? videoPath;
   final String? thumbnailPath;
+  final bool preparing;
+  final Future<void> Function() onRequestPlayback;
+  final VideoControllerInitializer? controllerInitializer;
 
   @override
   State<_VideoPreview> createState() => _VideoPreviewState();
 }
 
 class _VideoPreviewState extends State<_VideoPreview> {
+  static const Duration _initializeTimeout = Duration(seconds: 5);
+
   VideoPlayerController? _controller;
   String? _currentPath;
   bool _loading = false;
   Timer? _retryTimer;
+  bool _playbackRequested = false;
+  String? _errorText;
 
   @override
   void initState() {
     super.initState();
-    _syncController();
+    _syncController(allowInitialize: false);
   }
 
   @override
   void didUpdateWidget(covariant _VideoPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.videoPath != widget.videoPath) {
-      _syncController();
+      _syncController(allowInitialize: _playbackRequested);
     }
   }
 
@@ -318,7 +348,7 @@ class _VideoPreviewState extends State<_VideoPreview> {
     super.dispose();
   }
 
-  Future<void> _syncController() async {
+  Future<void> _syncController({required bool allowInitialize}) async {
     final path = widget.videoPath;
     if (path == null || path.isEmpty || !io.File(path).existsSync()) {
       await _disposeController();
@@ -327,6 +357,7 @@ class _VideoPreviewState extends State<_VideoPreview> {
         setState(() {
           _currentPath = path;
           _loading = false;
+          _errorText = null;
         });
       }
       return;
@@ -337,15 +368,31 @@ class _VideoPreviewState extends State<_VideoPreview> {
       return;
     }
 
+    if (!allowInitialize) {
+      _retryTimer?.cancel();
+      if (mounted) {
+        setState(() {
+          _currentPath = path;
+          _loading = false;
+          _errorText = null;
+        });
+      }
+      return;
+    }
+
     setState(() {
       _loading = true;
       _currentPath = path;
+      _errorText = null;
     });
 
     await _disposeController();
     final next = VideoPlayerController.file(io.File(path));
     try {
-      await next.initialize();
+      developer.log('initialize start path=$path', name: 'VideoPreview');
+      final initialize =
+          widget.controllerInitializer ?? (VideoPlayerController c) => c.initialize();
+      await initialize(next).timeout(_initializeTimeout);
       next.setLooping(true);
       if (!mounted) {
         await next.dispose();
@@ -354,9 +401,18 @@ class _VideoPreviewState extends State<_VideoPreview> {
       setState(() {
         _controller = next;
         _loading = false;
+        _errorText = null;
       });
+      developer.log('initialize success path=$path', name: 'VideoPreview');
+      unawaited(next.play());
       _retryTimer?.cancel();
-    } catch (_) {
+    } on TimeoutException catch (error, stackTrace) {
+      developer.log(
+        'initialize timeout path=$path',
+        name: 'VideoPreview',
+        error: error,
+        stackTrace: stackTrace,
+      );
       await next.dispose();
       if (!mounted) {
         return;
@@ -364,8 +420,24 @@ class _VideoPreviewState extends State<_VideoPreview> {
       setState(() {
         _controller = null;
         _loading = false;
+        _errorText = '视频播放器初始化超时';
       });
-      _ensureRetryTimer(path);
+    } catch (error, stackTrace) {
+      developer.log(
+        'initialize failure path=$path',
+        name: 'VideoPreview',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await next.dispose();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _controller = null;
+        _loading = false;
+        _errorText = '视频播放失败：$error';
+      });
     }
   }
 
@@ -391,7 +463,7 @@ class _VideoPreviewState extends State<_VideoPreview> {
       if (!mounted) {
         return;
       }
-      unawaited(_syncController());
+      unawaited(_syncController(allowInitialize: _playbackRequested));
     });
   }
 
@@ -400,13 +472,17 @@ class _VideoPreviewState extends State<_VideoPreview> {
     if (_loading) {
       return _buildPlaceholder('视频加载中...');
     }
+    final errorText = _errorText;
+    if (errorText != null) {
+      return _buildErrorState(errorText);
+    }
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) {
       final thumb = widget.thumbnailPath;
       if (thumb != null && thumb.isNotEmpty) {
-        return _buildThumbnail(thumb);
+        return _buildPendingPreview(thumbnailPath: thumb);
       }
-      return _buildPlaceholder('视频已识别（本地文件未就绪）');
+      return _buildPendingPreview();
     }
 
     return Stack(
@@ -457,13 +533,78 @@ class _VideoPreviewState extends State<_VideoPreview> {
     );
   }
 
+  Widget _buildPendingPreview({String? thumbnailPath}) {
+    final body = thumbnailPath == null
+        ? _buildPlaceholder(
+            widget.preparing ? '视频下载中...' : '视频已识别（点击播放开始下载）',
+          )
+        : Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildThumbnail(thumbnailPath),
+              ColoredBox(color: Colors.black26),
+            ],
+          );
+    return SizedBox(
+      width: double.infinity,
+      height: 240,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(child: body),
+          if (widget.preparing) const CircularProgressIndicator(),
+          IconButton.filled(
+            onPressed: widget.preparing
+                ? null
+                : () async {
+                    _playbackRequested = true;
+                    final path = widget.videoPath;
+                    final hasLocalFile =
+                        path != null &&
+                        path.isNotEmpty &&
+                        io.File(path).existsSync();
+                    if (hasLocalFile) {
+                      await _syncController(allowInitialize: true);
+                      return;
+                    }
+                    await widget.onRequestPlayback();
+                  },
+            icon: const Icon(Icons.play_arrow_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPlaceholder(String text) {
     return Container(
       width: double.infinity,
       height: 240,
       color: Colors.black12,
       alignment: Alignment.center,
-      child: Text(text),
+      child: Text(text, style: const TextStyle(color: Colors.white)),
+    );
+  }
+
+  Widget _buildErrorState(String text) {
+    return SizedBox(
+      width: double.infinity,
+      height: 240,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          _buildPlaceholder(text),
+          Positioned(
+            bottom: 16,
+            child: IconButton.filled(
+              onPressed: () async {
+                await _syncController(allowInitialize: true);
+              },
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

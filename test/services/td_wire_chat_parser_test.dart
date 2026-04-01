@@ -30,6 +30,21 @@ void main() {
       expect(dto.isSelectable, isTrue);
     });
 
+    test('accepts empty title from getChat response', () {
+      final dto = TdChatDto.fromEnvelope(
+        TdWireEnvelope.fromJson(<String, dynamic>{
+          '@type': 'chat',
+          'id': 11,
+          'title': '',
+          'type': <String, dynamic>{'@type': 'chatTypeSupergroup'},
+        }),
+      );
+
+      expect(dto.id, 11);
+      expect(dto.title, '');
+      expect(dto.isSelectable, isTrue);
+    });
+
     test('parses getMe and getOption(my_id) responses', () {
       final me = TdSelfDto.fromEnvelope(
         TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'user', 'id': 99}),

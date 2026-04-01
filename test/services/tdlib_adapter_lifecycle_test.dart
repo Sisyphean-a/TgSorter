@@ -87,7 +87,7 @@ void main() {
       },
     );
 
-    test('restart performs stop then start again', () async {
+    test('restart closes tdlib session before starting again', () async {
       final transport = _LifecycleFakeTransport(
         responses: <String, List<TdObject>>{
           'getAuthorizationState': <TdObject>[
@@ -95,6 +95,17 @@ void main() {
             const AuthorizationStateReady(),
           ],
           'disableProxy': <TdObject>[const Ok(), const Ok()],
+          'close': <TdObject>[const Ok()],
+        },
+        onSend: (constructor, fake) {
+          if (constructor != 'close') {
+            return;
+          }
+          fake.emitUpdate(
+            UpdateAuthorizationState(
+              authorizationState: const AuthorizationStateClosed(),
+            ),
+          );
         },
       );
       final adapter = _buildAdapter(transport);
@@ -106,6 +117,7 @@ void main() {
       expect(adapter.isRunning, isTrue);
       expect(transport.startCount, 2);
       expect(transport.stopCount, 1);
+      expect(transport.requestConstructors, contains('close'));
       expect(
         transport.requestConstructors
             .where((constructor) => constructor == 'getAuthorizationState')

@@ -33,6 +33,8 @@ class PipelineMobileView extends StatelessWidget {
               child: MessageViewerCard(
                 message: pipeline.currentMessage.value,
                 processing: pipeline.loading.value || processing,
+                videoPreparing: pipeline.videoPreparing.value,
+                onRequestVideoPlayback: pipeline.prepareCurrentVideo,
               ),
             ),
             const SizedBox(height: 12),

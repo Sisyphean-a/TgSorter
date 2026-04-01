@@ -8,9 +8,13 @@ class TdResponseReadError implements Exception {
 }
 
 abstract final class TdResponseReader {
-  static String readString(Map<String, dynamic> source, String key) {
+  static String readString(
+    Map<String, dynamic> source,
+    String key, {
+    bool allowEmpty = false,
+  }) {
     final value = source[key];
-    if (value is String && value.isNotEmpty) {
+    if (value is String && (allowEmpty || value.isNotEmpty)) {
       return value;
     }
     throw TdResponseReadError('Missing required string at $key');

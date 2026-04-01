@@ -116,6 +116,29 @@ void main() {
 
       expect(service.fetchNextCalls, 1);
     });
+
+    test('prepareCurrentVideo requests download and refreshes current message', () async {
+      service.nextMessages.add(
+        _videoMessage(
+          id: 21,
+          title: '#REDPMV 005 高跟鞋',
+          localVideoPath: null,
+        ),
+      );
+      service.refreshedMessage = _videoMessage(
+        id: 21,
+        title: '#REDPMV 005 高跟鞋',
+        localVideoPath: 'C:/video.mp4',
+      );
+      await controller.fetchNext();
+
+      await controller.prepareCurrentVideo();
+      await Future<void>.delayed(const Duration(milliseconds: 1100));
+
+      expect(service.videoRequestCount, 1);
+      expect(controller.currentMessage.value?.preview.localVideoPath, 'C:/video.mp4');
+      expect(controller.videoPreparing.value, isFalse);
+    });
   });
 }
 
@@ -127,6 +150,8 @@ class _FakeTelegramService implements TelegramGateway {
   final List<int> classifiedMessageIds = <int>[];
   int? lastFetchSourceChatId;
   int fetchNextCalls = 0;
+  int videoRequestCount = 0;
+  PipelineMessage? refreshedMessage;
 
   @override
   Stream<TdAuthState> get authStates => _authController.stream;
@@ -186,6 +211,23 @@ class _FakeTelegramService implements TelegramGateway {
   }
 
   @override
+  Future<PipelineMessage> prepareVideoPlayback({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    videoRequestCount++;
+    return refreshedMessage ?? _videoMessage(id: messageId, title: 'video');
+  }
+
+  @override
+  Future<PipelineMessage> refreshMessage({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    return refreshedMessage ?? _videoMessage(id: messageId, title: 'video');
+  }
+
+  @override
   Future<ClassifyReceipt> classifyMessage({
     required int? sourceChatId,
     required int messageId,
@@ -213,5 +255,22 @@ PipelineMessage _message(int id, String title) {
     id: id,
     sourceChatId: 8888,
     preview: MessagePreview(kind: MessagePreviewKind.text, title: title),
+  );
+}
+
+PipelineMessage _videoMessage({
+  required int id,
+  required String title,
+  String? localVideoPath,
+}) {
+  return PipelineMessage(
+    id: id,
+    sourceChatId: 8888,
+    preview: MessagePreview(
+      kind: MessagePreviewKind.video,
+      title: title,
+      localVideoPath: localVideoPath,
+      videoDurationSeconds: 688,
+    ),
   );
 }

@@ -74,6 +74,45 @@ void main() {
       expect(dto.messages[3].content.kind, TdMessageContentKind.unsupported);
     });
 
+    test('does not expose local video path before file download completes', () {
+      final dto = TdMessagesDto.fromEnvelope(
+        TdWireEnvelope.fromJson(<String, dynamic>{
+          '@type': 'messages',
+          'messages': [
+            {
+              'id': 5,
+              'content': {
+                '@type': 'messageVideo',
+                'caption': {'text': '', 'entities': []},
+                'video': {
+                  'duration': 20,
+                  'thumbnail': {
+                    'file': {
+                      'id': '51',
+                      'local': {
+                        'path': 'C:/tdlib/files/temp/thumb.jpg',
+                        'is_downloading_completed': false,
+                      },
+                    },
+                  },
+                  'video': {
+                    'id': '52',
+                    'local': {
+                      'path': 'C:/tdlib/files/temp/video.mp4',
+                      'is_downloading_completed': false,
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(dto.messages.single.content.localVideoPath, isNull);
+      expect(dto.messages.single.content.localVideoThumbnailPath, isNull);
+    });
+
     test('parses forwardMessages result first target message id', () {
       final dto = TdMessagesDto.fromEnvelope(
         TdWireEnvelope.fromJson(<String, dynamic>{

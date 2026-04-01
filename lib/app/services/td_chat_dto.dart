@@ -32,7 +32,11 @@ class TdChatDto {
     final type = TdResponseReader.readMap(envelope.payload, 'type');
     return TdChatDto(
       id: TdResponseReader.readInt(envelope.payload, 'id'),
-      title: TdResponseReader.readString(envelope.payload, 'title'),
+      title: TdResponseReader.readString(
+        envelope.payload,
+        'title',
+        allowEmpty: true,
+      ),
       type: TdResponseReader.readString(type, '@type'),
     );
   }

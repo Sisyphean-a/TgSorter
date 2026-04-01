@@ -173,7 +173,12 @@ class TdlibAdapter {
   }
 
   Future<void> restart() async {
-    await stop();
+    if (_lifecycleState == TdlibLifecycleState.idle ||
+        _lifecycleState == TdlibLifecycleState.closed) {
+      await start();
+      return;
+    }
+    await close();
     await start();
   }
 

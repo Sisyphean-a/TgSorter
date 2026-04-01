@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
+import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
@@ -15,6 +16,8 @@ import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class PipelineController extends GetxController {
+  static const Duration _videoRefreshInterval = Duration(seconds: 1);
+
   PipelineController({
     required TelegramGateway service,
     required SettingsController settingsController,
@@ -33,12 +36,14 @@ class PipelineController extends GetxController {
   final currentMessage = Rxn<PipelineMessage>();
   final loading = false.obs;
   final processing = false.obs;
+  final videoPreparing = false.obs;
   final isOnline = false.obs;
   final logs = <ClassifyOperationLog>[].obs;
   final retryQueue = <RetryQueueItem>[].obs;
 
   StreamSubscription<TdConnectionState>? _connectionSub;
   StreamSubscription<TdAuthState>? _authSub;
+  Timer? _videoRefreshTimer;
   ClassifyReceipt? _lastSuccessReceipt;
   bool _isAuthorized = false;
 
@@ -64,6 +69,7 @@ class PipelineController extends GetxController {
   }
 
   Future<void> fetchNext() async {
+    _stopVideoRefresh();
     loading.value = true;
     try {
       currentMessage.value = await _service.fetchNextMessage(
@@ -76,6 +82,26 @@ class PipelineController extends GetxController {
       _showGeneralError(error.toString());
     } finally {
       loading.value = false;
+    }
+  }
+
+  Future<void> prepareCurrentVideo() async {
+    final message = currentMessage.value;
+    if (message == null ||
+        message.preview.kind != MessagePreviewKind.video ||
+        videoPreparing.value) {
+      return;
+    }
+    videoPreparing.value = true;
+    try {
+      currentMessage.value = await _service.prepareVideoPlayback(
+        sourceChatId: message.sourceChatId,
+        messageId: message.id,
+      );
+      await _refreshCurrentVideoIfNeeded();
+    } catch (error) {
+      _showGeneralError(error.toString());
+      videoPreparing.value = false;
     }
   }
 
@@ -352,12 +378,43 @@ class PipelineController extends GetxController {
     unawaited(fetchNext());
   }
 
+  Future<void> _refreshCurrentVideoIfNeeded() async {
+    final message = currentMessage.value;
+    if (message == null || message.preview.localVideoPath != null) {
+      videoPreparing.value = false;
+      return;
+    }
+    _videoRefreshTimer?.cancel();
+    _videoRefreshTimer = Timer.periodic(_videoRefreshInterval, (_) async {
+      final current = currentMessage.value;
+      if (current == null || current.preview.kind != MessagePreviewKind.video) {
+        _stopVideoRefresh();
+        return;
+      }
+      final refreshed = await _service.refreshMessage(
+        sourceChatId: current.sourceChatId,
+        messageId: current.id,
+      );
+      currentMessage.value = refreshed;
+      if (refreshed.preview.localVideoPath != null) {
+        _stopVideoRefresh();
+      }
+    });
+  }
+
+  void _stopVideoRefresh() {
+    _videoRefreshTimer?.cancel();
+    _videoRefreshTimer = null;
+    videoPreparing.value = false;
+  }
+
   void _reportError(String title, String message) {
     _errorController.report(title: title, message: message);
   }
 
   @override
   void onClose() {
+    _stopVideoRefresh();
     _connectionSub?.cancel();
     _authSub?.cancel();
     super.onClose();

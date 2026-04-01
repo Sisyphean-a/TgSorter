@@ -127,6 +127,35 @@ class TelegramService implements TelegramGateway {
   }
 
   @override
+  Future<PipelineMessage> prepareVideoPlayback({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    await _requireAuthorizationReady();
+    final message = await _loadMessage(sourceChatId, messageId);
+    final content = message.content;
+    if (content.kind != TdMessageContentKind.video) {
+      return _toPipelineMessage(message, sourceChatId);
+    }
+    await _ensureFileDownloadStarted(
+      fileId: content.remoteVideoFileId,
+      localPath: content.localVideoPath,
+      priority: _downloadPriorityVideoFile,
+    );
+    return refreshMessage(sourceChatId: sourceChatId, messageId: messageId);
+  }
+
+  @override
+  Future<PipelineMessage> refreshMessage({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    await _requireAuthorizationReady();
+    final message = await _loadMessage(sourceChatId, messageId);
+    return _toPipelineMessage(message, sourceChatId);
+  }
+
+  @override
   Future<ClassifyReceipt> classifyMessage({
     required int? sourceChatId,
     required int messageId,
@@ -265,11 +294,6 @@ class TelegramService implements TelegramGateway {
         localPath: content.localVideoThumbnailPath,
         priority: _downloadPriorityVideoPreview,
       );
-      await _ensureFileDownloadStarted(
-        fileId: content.remoteVideoFileId,
-        localPath: content.localVideoPath,
-        priority: _downloadPriorityVideoFile,
-      );
     }
   }
 
@@ -377,6 +401,15 @@ class TelegramService implements TelegramGateway {
       timeout: _getChatTimeout,
     );
     return TdChatDto.fromEnvelope(envelope);
+  }
+
+  Future<TdMessageDto> _loadMessage(int chatId, int messageId) async {
+    final envelope = await _adapter.sendWire(
+      GetMessage(chatId: chatId, messageId: messageId),
+      request: 'getMessage($chatId,$messageId)',
+      phase: TdlibPhase.business,
+    );
+    return TdMessageDto.fromJson(envelope.payload);
   }
 
   Future<TdChatDto?> _tryLoadChat(int chatId) async {
