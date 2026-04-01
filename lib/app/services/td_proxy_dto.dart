@@ -10,10 +10,11 @@ class TdProxy {
   });
 
   factory TdProxy.fromJson(Map<String, dynamic> payload) {
+    final source = _selectSource(payload);
     return TdProxy(
       id: TdResponseReader.readInt(payload, 'id'),
-      server: TdResponseReader.readString(payload, 'server'),
-      port: TdResponseReader.readInt(payload, 'port'),
+      server: TdResponseReader.readString(source, 'server'),
+      port: TdResponseReader.readInt(source, 'port'),
       isEnabled: TdResponseReader.readBool(payload, 'is_enabled'),
     );
   }
@@ -22,6 +23,16 @@ class TdProxy {
   final String server;
   final int port;
   final bool isEnabled;
+
+  static Map<String, dynamic> _selectSource(Map<String, dynamic> payload) {
+    if (payload.containsKey('server') && payload.containsKey('port')) {
+      return payload;
+    }
+    if (payload['proxy'] is Map) {
+      return TdResponseReader.readMap(payload, 'proxy');
+    }
+    return payload;
+  }
 }
 
 class TdProxyList {

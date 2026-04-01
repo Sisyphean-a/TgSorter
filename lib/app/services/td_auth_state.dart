@@ -13,47 +13,28 @@ enum TdAuthStateKind {
 class TdAuthState {
   const TdAuthState({required this.kind, required this.rawType});
 
-  factory TdAuthState.fromTdObject(TdObject state) {
-    if (state is AuthorizationStateWaitPhoneNumber) {
-      return const TdAuthState(
-        kind: TdAuthStateKind.waitPhoneNumber,
-        rawType: 'authorizationStateWaitPhoneNumber',
-      );
-    }
-    if (state is AuthorizationStateWaitCode) {
-      return const TdAuthState(
-        kind: TdAuthStateKind.waitCode,
-        rawType: 'authorizationStateWaitCode',
-      );
-    }
-    if (state is AuthorizationStateWaitPassword) {
-      return const TdAuthState(
-        kind: TdAuthStateKind.waitPassword,
-        rawType: 'authorizationStateWaitPassword',
-      );
-    }
-    if (state is AuthorizationStateWaitTdlibParameters) {
-      return const TdAuthState(
-        kind: TdAuthStateKind.waitTdlibParameters,
-        rawType: 'authorizationStateWaitTdlibParameters',
-      );
-    }
-    if (state is AuthorizationStateReady) {
-      return const TdAuthState(
-        kind: TdAuthStateKind.ready,
-        rawType: 'authorizationStateReady',
-      );
-    }
-    if (state is AuthorizationStateClosed) {
-      return const TdAuthState(
-        kind: TdAuthStateKind.closed,
-        rawType: 'authorizationStateClosed',
-      );
-    }
+  factory TdAuthState.fromJson(Map<String, dynamic> payload) {
+    final rawType = payload['@type']?.toString() ?? 'unknown';
     return TdAuthState(
-      kind: TdAuthStateKind.unknown,
-      rawType: state.getConstructor(),
+      kind: switch (rawType) {
+        'authorizationStateWaitPhoneNumber' =>
+          TdAuthStateKind.waitPhoneNumber,
+        'authorizationStateWaitCode' => TdAuthStateKind.waitCode,
+        'authorizationStateWaitPassword' => TdAuthStateKind.waitPassword,
+        'authorizationStateWaitTdlibParameters' =>
+          TdAuthStateKind.waitTdlibParameters,
+        'authorizationStateReady' => TdAuthStateKind.ready,
+        'authorizationStateClosed' => TdAuthStateKind.closed,
+        _ => TdAuthStateKind.unknown,
+      },
+      rawType: rawType,
     );
+  }
+
+  factory TdAuthState.fromTdObject(TdObject state) {
+    return TdAuthState.fromJson(<String, dynamic>{
+      '@type': state.getConstructor(),
+    });
   }
 
   final TdAuthStateKind kind;

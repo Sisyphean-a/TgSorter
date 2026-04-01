@@ -6,12 +6,15 @@ import 'package:tdlib/td_client.dart';
 
 import 'td_json_logger.dart';
 
+typedef TdPluginProvider = TdPlugin Function();
+
 class TdRawTransport {
   TdRawTransport({
     TdPlugin? plugin,
+    TdPluginProvider? pluginProvider,
     TdJsonLogger? logger,
     Duration pollInterval = _defaultPollInterval,
-  }) : _plugin = plugin ?? TdPlugin.instance,
+  }) : _pluginProvider = pluginProvider ?? (() => plugin ?? TdPlugin.instance),
        _logger = logger ?? TdJsonLogger(),
        _pollInterval = pollInterval;
 
@@ -20,7 +23,7 @@ class TdRawTransport {
   static const double _nonBlockingReceiveTimeoutSeconds = 0;
   static const int _minimalTdlibLogLevel = 0;
 
-  final TdPlugin _plugin;
+  final TdPluginProvider _pluginProvider;
   final TdJsonLogger _logger;
   final Duration _pollInterval;
   final StreamController<Map<String, dynamic>> _updatesController =
@@ -109,6 +112,8 @@ class TdRawTransport {
   }
 
   String _nextExtra() => DateTime.now().microsecondsSinceEpoch.toString();
+
+  TdPlugin get _plugin => _pluginProvider();
 
   void _pollOnce() {
     if (!_running || _polling) {

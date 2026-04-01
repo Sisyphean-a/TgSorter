@@ -66,6 +66,19 @@ class AddProxyCompatRequest extends TdFunction {
   String toString() => jsonEncode(toJson());
 }
 
+Future<void> configureTdPlugin({
+  required String libraryPath,
+  required void Function() registerNativePlugin,
+  required Future<void> Function(String libraryPath) initializePlugin,
+}) async {
+  registerNativePlugin();
+  await initializePlugin(libraryPath);
+}
+
 Future<void> defaultTdlibInitializer(String libraryPath) {
-  return TdPlugin.initialize(libraryPath);
+  return configureTdPlugin(
+    libraryPath: libraryPath,
+    registerNativePlugin: TdNativePlugin.registerWith,
+    initializePlugin: (path) => TdPlugin.initialize(path),
+  );
 }

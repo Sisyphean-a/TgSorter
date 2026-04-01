@@ -13,6 +13,29 @@
       ]
     },
     {
+      "name": "TgSorter (Windows env.local debug-terminal)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "debug",
+      "program": "lib/main.dart",
+      "deviceId": "windows",
+      "toolArgs": [
+        "--dart-define-from-file=.env.local.json"
+      ]
+    },
+    {
+      "name": "TgSorter (Windows env.local run-fast)",
+      "request": "launch",
+      "type": "dart",
+      "noDebug": true,
+      "flutterMode": "debug",
+      "program": "lib/main.dart",
+      "deviceId": "windows",
+      "toolArgs": [
+        "--dart-define-from-file=.env.local.json"
+      ]
+    },
+    {
       "name": "TgSorter (Windows env.local profile)",
       "request": "launch",
       "type": "dart",

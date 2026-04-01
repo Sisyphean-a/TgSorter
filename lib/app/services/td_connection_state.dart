@@ -12,41 +12,27 @@ enum TdConnectionStateKind {
 class TdConnectionState {
   const TdConnectionState({required this.kind, required this.rawType});
 
-  factory TdConnectionState.fromTdObject(TdObject state) {
-    if (state is ConnectionStateWaitingForNetwork) {
-      return const TdConnectionState(
-        kind: TdConnectionStateKind.waitingForNetwork,
-        rawType: 'connectionStateWaitingForNetwork',
-      );
-    }
-    if (state is ConnectionStateConnectingToProxy) {
-      return const TdConnectionState(
-        kind: TdConnectionStateKind.connectingToProxy,
-        rawType: 'connectionStateConnectingToProxy',
-      );
-    }
-    if (state is ConnectionStateConnecting) {
-      return const TdConnectionState(
-        kind: TdConnectionStateKind.connecting,
-        rawType: 'connectionStateConnecting',
-      );
-    }
-    if (state is ConnectionStateUpdating) {
-      return const TdConnectionState(
-        kind: TdConnectionStateKind.updating,
-        rawType: 'connectionStateUpdating',
-      );
-    }
-    if (state is ConnectionStateReady) {
-      return const TdConnectionState(
-        kind: TdConnectionStateKind.ready,
-        rawType: 'connectionStateReady',
-      );
-    }
+  factory TdConnectionState.fromJson(Map<String, dynamic> payload) {
+    final rawType = payload['@type']?.toString() ?? 'unknown';
     return TdConnectionState(
-      kind: TdConnectionStateKind.unknown,
-      rawType: state.getConstructor(),
+      kind: switch (rawType) {
+        'connectionStateWaitingForNetwork' =>
+          TdConnectionStateKind.waitingForNetwork,
+        'connectionStateConnectingToProxy' =>
+          TdConnectionStateKind.connectingToProxy,
+        'connectionStateConnecting' => TdConnectionStateKind.connecting,
+        'connectionStateUpdating' => TdConnectionStateKind.updating,
+        'connectionStateReady' => TdConnectionStateKind.ready,
+        _ => TdConnectionStateKind.unknown,
+      },
+      rawType: rawType,
     );
+  }
+
+  factory TdConnectionState.fromTdObject(TdObject state) {
+    return TdConnectionState.fromJson(<String, dynamic>{
+      '@type': state.getConstructor(),
+    });
   }
 
   final TdConnectionStateKind kind;

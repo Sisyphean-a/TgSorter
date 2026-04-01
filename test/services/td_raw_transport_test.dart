@@ -9,6 +9,25 @@ import 'package:tgsorter/app/services/td_raw_transport.dart';
 
 void main() {
   group('TdRawTransport', () {
+    test('resolves TdPlugin at start time instead of constructor time', () async {
+      final original = TdPlugin.instance;
+      final first = _FakeTdPlugin();
+      final second = _FakeTdPlugin();
+      TdPlugin.instance = first;
+      final transport = TdRawTransport(
+        logger: TdJsonLogger(isEnabled: false),
+        pollInterval: const Duration(milliseconds: 1),
+      );
+
+      TdPlugin.instance = second;
+      await transport.start();
+      await transport.stop();
+
+      expect(first.createCallCount, 0);
+      expect(second.createCallCount, 1);
+      TdPlugin.instance = original;
+    });
+
     test('logs full request payload with constructor and extra', () async {
       final logs = <String>[];
       final plugin = _FakeTdPlugin();
@@ -136,9 +155,13 @@ class _FakeTdPlugin extends TdPlugin {
 
   Map<String, dynamic>? lastSentPayload;
   int _nextClientId = 1;
+  int createCallCount = 0;
 
   @override
-  int tdCreate() => _nextClientId++;
+  int tdCreate() {
+    createCallCount++;
+    return _nextClientId++;
+  }
 
   @override
   String? tdReceive([double timeout = 8]) {

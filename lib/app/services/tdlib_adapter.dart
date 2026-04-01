@@ -14,6 +14,7 @@ import 'package:tgsorter/app/services/tdlib_request_executor.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
 import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 import 'package:tgsorter/app/services/td_raw_transport.dart';
+import 'package:tgsorter/app/services/td_update_parser.dart';
 import 'package:tgsorter/app/services/td_wire_message.dart';
 
 export 'package:tgsorter/app/services/tdlib_adapter_support.dart';
@@ -67,6 +68,7 @@ class TdlibAdapter {
   );
 
   StreamSubscription<TdObject>? _updatesSub;
+  StreamSubscription<Map<String, dynamic>>? _rawUpdatesSub;
   Completer<void>? _startCompleter;
   Completer<void>? _closeCompleter;
   Completer<void> _authorizationReady = Completer<void>();
@@ -96,16 +98,23 @@ class TdlibAdapter {
       _emitStartup(TdlibStartupState.init);
       await _initializeTdlib(_runtimePaths.libraryPath);
       await _transport.start();
-      _updatesSub = _transport.updates.listen(
-        _handleUpdate,
-        onError: _handleTransportError,
-      );
-      _capabilities ??= await _detectCapabilities();
+      if (_rawTransport != null) {
+        _rawUpdatesSub = _rawTransport.updates.listen(
+          _handleRawUpdate,
+          onError: _handleTransportError,
+        );
+      } else {
+        _updatesSub = _transport.updates.listen(
+          _handleUpdate,
+          onError: _handleTransportError,
+        );
+      }
       final state = await _getAuthorizationState();
       if (state.needsTdlibParameters) {
         _emitStartup(TdlibStartupState.setParams);
         await _setTdlibParameters();
       }
+      _capabilities ??= await _detectCapabilities();
       _emitStartup(TdlibStartupState.setProxy);
       await _syncProxy();
       _emitStartup(TdlibStartupState.auth);
@@ -300,6 +309,19 @@ class TdlibAdapter {
     }
   }
 
+  void _handleRawUpdate(Map<String, dynamic> update) {
+    final parsed = TdUpdateParser.parse(update);
+    final authState = parsed.authState;
+    if (authState != null) {
+      _authStateController.add(authState);
+      _recordAuthorizationState(authState);
+    }
+    final connectionState = parsed.connectionState;
+    if (connectionState != null) {
+      _connectionController.add(connectionState);
+    }
+  }
+
   void _handleTransportError(Object error, StackTrace stackTrace) {
     final failure = TdlibFailure.transport(
       message: error.toString(),
@@ -338,6 +360,8 @@ class TdlibAdapter {
   Future<void> _disposeTransport() async {
     await _updatesSub?.cancel();
     _updatesSub = null;
+    await _rawUpdatesSub?.cancel();
+    _rawUpdatesSub = null;
     await _transport.stop();
   }
 

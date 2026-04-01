@@ -13,6 +13,7 @@ void main() {
     test(
       'runs init to auth when authorization waits for tdlib params',
       () async {
+        final calls = <String>[];
         final transport = _FakeTransport(
           responses: <String, List<TdObject>>{
             'getAuthorizationState': <TdObject>[
@@ -37,9 +38,16 @@ void main() {
             databaseDirectory: 'db',
             filesDirectory: 'files',
           ),
-          detectCapabilities: () async => const TdlibSchemaCapabilities(
-            addProxyMode: TdlibAddProxyMode.flatArgs,
-          ),
+          detectCapabilities: () async {
+            calls.add('detectCapabilities');
+            expect(
+              transport.requestConstructors,
+              contains('setTdlibParameters'),
+            );
+            return const TdlibSchemaCapabilities(
+              addProxyMode: TdlibAddProxyMode.flatArgs,
+            );
+          },
           initializeTdlib: (_) async {},
         );
         final states = <TdlibStartupState>[];
@@ -58,6 +66,7 @@ void main() {
           'setTdlibParameters',
           'addProxy',
         ]);
+        expect(calls, ['detectCapabilities']);
         await sub.cancel();
       },
     );

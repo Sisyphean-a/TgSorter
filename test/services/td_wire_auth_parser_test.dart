@@ -57,5 +57,17 @@ void main() {
       expect(state.kind, TdConnectionStateKind.ready);
       expect(state.isReady, isTrue);
     });
+
+    test('parses raw authorization and connection json into local models', () {
+      final auth = TdAuthState.fromJson(<String, dynamic>{
+        '@type': 'authorizationStateWaitTdlibParameters',
+      });
+      final connection = TdConnectionState.fromJson(<String, dynamic>{
+        '@type': 'connectionStateReady',
+      });
+
+      expect(auth.kind, TdAuthStateKind.waitTdlibParameters);
+      expect(connection.kind, TdConnectionStateKind.ready);
+    });
   });
 }
