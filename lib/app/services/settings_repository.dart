@@ -13,6 +13,7 @@ class SettingsRepository {
   static const _chatIdPrefix = 'category_chat_id_';
   static const _chatTitlePrefix = 'category_chat_title_';
   static const _fetchDirectionKey = 'message_fetch_direction';
+  static const _forwardAsCopyKey = 'forward_as_copy';
   static const _sourceChatIdKey = 'source_chat_id';
   static const _fetchDirectionLatest = 'latest_first';
   static const _fetchDirectionOldest = 'oldest_first';
@@ -32,6 +33,9 @@ class SettingsRepository {
     final fetchDirectionRaw = _prefs.getString(_fetchDirectionKey);
     final fetchDirection = _parseFetchDirection(fetchDirectionRaw);
     settings = settings.updateFetchDirection(fetchDirection);
+    settings = settings.updateForwardAsCopy(
+      _prefs.getBool(_forwardAsCopyKey) ?? false,
+    );
     final sourceChatIdRaw = _prefs.getString(_sourceChatIdKey);
     final sourceChatId = int.tryParse(sourceChatIdRaw ?? '');
     settings = settings.updateSourceChatId(sourceChatId);
@@ -70,6 +74,7 @@ class SettingsRepository {
       _fetchDirectionKey,
       _encodeFetchDirection(settings.fetchDirection),
     );
+    await _prefs.setBool(_forwardAsCopyKey, settings.forwardAsCopy);
     final sourceChatId = settings.sourceChatId;
     if (sourceChatId == null) {
       await _prefs.remove(_sourceChatIdKey);

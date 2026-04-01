@@ -76,6 +76,11 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: controller.saveFetchDirection,
             ),
             const SizedBox(height: 8),
+            _ForwardModeEditor(
+              value: config.forwardAsCopy,
+              onChanged: controller.saveForwardAsCopy,
+            ),
+            const SizedBox(height: 8),
             BatchOptionsEditor(
               batchSize: config.batchSize,
               throttleMs: config.throttleMs,
@@ -226,6 +231,27 @@ class _CategorySection extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ForwardModeEditor extends StatelessWidget {
+  const _ForwardModeEditor({required this.value, required this.onChanged});
+
+  final bool value;
+  final Future<void> Function(bool) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: SwitchListTile(
+        value: value,
+        title: const Text('无引用转发'),
+        subtitle: const Text('开启后使用复制转发，不携带原始群组或频道来源信息'),
+        onChanged: (next) async {
+          await onChanged(next);
+        },
       ),
     );
   }

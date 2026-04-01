@@ -162,6 +162,7 @@ class PipelineController extends GetxController {
         sourceChatId: message.sourceChatId,
         messageId: message.id,
         targetChatId: target.targetChatId,
+        asCopy: _settingsController.settings.value.forwardAsCopy,
       );
       _lastSuccessReceipt = receipt;
       await _appendLog(
@@ -278,6 +279,7 @@ class PipelineController extends GetxController {
             _settingsController.settings.value.sourceChatId,
         messageId: item.messageId,
         targetChatId: item.targetChatId,
+        asCopy: _settingsController.settings.value.forwardAsCopy,
       );
       retryQueue.removeAt(0);
       await _journalRepository.saveRetryQueue(retryQueue);

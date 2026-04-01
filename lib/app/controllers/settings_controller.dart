@@ -87,6 +87,12 @@ class SettingsController extends GetxController {
     await _repository.save(updated);
   }
 
+  Future<void> saveForwardAsCopy(bool value) async {
+    final updated = settings.value.updateForwardAsCopy(value);
+    settings.value = updated;
+    await _repository.save(updated);
+  }
+
   Future<void> saveBatchOptions({
     required int batchSize,
     required int throttleMs,

@@ -43,6 +43,7 @@ void main() {
         ],
         sourceChatId: 8888,
         fetchDirection: MessageFetchDirection.latestFirst,
+        forwardAsCopy: false,
         batchSize: 2,
         throttleMs: 0,
         proxy: ProxySettings.empty,
@@ -166,6 +167,7 @@ class _FakeTelegramService implements TelegramGateway {
   int? lastFetchSourceChatId;
   int fetchNextCalls = 0;
   int videoRequestCount = 0;
+  bool? lastAsCopy;
   PipelineMessage? refreshedMessage;
 
   @override
@@ -257,7 +259,9 @@ class _FakeTelegramService implements TelegramGateway {
     required int? sourceChatId,
     required int messageId,
     required int targetChatId,
+    required bool asCopy,
   }) async {
+    lastAsCopy = asCopy;
     classifiedMessageIds.add(messageId);
     return ClassifyReceipt(
       sourceChatId: 777,

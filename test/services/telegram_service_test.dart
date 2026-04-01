@@ -9,6 +9,7 @@ import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
+import 'package:tgsorter/app/services/tdlib_request_executor.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
 import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
@@ -104,11 +105,73 @@ void main() {
           sourceChatId: 777,
           messageId: 10,
           targetChatId: 999,
+          asCopy: false,
         ),
         throwsA(isA<StateError>()),
       );
 
       expect(adapter.deleteMessageCalls, 0);
+    });
+
+    test('classifyMessage uses sendCopy when no-reference mode is enabled', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<TdWireEnvelope>>{
+          'forwardMessages': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'messages',
+              'messages': [_textMessageJson(88, 'copied')],
+            }),
+          ],
+        },
+      );
+      final service = TelegramService(adapter: adapter);
+
+      await service.classifyMessage(
+        sourceChatId: 777,
+        messageId: 10,
+        targetChatId: 999,
+        asCopy: true,
+      );
+
+      expect(adapter.lastForwardSendCopy, isTrue);
+    });
+
+    test('requireSelfChatId resolves real private chat id via createPrivateChat', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<TdWireEnvelope>>{
+          'getOption': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'optionValueInteger',
+              'value': 1774463496,
+            }),
+          ],
+          'createPrivateChat': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'chat',
+              'id': 1234567890123,
+              'title': '收藏夹',
+              'type': {
+                '@type': 'chatTypePrivate',
+                'user_id': 1774463496,
+              },
+            }),
+          ],
+          'getChatHistory': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'messages',
+              'messages': [],
+            }),
+          ],
+        },
+      );
+      final service = TelegramService(adapter: adapter);
+
+      await service.fetchNextMessage(
+        direction: MessageFetchDirection.latestFirst,
+        sourceChatId: null,
+      );
+
+      expect(adapter.lastHistoryChatId, 1234567890123);
     });
   });
 }
@@ -145,6 +208,8 @@ class _FakeTdlibAdapter extends TdlibAdapter {
   final Map<String, List<TdWireEnvelope>> wireResponses;
   final List<int> downloadedFileIds = <int>[];
   int deleteMessageCalls = 0;
+  bool? lastForwardSendCopy;
+  int? lastHistoryChatId;
 
   @override
   Future<void> waitUntilReady() async {}
@@ -163,11 +228,31 @@ class _FakeTdlibAdapter extends TdlibAdapter {
     if (function is DeleteMessages) {
       deleteMessageCalls++;
     }
+    if (function is ForwardMessages) {
+      lastForwardSendCopy = function.sendCopy;
+    }
+    if (function is GetChatHistory) {
+      lastHistoryChatId = function.chatId;
+    }
     final queue = wireResponses[constructor];
     if (queue == null || queue.isEmpty) {
       throw StateError('Missing fake wire response for $constructor');
     }
     return queue.removeAt(0);
+  }
+
+  @override
+  Future<void> sendWireExpectOk(
+    TdFunction function, {
+    required String request,
+    required TdlibPhase phase,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    if (function is DeleteMessages) {
+      deleteMessageCalls++;
+      return;
+    }
+    throw UnimplementedError();
   }
 }
 

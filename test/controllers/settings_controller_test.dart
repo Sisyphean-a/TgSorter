@@ -48,6 +48,19 @@ void main() {
         throwsA(isA<StateError>()),
       );
     });
+
+    test('saveForwardAsCopy persists switch value', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final gateway = _SettingsFakeGateway();
+      final controller = SettingsController(SettingsRepository(prefs), gateway);
+      controller.onInit();
+
+      await controller.saveForwardAsCopy(true);
+
+      expect(controller.settings.value.forwardAsCopy, isTrue);
+      expect(prefs.getBool('forward_as_copy'), isTrue);
+    });
   });
 }
 
@@ -119,6 +132,7 @@ class _SettingsFakeGateway implements TelegramGateway {
     required int? sourceChatId,
     required int messageId,
     required int targetChatId,
+    required bool asCopy,
   }) async {
     throw UnimplementedError();
   }

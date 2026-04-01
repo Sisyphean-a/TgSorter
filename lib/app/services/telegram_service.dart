@@ -183,6 +183,7 @@ class TelegramService implements TelegramGateway {
     required int? sourceChatId,
     required int messageId,
     required int targetChatId,
+    required bool asCopy,
   }) async {
     await _requireAuthorizationReady();
     final actualSourceChatId = await _resolveSourceChatId(sourceChatId);
@@ -193,7 +194,7 @@ class TelegramService implements TelegramGateway {
         fromChatId: actualSourceChatId,
         messageIds: [messageId],
         options: null,
-        sendCopy: false,
+        sendCopy: asCopy,
         removeCaption: false,
         onlyPreview: false,
       ),
@@ -269,7 +270,7 @@ class TelegramService implements TelegramGateway {
     if (option.type == 'optionValueInteger') {
       final myId = TdOptionMyIdDto.fromEnvelope(option);
       if (myId.value > 0) {
-        _selfChatId = myId.value;
+        _selfChatId = await _createPrivateChatId(myId.value);
         return;
       }
     }
@@ -279,7 +280,17 @@ class TelegramService implements TelegramGateway {
       phase: TdlibPhase.business,
       timeout: _getMeTimeout,
     );
-    _selfChatId = TdSelfDto.fromEnvelope(me).id;
+    final myId = TdSelfDto.fromEnvelope(me).id;
+    _selfChatId = await _createPrivateChatId(myId);
+  }
+
+  Future<int> _createPrivateChatId(int userId) async {
+    final chat = await _adapter.sendWire(
+      CreatePrivateChat(userId: userId, force: false),
+      request: 'createPrivateChat($userId)',
+      phase: TdlibPhase.business,
+    );
+    return TdChatDto.fromEnvelope(chat).id;
   }
 
   Future<int> _requireSelfChatId() async {

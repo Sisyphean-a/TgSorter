@@ -31,6 +31,9 @@ class PipelineMobileView extends StatelessWidget {
             Expanded(
               flex: 6,
               child: MessageViewerCard(
+                key: ValueKey(
+                  '${pipeline.currentMessage.value?.sourceChatId}-${pipeline.currentMessage.value?.id}',
+                ),
                 message: pipeline.currentMessage.value,
                 processing: pipeline.loading.value || processing,
                 videoPreparing: pipeline.videoPreparing.value,

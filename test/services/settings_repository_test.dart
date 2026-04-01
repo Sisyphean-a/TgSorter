@@ -16,6 +16,7 @@ void main() {
       final settings = repo.load();
 
       expect(settings.fetchDirection, MessageFetchDirection.latestFirst);
+      expect(settings.forwardAsCopy, isFalse);
       expect(settings.categories, isEmpty);
     });
 
@@ -63,6 +64,18 @@ void main() {
       await repo.save(settings);
 
       expect(prefs.getString('source_chat_id'), '123456789');
+    });
+
+    test('save persists forwardAsCopy option', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().updateForwardAsCopy(true);
+
+      await repo.save(settings);
+
+      expect(prefs.getBool('forward_as_copy'), isTrue);
+      expect(repo.load().forwardAsCopy, isTrue);
     });
 
     test('save persists dynamic categories and load restores them', () async {

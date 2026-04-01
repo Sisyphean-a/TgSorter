@@ -207,6 +207,7 @@ class _IntegrationFakeGateway implements TelegramGateway {
     required int? sourceChatId,
     required int messageId,
     required int targetChatId,
+    required bool asCopy,
   }) async {
     throw UnimplementedError();
   }

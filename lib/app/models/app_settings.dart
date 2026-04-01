@@ -9,6 +9,7 @@ class AppSettings {
     required this.categories,
     required this.sourceChatId,
     required this.fetchDirection,
+    required this.forwardAsCopy,
     required this.batchSize,
     required this.throttleMs,
     required this.proxy,
@@ -18,6 +19,7 @@ class AppSettings {
   final List<CategoryConfig> categories;
   final int? sourceChatId;
   final MessageFetchDirection fetchDirection;
+  final bool forwardAsCopy;
   final int batchSize;
   final int throttleMs;
   final ProxySettings proxy;
@@ -28,6 +30,7 @@ class AppSettings {
       categories: [],
       sourceChatId: null,
       fetchDirection: MessageFetchDirection.latestFirst,
+      forwardAsCopy: false,
       batchSize: 5,
       throttleMs: 1200,
       proxy: ProxySettings.empty,
@@ -71,6 +74,7 @@ class AppSettings {
       categories: updated,
       sourceChatId: sourceChatId,
       fetchDirection: fetchDirection,
+      forwardAsCopy: forwardAsCopy,
       batchSize: batchSize,
       throttleMs: throttleMs,
       proxy: proxy,
@@ -83,6 +87,7 @@ class AppSettings {
       categories: [...categories, config],
       sourceChatId: sourceChatId,
       fetchDirection: fetchDirection,
+      forwardAsCopy: forwardAsCopy,
       batchSize: batchSize,
       throttleMs: throttleMs,
       proxy: proxy,
@@ -95,6 +100,7 @@ class AppSettings {
       categories: categories.where((item) => item.key != key).toList(growable: false),
       sourceChatId: sourceChatId,
       fetchDirection: fetchDirection,
+      forwardAsCopy: forwardAsCopy,
       batchSize: batchSize,
       throttleMs: throttleMs,
       proxy: proxy,
@@ -107,6 +113,7 @@ class AppSettings {
       categories: categories,
       sourceChatId: chatId,
       fetchDirection: fetchDirection,
+      forwardAsCopy: forwardAsCopy,
       batchSize: batchSize,
       throttleMs: throttleMs,
       proxy: proxy,
@@ -119,6 +126,7 @@ class AppSettings {
       categories: categories,
       sourceChatId: sourceChatId,
       fetchDirection: direction,
+      forwardAsCopy: forwardAsCopy,
       batchSize: batchSize,
       throttleMs: throttleMs,
       proxy: proxy,
@@ -134,6 +142,7 @@ class AppSettings {
       categories: categories,
       sourceChatId: sourceChatId,
       fetchDirection: fetchDirection,
+      forwardAsCopy: forwardAsCopy,
       batchSize: batchSize,
       throttleMs: throttleMs,
       proxy: proxy,
@@ -146,6 +155,7 @@ class AppSettings {
       categories: categories,
       sourceChatId: sourceChatId,
       fetchDirection: fetchDirection,
+      forwardAsCopy: forwardAsCopy,
       batchSize: batchSize,
       throttleMs: throttleMs,
       proxy: nextProxy.sanitize(),
@@ -163,10 +173,24 @@ class AppSettings {
       categories: categories,
       sourceChatId: sourceChatId,
       fetchDirection: fetchDirection,
+      forwardAsCopy: forwardAsCopy,
       batchSize: batchSize,
       throttleMs: throttleMs,
       proxy: proxy,
       shortcutBindings: Map.unmodifiable(updated),
+    );
+  }
+
+  AppSettings updateForwardAsCopy(bool value) {
+    return AppSettings(
+      categories: categories,
+      sourceChatId: sourceChatId,
+      fetchDirection: fetchDirection,
+      forwardAsCopy: value,
+      batchSize: batchSize,
+      throttleMs: throttleMs,
+      proxy: proxy,
+      shortcutBindings: shortcutBindings,
     );
   }
 }

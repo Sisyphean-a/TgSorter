@@ -62,6 +62,7 @@ abstract class TelegramGateway {
     required int? sourceChatId,
     required int messageId,
     required int targetChatId,
+    required bool asCopy,
   });
 
   Future<void> undoClassify({
