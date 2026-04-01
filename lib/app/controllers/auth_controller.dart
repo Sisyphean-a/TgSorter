@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -18,15 +19,17 @@ enum AuthStage {
 }
 
 class AuthController extends GetxController {
-  AuthController(this._service);
+  AuthController(this._service, this._errors);
 
   final TelegramGateway _service;
+  final AppErrorController _errors;
   final stage = AuthStage.loading.obs;
   final loading = false.obs;
-  final startupError = RxnString();
-  final errorHistory = <String>[].obs;
 
   StreamSubscription<TdAuthState>? _authSub;
+
+  RxnString get startupError => _errors.currentError;
+  RxList<String> get errorHistory => _errors.errorHistory;
 
   @override
   void onInit() {
@@ -138,9 +141,7 @@ class AuthController extends GetxController {
   }
 
   void _showSafeError(String title, String message) {
-    final line = _formatErrorLine(title, message);
-    startupError.value = line;
-    errorHistory.insert(0, line);
+    _errors.report(title: title, message: message);
   }
 
   void _onAuthError(Object error, StackTrace stackTrace) {
@@ -152,14 +153,6 @@ class AuthController extends GetxController {
   }
 
   void clearErrorHistory() {
-    errorHistory.clear();
-  }
-
-  String _formatErrorLine(String title, String message) {
-    final now = DateTime.now();
-    final hh = now.hour.toString().padLeft(2, '0');
-    final mm = now.minute.toString().padLeft(2, '0');
-    final ss = now.second.toString().padLeft(2, '0');
-    return '[$hh:$mm:$ss] $title：$message';
+    _errors.clear();
   }
 }

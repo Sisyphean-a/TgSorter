@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/controllers/auth_controller.dart';
 import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
@@ -19,6 +20,7 @@ Future<void> initDependencies() async {
   final prefs = await SharedPreferences.getInstance();
   final settingsRepo = SettingsRepository(prefs);
   final journalRepo = OperationJournalRepository(prefs);
+  final appErrors = AppErrorController();
   final credentials = TdlibCredentials.fromEnvironment();
   final tdLogger = TdJsonLogger();
   final rawTransport = TdRawTransport(logger: tdLogger);
@@ -49,6 +51,7 @@ Future<void> initDependencies() async {
 
   Get.put(settingsRepo, permanent: true);
   Get.put(journalRepo, permanent: true);
+  Get.put(appErrors, permanent: true);
   Get.put(tdLogger, permanent: true);
   Get.put(rawTransport, permanent: true);
   Get.put(transport, permanent: true);
@@ -57,12 +60,13 @@ Future<void> initDependencies() async {
   Get.put(telegram, permanent: true);
 
   Get.put(SettingsController(settingsRepo, telegram), permanent: true);
-  Get.put(AuthController(telegram), permanent: true);
+  Get.put(AuthController(telegram, appErrors), permanent: true);
   Get.put(
     PipelineController(
       service: telegram,
       settingsController: Get.find<SettingsController>(),
       journalRepository: Get.find<OperationJournalRepository>(),
+      errorController: appErrors,
     ),
     permanent: true,
   );

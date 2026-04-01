@@ -20,13 +20,18 @@ class TdClientTransport implements TdTransport {
   TdClientTransport({TdRawTransport? rawTransport, TdJsonLogger? logger})
     : _logger = logger ?? TdJsonLogger(),
       _rawTransport =
-          rawTransport ?? TdRawTransport(logger: logger ?? TdJsonLogger());
+          rawTransport ?? TdRawTransport(logger: logger ?? TdJsonLogger()) {
+    _updatesController = StreamController<TdObject>.broadcast(
+      onListen: _ensureUpdateBridge,
+      onCancel: _handleUpdateStreamCancel,
+    );
+  }
 
   final TdJsonLogger _logger;
   final TdRawTransport _rawTransport;
-  final StreamController<TdObject> _updatesController =
-      StreamController<TdObject>.broadcast();
+  late final StreamController<TdObject> _updatesController;
   StreamSubscription<Map<String, dynamic>>? _updatesSubscription;
+  bool _started = false;
 
   @override
   Stream<TdObject> get updates => _updatesController.stream;
@@ -34,11 +39,13 @@ class TdClientTransport implements TdTransport {
   @override
   Future<void> start() async {
     await _rawTransport.start();
-    _updatesSubscription ??= _rawTransport.updates.listen(_forwardUpdate);
+    _started = true;
+    _ensureUpdateBridge();
   }
 
   @override
   Future<void> stop() async {
+    _started = false;
     await _updatesSubscription?.cancel();
     _updatesSubscription = null;
     await _rawTransport.stop();
@@ -68,27 +75,38 @@ class TdClientTransport implements TdTransport {
   }
 
   void _forwardUpdate(Map<String, dynamic> payload) {
-    try {
-      final event = _decodePayload(
-        payload: payload,
-        stage: 'typed_update',
-        context: 'type=${payload['@type'] ?? 'unknown'}',
-      );
+    final event = _tryDecodeUpdate(payload);
+    if (event != null) {
       _updatesController.add(event);
-    } catch (error, stackTrace) {
-      if (_updatesController.hasListener) {
-        _updatesController.addError(error, stackTrace);
-        return;
-      }
-      _logger.logParseError(
-        stage: 'typed_update',
-        payload: jsonEncode(payload),
-        reason: error.toString(),
-        context: 'type=${payload['@type'] ?? 'unknown'}',
-        error: error,
-        stackTrace: stackTrace,
-      );
     }
+  }
+
+  void _ensureUpdateBridge() {
+    if (!_started || !_updatesController.hasListener || _updatesSubscription != null) {
+      return;
+    }
+    _updatesSubscription = _rawTransport.updates.listen(_forwardUpdate);
+  }
+
+  void _handleUpdateStreamCancel() {
+    if (_updatesController.hasListener) {
+      return;
+    }
+    unawaited(_cancelUpdateBridge());
+  }
+
+  Future<void> _cancelUpdateBridge() async {
+    await _updatesSubscription?.cancel();
+    _updatesSubscription = null;
+  }
+
+  TdObject? _tryDecodeUpdate(Map<String, dynamic> payload) {
+    final encoded = jsonEncode(payload);
+    final event = convertToObject(encoded);
+    if (event == null) {
+      return null;
+    }
+    return event;
   }
 
   TdObject _decodePayload({

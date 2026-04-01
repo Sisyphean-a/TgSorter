@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:get/get.dart';
+import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
@@ -8,6 +9,7 @@ import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
+import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
@@ -17,13 +19,16 @@ class PipelineController extends GetxController {
     required TelegramGateway service,
     required SettingsController settingsController,
     required OperationJournalRepository journalRepository,
+    required AppErrorController errorController,
   }) : _service = service,
        _settingsController = settingsController,
-       _journalRepository = journalRepository;
+       _journalRepository = journalRepository,
+       _errorController = errorController;
 
   final TelegramGateway _service;
   final SettingsController _settingsController;
   final OperationJournalRepository _journalRepository;
+  final AppErrorController _errorController;
 
   final currentMessage = Rxn<PipelineMessage>();
   final loading = false.obs;
@@ -33,7 +38,9 @@ class PipelineController extends GetxController {
   final retryQueue = <RetryQueueItem>[].obs;
 
   StreamSubscription<TdConnectionState>? _connectionSub;
+  StreamSubscription<TdAuthState>? _authSub;
   ClassifyReceipt? _lastSuccessReceipt;
+  bool _isAuthorized = false;
 
   @override
   void onInit() {
@@ -42,18 +49,18 @@ class PipelineController extends GetxController {
     retryQueue.assignAll(_journalRepository.loadRetryQueue());
     _connectionSub = _service.connectionStates.listen((state) {
       isOnline.value = state.isReady;
-      if (state.isReady && currentMessage.value == null && !loading.value) {
-        unawaited(fetchNext());
-      }
+      _tryAutoFetchNext();
+    });
+    _authSub = _service.authStates.listen((state) {
+      _isAuthorized = state.isReady;
+      _tryAutoFetchNext();
     });
   }
 
   @override
   void onReady() {
     super.onReady();
-    if (isOnline.value) {
-      unawaited(fetchNext());
-    }
+    _tryAutoFetchNext();
   }
 
   Future<void> fetchNext() async {
@@ -313,31 +320,46 @@ class PipelineController extends GetxController {
     if (kind == TdErrorKind.rateLimit) {
       final waitSeconds = parseFloodWaitSeconds(error.message);
       final suffix = waitSeconds == null ? '' : '，需等待 $waitSeconds 秒';
-      Get.snackbar('操作过快', '触发 FloodWait$suffix');
+      _reportError('操作过快', '触发 FloodWait$suffix');
       return;
     }
     if (kind == TdErrorKind.network) {
-      Get.snackbar('网络异常', '请检查网络连接后重试');
+      _reportError('网络异常', '请检查网络连接后重试');
       return;
     }
     if (kind == TdErrorKind.auth) {
-      Get.snackbar('鉴权异常', '登录态可能失效，请重新登录');
+      _reportError('鉴权异常', '登录态可能失效，请重新登录');
       return;
     }
     if (kind == TdErrorKind.permission) {
-      Get.snackbar('权限异常', '目标会话可能无发送权限');
+      _reportError('权限异常', '目标会话可能无发送权限');
       return;
     }
-    Get.snackbar('TDLib 错误', error.toString());
+    _reportError('TDLib 错误', error.toString());
   }
 
   void _showGeneralError(String message) {
-    Get.snackbar('运行异常', message);
+    _reportError('运行异常', message);
+  }
+
+  void _tryAutoFetchNext() {
+    if (!_isAuthorized ||
+        !isOnline.value ||
+        currentMessage.value != null ||
+        loading.value) {
+      return;
+    }
+    unawaited(fetchNext());
+  }
+
+  void _reportError(String title, String message) {
+    _errorController.report(title: title, message: message);
   }
 
   @override
   void onClose() {
     _connectionSub?.cancel();
+    _authSub?.cancel();
     super.onClose();
   }
 }

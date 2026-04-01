@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
@@ -20,6 +21,7 @@ void main() {
     late _FakeTelegramService service;
     late SettingsController settingsController;
     late OperationJournalRepository journalRepository;
+    late AppErrorController errorController;
     late PipelineController controller;
 
     setUp(() async {
@@ -44,12 +46,15 @@ void main() {
         throttleMs: 0,
       );
       journalRepository = OperationJournalRepository(prefs);
+      errorController = AppErrorController();
       controller = PipelineController(
         service: service,
         settingsController: settingsController,
         journalRepository: journalRepository,
+        errorController: errorController,
       );
       controller.onInit();
+      service.emitAuthReady();
       service.emitConnectionReady();
     });
 
@@ -89,18 +94,40 @@ void main() {
 
       expect(service.lastFetchSourceChatId, 8888);
     });
+
+    test('does not auto fetch before authorization is ready', () async {
+      controller.onClose();
+      controller = PipelineController(
+        service: service,
+        settingsController: settingsController,
+        journalRepository: journalRepository,
+        errorController: errorController,
+      );
+      controller.onInit();
+      service.emitConnectionReady();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.fetchNextCalls, 0);
+
+      service.emitAuthReady();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.fetchNextCalls, 1);
+    });
   });
 }
 
 class _FakeTelegramService implements TelegramGateway {
+  final _authController = StreamController<TdAuthState>.broadcast();
   final _connectionController = StreamController<TdConnectionState>.broadcast();
 
   final List<PipelineMessage?> nextMessages = <PipelineMessage?>[];
   final List<int> classifiedMessageIds = <int>[];
   int? lastFetchSourceChatId;
+  int fetchNextCalls = 0;
 
   @override
-  Stream<TdAuthState> get authStates => const Stream.empty();
+  Stream<TdAuthState> get authStates => _authController.stream;
 
   @override
   Stream<TdConnectionState> get connectionStates => _connectionController.stream;
@@ -110,6 +137,15 @@ class _FakeTelegramService implements TelegramGateway {
       const TdConnectionState(
         kind: TdConnectionStateKind.ready,
         rawType: 'connectionStateReady',
+      ),
+    );
+  }
+
+  void emitAuthReady() {
+    _authController.add(
+      const TdAuthState(
+        kind: TdAuthStateKind.ready,
+        rawType: 'authorizationStateReady',
       ),
     );
   }
@@ -136,6 +172,7 @@ class _FakeTelegramService implements TelegramGateway {
     required MessageFetchDirection direction,
     required int? sourceChatId,
   }) async {
+    fetchNextCalls++;
     lastFetchSourceChatId = sourceChatId;
     if (nextMessages.isEmpty) {
       return null;

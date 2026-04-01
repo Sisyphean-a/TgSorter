@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/controllers/auth_controller.dart';
 import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
@@ -25,14 +26,17 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final service = _IntegrationFakeGateway();
+    final errors = AppErrorController();
     final settings = SettingsController(SettingsRepository(prefs), service);
     final pipeline = PipelineController(
       service: service,
       settingsController: settings,
       journalRepository: OperationJournalRepository(prefs),
+      errorController: errors,
     );
-    final auth = AuthController(service);
+    final auth = AuthController(service, errors);
 
+    Get.put<AppErrorController>(errors);
     Get.put<SettingsController>(settings);
     Get.put<PipelineController>(pipeline);
     Get.put<AuthController>(auth);
