@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:tgsorter/app/pages/auth_page.dart';
 import 'package:tgsorter/app/pages/pipeline_page.dart';
 import 'package:tgsorter/app/pages/settings_page.dart';
+import 'package:tgsorter/app/theme/app_theme.dart';
 
 class TgSorterApp extends StatelessWidget {
   const TgSorterApp({super.key});
@@ -12,15 +13,7 @@ class TgSorterApp extends StatelessWidget {
     return GetMaterialApp(
       title: 'TgSorter',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF121517),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF66FF9A),
-          secondary: Color(0xFF8BE9FD),
-          surface: Color(0xFF1A1F24),
-        ),
-      ),
+      theme: AppTheme.dark(),
       initialRoute: '/auth',
       getPages: [
         GetPage(name: '/auth', page: () => AuthPage()),
