@@ -58,14 +58,19 @@ class PipelineDesktopView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: MessageViewerCard(
-              key: ValueKey(
-                '${pipeline.currentMessage.value?.sourceChatId}-${pipeline.currentMessage.value?.id}',
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: MessageViewerCard(
+                key: ValueKey(
+                  '${pipeline.currentMessage.value?.sourceChatId}-${pipeline.currentMessage.value?.id}-${pipeline.processing.value}',
+                ),
+                message: pipeline.currentMessage.value,
+                processing: pipeline.loading.value || processing,
+                videoPreparing: pipeline.videoPreparing.value,
+                onRequestMediaPlayback: pipeline.prepareCurrentMedia,
               ),
-              message: pipeline.currentMessage.value,
-              processing: pipeline.loading.value || processing,
-              videoPreparing: pipeline.videoPreparing.value,
-              onRequestMediaPlayback: pipeline.prepareCurrentMedia,
             ),
           ),
           const SizedBox(height: 12),

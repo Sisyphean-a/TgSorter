@@ -14,6 +14,9 @@ void main() {
     expect(theme.colorScheme.primary, AppTokens.brandAccent);
     expect(theme.colorScheme.surface, AppTokens.surfaceBase);
     expect(theme.useMaterial3, isTrue);
+    expect(theme.inputDecorationTheme.filled, isTrue);
+    expect(theme.dialogTheme.backgroundColor, AppTokens.panelBackground);
+    expect(theme.snackBarTheme.behavior, SnackBarBehavior.floating);
   });
 
   testWidgets('brand app bar renders headline and status badges', (

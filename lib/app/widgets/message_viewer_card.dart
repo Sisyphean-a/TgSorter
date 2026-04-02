@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/widgets/message_preview_content.dart';
 import 'package:tgsorter/app/widgets/message_preview_helpers.dart';
 
@@ -21,19 +22,33 @@ class MessageViewerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return AnimatedContainer(
+      duration: AppTokens.quick,
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        color: AppTokens.surfaceBase,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+        border: Border.all(
+          color: processing ? AppTokens.brandAccent : AppTokens.borderSubtle,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 24,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
       child: Stack(
         children: [
           Positioned.fill(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(AppTokens.spaceLg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const _MessageViewerHeader(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTokens.spaceMd),
                   MessagePreviewContent(
                     message: message,
                     videoPreparing: videoPreparing,
@@ -76,7 +91,7 @@ class _MessageViewerHeader extends StatelessWidget {
         Text(
           '待分类内容预览',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+            color: AppTokens.textMuted,
           ),
         ),
       ],

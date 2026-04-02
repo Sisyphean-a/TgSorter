@@ -21,11 +21,22 @@ class MobileActionTray extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return DecoratedBox(
+    return AnimatedContainer(
+      duration: AppTokens.quick,
+      curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        color: AppTokens.panelBackground,
+        color: online ? AppTokens.panelBackground : AppTokens.surfaceBase,
         borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
-        border: Border.all(color: AppTokens.borderSubtle),
+        border: Border.all(
+          color: online ? AppTokens.borderSubtle : AppTokens.danger,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 20,
+            offset: Offset(0, 12),
+          ),
+        ],
       ),
       child: SingleChildScrollView(
         child: Padding(
@@ -67,6 +78,9 @@ class MobileActionTray extends StatelessWidget {
                           minimumSize: const Size.fromHeight(52),
                           backgroundColor: AppTokens.brandAccent,
                           foregroundColor: const Color(0xFF03211C),
+                          textStyle: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
                               AppTokens.radiusSmall,

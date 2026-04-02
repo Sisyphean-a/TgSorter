@@ -18,24 +18,23 @@ class SourceChatDraftEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final options = chats.toList(growable: true);
-    if (sourceChatId != null && !options.any((item) => item.id == sourceChatId)) {
+    if (sourceChatId != null &&
+        !options.any((item) => item.id == sourceChatId)) {
       options.add(SelectableChat(id: sourceChatId!, title: '未知会话'));
     }
     return DropdownButtonFormField<int?>(
       key: ValueKey(sourceChatId),
       initialValue: sourceChatId,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: '来源会话',
-        border: OutlineInputBorder(),
-      ),
+      decoration: const InputDecoration(labelText: '来源会话'),
       items: [
         const DropdownMenuItem<int?>(
           value: null,
           child: Text('收藏夹（Saved Messages）'),
         ),
         ...options.map(
-          (item) => DropdownMenuItem<int?>(value: item.id, child: Text(item.title)),
+          (item) =>
+              DropdownMenuItem<int?>(value: item.id, child: Text(item.title)),
         ),
       ],
       onChanged: onChanged,
@@ -59,10 +58,7 @@ class FetchDirectionDraftEditor extends StatelessWidget {
       key: ValueKey(value),
       initialValue: value,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: '消息拉取方向',
-        border: OutlineInputBorder(),
-      ),
+      decoration: const InputDecoration(labelText: '消息拉取方向'),
       items: const [
         DropdownMenuItem(
           value: MessageFetchDirection.latestFirst,
@@ -115,10 +111,12 @@ class BatchOptionsDraftEditor extends StatefulWidget {
 
   final int batchSize;
   final int throttleMs;
-  final void Function({required int batchSize, required int throttleMs}) onChanged;
+  final void Function({required int batchSize, required int throttleMs})
+  onChanged;
 
   @override
-  State<BatchOptionsDraftEditor> createState() => _BatchOptionsDraftEditorState();
+  State<BatchOptionsDraftEditor> createState() =>
+      _BatchOptionsDraftEditorState();
 }
 
 class PreviewPrefetchDraftEditor extends StatelessWidget {
@@ -137,10 +135,7 @@ class PreviewPrefetchDraftEditor extends StatelessWidget {
       key: ValueKey(value),
       initialValue: value,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: '预加载后续预览',
-        border: OutlineInputBorder(),
-      ),
+      decoration: const InputDecoration(labelText: '预加载后续预览'),
       items: const [
         DropdownMenuItem(value: 0, child: Text('关闭')),
         DropdownMenuItem(value: 1, child: Text('1 条')),
@@ -196,6 +191,7 @@ class _BatchOptionsDraftEditorState extends State<BatchOptionsDraftEditor> {
           decoration: const InputDecoration(labelText: '批处理条数 N'),
           onChanged: (_) => _notifyChange(),
         ),
+        const SizedBox(height: 12),
         TextField(
           controller: _throttleCtrl,
           keyboardType: TextInputType.number,
@@ -226,10 +222,12 @@ class ProxySettingsDraftEditor extends StatefulWidget {
     required String port,
     required String username,
     required String password,
-  }) onChanged;
+  })
+  onChanged;
 
   @override
-  State<ProxySettingsDraftEditor> createState() => _ProxySettingsDraftEditorState();
+  State<ProxySettingsDraftEditor> createState() =>
+      _ProxySettingsDraftEditorState();
 }
 
 class _ProxySettingsDraftEditorState extends State<ProxySettingsDraftEditor> {
@@ -242,7 +240,9 @@ class _ProxySettingsDraftEditorState extends State<ProxySettingsDraftEditor> {
   void initState() {
     super.initState();
     _serverCtrl = TextEditingController(text: widget.value.server);
-    _portCtrl = TextEditingController(text: widget.value.port?.toString() ?? '');
+    _portCtrl = TextEditingController(
+      text: widget.value.port?.toString() ?? '',
+    );
     _usernameCtrl = TextEditingController(text: widget.value.username);
     _passwordCtrl = TextEditingController(text: widget.value.password);
   }
@@ -277,17 +277,20 @@ class _ProxySettingsDraftEditorState extends State<ProxySettingsDraftEditor> {
           decoration: const InputDecoration(labelText: '代理服务器'),
           onChanged: (_) => _notifyChange(),
         ),
+        const SizedBox(height: 12),
         TextField(
           controller: _portCtrl,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: '代理端口'),
           onChanged: (_) => _notifyChange(),
         ),
+        const SizedBox(height: 12),
         TextField(
           controller: _usernameCtrl,
           decoration: const InputDecoration(labelText: '代理用户名（可选）'),
           onChanged: (_) => _notifyChange(),
         ),
+        const SizedBox(height: 12),
         TextField(
           controller: _passwordCtrl,
           decoration: const InputDecoration(labelText: '代理密码（可选）'),

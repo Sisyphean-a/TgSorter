@@ -6,6 +6,7 @@ import 'package:tgsorter/app/pages/settings_category_dialog.dart';
 import 'package:tgsorter/app/pages/settings_page_parts.dart';
 import 'package:tgsorter/app/pages/settings_sections.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/widgets/app_shell.dart';
 import 'package:tgsorter/app/widgets/brand_app_bar.dart';
 import 'package:tgsorter/app/widgets/status_badge.dart';
@@ -175,6 +176,10 @@ class _SettingsPageState extends State<SettingsPage> {
             child: const Text('取消'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTokens.danger,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('删除'),
           ),
@@ -210,6 +215,10 @@ class _SettingsPageState extends State<SettingsPage> {
             child: const Text('继续编辑'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTokens.danger,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('放弃'),
           ),
@@ -229,8 +238,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 }

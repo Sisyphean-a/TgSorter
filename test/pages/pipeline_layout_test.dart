@@ -131,6 +131,7 @@ void main() {
       );
       expect(find.byKey(const Key('desktop-message-panel')), findsOneWidget);
       expect(find.byKey(const Key('desktop-action-panel')), findsOneWidget);
+      expect(find.byType(AnimatedSwitcher), findsWidgets);
       expect(find.byType(AppBar), findsNothing);
       await tester.binding.setSurfaceSize(null);
     });

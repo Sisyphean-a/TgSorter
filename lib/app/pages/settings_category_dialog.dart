@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class AddCategoryDialog extends StatefulWidget {
@@ -22,26 +23,26 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('新增分类'),
-      content: DropdownButtonFormField<int>(
-        initialValue: _selectedChatId,
-        isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: '目标会话',
-          border: OutlineInputBorder(),
+      content: SizedBox(
+        width: 420,
+        child: DropdownButtonFormField<int>(
+          initialValue: _selectedChatId,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: '目标会话'),
+          items: widget.chats
+              .map(
+                (item) => DropdownMenuItem<int>(
+                  value: item.id,
+                  child: Text(item.title),
+                ),
+              )
+              .toList(growable: false),
+          onChanged: (next) {
+            setState(() {
+              _selectedChatId = next;
+            });
+          },
         ),
-        items: widget.chats
-            .map(
-              (item) => DropdownMenuItem<int>(
-                value: item.id,
-                child: Text(item.title),
-              ),
-            )
-            .toList(growable: false),
-        onChanged: (next) {
-          setState(() {
-            _selectedChatId = next;
-          });
-        },
       ),
       actions: [
         TextButton(
@@ -49,6 +50,10 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
           child: const Text('取消'),
         ),
         FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppTokens.brandAccent,
+            foregroundColor: const Color(0xFF03211C),
+          ),
           onPressed: _selectedChatId == null
               ? null
               : () {

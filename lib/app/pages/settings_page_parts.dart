@@ -3,6 +3,7 @@ import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/pages/pipeline_log_formatter.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/widgets/settings_section_card.dart';
 
 class SettingsCategorySection extends StatelessWidget {
@@ -98,10 +99,10 @@ class SettingsUnsavedChangesBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Theme.of(context).colorScheme.secondaryContainer,
-      borderRadius: BorderRadius.circular(12),
+      color: AppTokens.brandAccentSoft,
+      borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
       child: const Padding(
-        padding: EdgeInsets.all(12),
+        padding: EdgeInsets.all(AppTokens.spaceMd),
         child: Text('当前有未保存更改，点击底部“保存更改”后才会正式生效。'),
       ),
     );
@@ -153,8 +154,9 @@ class SettingsRecentLogsPanel extends StatelessWidget {
       constraints: const BoxConstraints(maxHeight: 260),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.black12,
-          borderRadius: BorderRadius.circular(12),
+          color: AppTokens.surfaceBase,
+          borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+          border: Border.all(color: AppTokens.borderSubtle),
         ),
         child: ListView.builder(
           shrinkWrap: true,
@@ -202,11 +204,12 @@ class _CategoryRow extends StatelessWidget {
     }
     return DecoratedBox(
       decoration: BoxDecoration(
+        color: AppTokens.surfaceBase,
         border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -230,10 +233,7 @@ class _CategoryRow extends StatelessWidget {
               key: ValueKey('${category.key}_${category.targetChatId}'),
               initialValue: category.targetChatId,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: '目标会话',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: '目标会话'),
               items: options
                   .map(
                     (item) => DropdownMenuItem<int>(
@@ -253,7 +253,10 @@ class _CategoryRow extends StatelessWidget {
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton.icon(
+              child: FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  foregroundColor: AppTokens.danger,
+                ),
                 onPressed: () => onRemove(category.key),
                 icon: const Icon(Icons.delete_outline),
                 label: const Text('删除'),

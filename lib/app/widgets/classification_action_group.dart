@@ -16,12 +16,11 @@ class ClassificationActionGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     if (categories.isEmpty) {
       return Text(
         '暂无分类，请先到设置页新增',
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AppTokens.textMuted),
+        style: theme.textTheme.bodyMedium?.copyWith(color: AppTokens.textMuted),
       );
     }
 
@@ -30,18 +29,37 @@ class ClassificationActionGroup extends StatelessWidget {
       runSpacing: AppTokens.spaceSm,
       children: [
         for (final category in categories)
-          FilledButton.tonal(
-            onPressed: enabled ? () => onClassify(category.key) : null,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(180, 52),
-              backgroundColor: AppTokens.surfaceRaised,
-              foregroundColor: AppTokens.textPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
-                side: const BorderSide(color: AppTokens.borderSubtle),
-              ),
+          AnimatedContainer(
+            duration: AppTokens.quick,
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+              boxShadow: enabled
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x22000000),
+                        blurRadius: 18,
+                        offset: Offset(0, 10),
+                      ),
+                    ]
+                  : const [],
             ),
-            child: Text(category.targetChatTitle),
+            child: FilledButton.tonal(
+              onPressed: enabled ? () => onClassify(category.key) : null,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(180, 52),
+                backgroundColor: AppTokens.surfaceRaised,
+                foregroundColor: AppTokens.textPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+                  side: const BorderSide(color: AppTokens.borderSubtle),
+                ),
+                textStyle: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              child: Text(category.targetChatTitle),
+            ),
           ),
       ],
     );
