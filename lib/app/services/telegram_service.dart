@@ -96,7 +96,7 @@ class TelegramService implements TelegramGateway {
   Future<int> countRemainingMessages({required int? sourceChatId}) async {
     await _requireAuthorizationReady();
     final chatId = await _resolveSourceChatId(sourceChatId);
-    final messages = await _fetchAllSavedMessages(chatId);
+    final messages = await _fetchAllHistoryMessages(chatId);
     return messages.length;
   }
 
@@ -427,8 +427,9 @@ class TelegramService implements TelegramGateway {
     );
   }
 
-  Future<List<TdMessageDto>> _fetchAllSavedMessages(int chatId) async {
+  Future<List<TdMessageDto>> _fetchAllHistoryMessages(int chatId) async {
     final all = <TdMessageDto>[];
+    final seenMessageIds = <int>{};
     var cursor = 0;
     while (true) {
       final page = await _fetchHistoryPage(
@@ -439,12 +440,19 @@ class TelegramService implements TelegramGateway {
       if (page.isEmpty) {
         return all;
       }
-      all.addAll(page);
-      if (page.length < _historyBatchSize) {
-        return all;
-      }
       final nextCursor = page.last.id;
-      if (nextCursor == cursor) {
+      var appended = 0;
+      for (final item in page) {
+        if (item.id == cursor) {
+          continue;
+        }
+        if (!seenMessageIds.add(item.id)) {
+          continue;
+        }
+        all.add(item);
+        appended++;
+      }
+      if (nextCursor == cursor || (cursor != 0 && appended == 0)) {
         throw StateError('统计剩余消息时游标未推进，history_id=$cursor');
       }
       cursor = nextCursor;
@@ -475,26 +483,7 @@ class TelegramService implements TelegramGateway {
     required int? fromMessageId,
     required int limit,
   }) async {
-    final all = <TdMessageDto>[];
-    var cursor = 0;
-    while (true) {
-      final page = await _fetchHistoryPage(
-        chatId: chatId,
-        fromMessageId: cursor,
-        limit: _historyBatchSize,
-      );
-      if (page.isEmpty) {
-        break;
-      }
-      all.addAll(page);
-      if (page.length < _historyBatchSize) {
-        break;
-      }
-      if (page.last.id == cursor) {
-        throw StateError('获取最旧消息时游标未推进，history_id=$cursor');
-      }
-      cursor = page.last.id;
-    }
+    final all = await _fetchAllHistoryMessages(chatId);
     final ordered = all.reversed.toList(growable: false);
     if (fromMessageId == null) {
       return ordered.take(limit).toList(growable: false);

@@ -369,6 +369,7 @@ class TdMessageDto {
       return TdMessageContentDto(
         kind: TdMessageContentKind.unsupported,
         messageId: messageId,
+        fileName: document['file_name']?.toString(),
         text: TdFormattedTextDto.fromJson(
           TdResponseReader.readMap(content, 'caption'),
         ),

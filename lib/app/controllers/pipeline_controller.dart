@@ -61,6 +61,7 @@ class PipelineController extends GetxController {
   int? _refreshTargetMessageId;
   MessageFetchDirection? _lastFetchDirection;
   int? _lastSourceChatId;
+  int _remainingCountRequestId = 0;
   final Set<int> _previewPreparedMessageIds = <int>{};
 
   @override
@@ -454,12 +455,14 @@ class PipelineController extends GetxController {
 
   void _resetPipelineState() {
     _stopVideoRefresh();
+    _remainingCountRequestId++;
     _messageCache.clear();
     _previewPreparedMessageIds.clear();
     _currentIndex = -1;
     _tailMessageId = null;
     currentMessage.value = null;
     remainingCount.value = null;
+    remainingCountLoading.value = false;
     _syncNavigationState();
   }
 
@@ -545,7 +548,7 @@ class PipelineController extends GetxController {
   }
 
   Future<void> _loadInitialMessages() async {
-    await _refreshRemainingCount();
+    unawaited(_refreshRemainingCount());
     _messageCache.clear();
     _previewPreparedMessageIds.clear();
     _currentIndex = -1;
@@ -704,16 +707,26 @@ class PipelineController extends GetxController {
   }
 
   Future<void> _refreshRemainingCount() async {
+    final requestId = ++_remainingCountRequestId;
     remainingCountLoading.value = true;
     try {
-      remainingCount.value = await _service.countRemainingMessages(
+      final nextCount = await _service.countRemainingMessages(
         sourceChatId: _settingsController.settings.value.sourceChatId,
       );
+      if (requestId != _remainingCountRequestId) {
+        return;
+      }
+      remainingCount.value = nextCount;
     } catch (error) {
+      if (requestId != _remainingCountRequestId) {
+        return;
+      }
       remainingCount.value = null;
       _showGeneralError('剩余统计失败：$error');
     } finally {
-      remainingCountLoading.value = false;
+      if (requestId == _remainingCountRequestId) {
+        remainingCountLoading.value = false;
+      }
     }
   }
 

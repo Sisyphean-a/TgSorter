@@ -75,5 +75,20 @@ void main() {
       expect(preview.kind, MessagePreviewKind.unsupported);
       expect(preview.title, '[暂不支持预览的消息类型，请直接分类]');
     });
+
+    test('keeps file name and caption for unsupported document message', () {
+      const content = TdMessageContentDto(
+        kind: TdMessageContentKind.unsupported,
+        messageId: 6,
+        fileName: 'archive.zip',
+        text: TdFormattedTextDto(text: '说明文字', entities: []),
+      );
+
+      final preview = mapMessagePreview(content);
+
+      expect(preview.kind, MessagePreviewKind.unsupported);
+      expect(preview.title, 'archive.zip');
+      expect(preview.text?.text, '说明文字');
+    });
   });
 }

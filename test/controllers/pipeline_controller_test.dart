@@ -93,6 +93,27 @@ void main() {
       expect(controller.remainingCount.value, 42);
     });
 
+    test('fetchNext shows first message before remaining count finishes', () async {
+      service.remainingCountCompleter = Completer<int>();
+      service.pages.add([_message(10, 'first')]);
+
+      final fetchFuture = controller.fetchNext();
+
+      await _waitFor(() => controller.currentMessage.value?.id == 10);
+
+      expect(controller.currentMessage.value?.id, 10);
+      expect(controller.loading.value, isFalse);
+      expect(controller.remainingCountLoading.value, isTrue);
+      expect(controller.remainingCount.value, isNull);
+
+      service.remainingCountCompleter!.complete(1250);
+      await fetchFuture;
+      await _waitFor(() => controller.remainingCount.value == 1250);
+
+      expect(controller.remainingCount.value, 1250);
+      expect(controller.remainingCountLoading.value, isFalse);
+    });
+
     test('showPreviousMessage returns to prior cached message', () async {
       service.pages.add([_message(31, 'a'), _message(32, 'b')]);
       await controller.fetchNext();
@@ -258,6 +279,7 @@ class _FakeTelegramService implements TelegramGateway {
   PipelineMessage? refreshedMessage;
   final Map<int, PipelineMessage> refreshedMessages = <int, PipelineMessage>{};
   int remainingCount = 0;
+  Completer<int>? remainingCountCompleter;
 
   @override
   Stream<TdAuthState> get authStates => _authController.stream;
@@ -306,6 +328,10 @@ class _FakeTelegramService implements TelegramGateway {
 
   @override
   Future<int> countRemainingMessages({required int? sourceChatId}) async {
+    final completer = remainingCountCompleter;
+    if (completer != null) {
+      return completer.future;
+    }
     return remainingCount;
   }
 

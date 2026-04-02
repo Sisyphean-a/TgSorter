@@ -352,6 +352,102 @@ void main() {
     );
 
     test(
+      'fetchMessagePage oldestFirst continues across short history pages',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': List.generate(
+                  20,
+                  (index) => _textMessageJson(100 - index, 'm${100 - index}'),
+                ),
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': List.generate(
+                  20,
+                  (index) => _textMessageJson(80 - index, 'm${80 - index}'),
+                ),
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': List.generate(
+                  20,
+                  (index) => _textMessageJson(60 - index, 'm${60 - index}'),
+                ),
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': List.generate(
+                  20,
+                  (index) => _textMessageJson(40 - index, 'm${40 - index}'),
+                ),
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': List.generate(
+                  20,
+                  (index) => _textMessageJson(20 - index, 'm${20 - index}'),
+                ),
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [],
+              }),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        final page = await service.fetchMessagePage(
+          direction: MessageFetchDirection.oldestFirst,
+          sourceChatId: 777,
+          fromMessageId: null,
+          limit: 20,
+        );
+
+        expect(page.map((item) => item.id), List.generate(20, (index) => index + 1));
+      },
+    );
+
+    test(
+      'countRemainingMessages continues across short history pages',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': List.generate(
+                  20,
+                  (index) => _textMessageJson(100 - index, 'm${100 - index}'),
+                ),
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': List.generate(
+                  20,
+                  (index) => _textMessageJson(80 - index, 'm${80 - index}'),
+                ),
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [],
+              }),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        final count = await service.countRemainingMessages(sourceChatId: 777);
+
+        expect(count, 40);
+      },
+    );
+
+    test(
       'fetchMessagePage groups document-video album messages into one pipeline item',
       () async {
         final adapter = _FakeTdlibAdapter(

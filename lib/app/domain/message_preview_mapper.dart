@@ -240,9 +240,11 @@ MessagePreview mapMessagePreview(TdMessageContentDto content) {
     );
   }
 
-  return const MessagePreview(
+  final fileName = content.fileName?.trim() ?? '';
+  return MessagePreview(
     kind: MessagePreviewKind.unsupported,
-    title: '[暂不支持预览的消息类型，请直接分类]',
+    title: fileName.isEmpty ? '[暂不支持预览的消息类型，请直接分类]' : fileName,
+    text: content.text,
   );
 }
 

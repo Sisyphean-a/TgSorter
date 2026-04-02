@@ -209,6 +209,35 @@ void main() {
       expect(dto.messages.single.content.audioDurationSeconds, 12);
     });
 
+    test('keeps file name and caption for non-video document messages', () {
+      final dto = TdMessagesDto.fromEnvelope(
+        TdWireEnvelope.fromJson(<String, dynamic>{
+          '@type': 'messages',
+          'messages': [
+            {
+              'id': 8,
+              'content': {
+                '@type': 'messageDocument',
+                'caption': {'text': '说明文字', 'entities': []},
+                'document': {
+                  'file_name': 'archive.zip',
+                  'mime_type': 'application/zip',
+                  'document': {
+                    'id': '81',
+                    'local': {'path': ''},
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(dto.messages.single.content.kind, TdMessageContentKind.unsupported);
+      expect(dto.messages.single.content.fileName, 'archive.zip');
+      expect(dto.messages.single.content.text?.text, '说明文字');
+    });
+
     test('does not expose local video path before file download completes', () {
       final dto = TdMessagesDto.fromEnvelope(
         TdWireEnvelope.fromJson(<String, dynamic>{
