@@ -19,8 +19,19 @@ class PipelinePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TgSorter 分发流水线'),
+        title: const Text('TgSorter'),
         actions: [
+          Obx(() {
+            final text = pipeline.remainingCountLoading.value
+                ? '剩余 统计中'
+                : '剩余 ${pipeline.remainingCount.value ?? '-'}';
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(text),
+              ),
+            );
+          }),
           IconButton(
             onPressed: () => Get.toNamed('/settings'),
             icon: const Icon(Icons.settings),

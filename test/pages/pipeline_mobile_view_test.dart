@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
+import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -48,6 +49,16 @@ void main() {
       errorController: AppErrorController(),
     );
     controller.onInit();
+    controller.logs.assignAll(const [
+      ClassifyOperationLog(
+        id: 'log-1',
+        categoryKey: 'a',
+        messageId: 1,
+        targetChatId: 10001,
+        createdAtMs: 0,
+        status: ClassifyOperationStatus.success,
+      ),
+    ]);
     controller.currentMessage.value = PipelineMessage(
       id: 1,
       messageIds: const [1],
@@ -72,7 +83,8 @@ void main() {
     expect(find.text('略过此条'), findsOneWidget);
     expect(find.text('失败重试队列：0'), findsNothing);
     expect(find.text('重试下一条'), findsNothing);
-    expect(find.text('剩余：12'), findsOneWidget);
+    expect(find.text('剩余：12'), findsNothing);
+    expect(find.textContaining('成功 m:1'), findsNothing);
   });
 }
 

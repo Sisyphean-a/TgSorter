@@ -48,9 +48,6 @@ class PipelineDesktopView extends StatelessWidget {
 
   Widget _buildLeftPane(bool processing, bool canClick) {
     final categories = settings.settings.value.categories;
-    final remainingCountText = pipeline.remainingCountLoading.value
-        ? '剩余：统计中'
-        : '剩余：${pipeline.remainingCount.value ?? '-'}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -58,7 +55,6 @@ class PipelineDesktopView extends StatelessWidget {
           online: pipeline.isOnline.value,
           processing: processing,
           directionText: settings.settings.value.fetchDirection.name,
-          remainingCountText: remainingCountText,
         ),
         const SizedBox(height: 12),
         Expanded(
@@ -97,15 +93,12 @@ class PipelineDesktopView extends StatelessWidget {
   }
 
   Widget _buildRightPane(bool canClick) {
-    final latestLogs = pipeline.logs.take(20).toList(growable: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DesktopShortcutCard(bindings: settings.settings.value.shortcutBindings),
         const SizedBox(height: 10),
         DesktopActionButtons(pipeline: pipeline, canClick: canClick),
-        const SizedBox(height: 10),
-        Expanded(child: DesktopLogsCard(logs: latestLogs)),
       ],
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/pages/settings_category_dialog.dart';
 import 'package:tgsorter/app/pages/settings_page_parts.dart';
@@ -15,6 +16,9 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final SettingsController controller = Get.find<SettingsController>();
+  final PipelineController? pipeline = Get.isRegistered<PipelineController>()
+      ? Get.find<PipelineController>()
+      : null;
 
   @override
   void initState() {
@@ -82,6 +86,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 controller: controller,
                 draft: draft,
                 saved: saved,
+                recentLogs: pipeline?.logs.take(20).toList(growable: false) ?? const [],
                 onReloadChats: _loadChats,
               ),
             ],

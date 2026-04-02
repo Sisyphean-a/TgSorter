@@ -97,11 +97,7 @@ class TelegramService implements TelegramGateway {
     await _requireAuthorizationReady();
     final chatId = await _resolveSourceChatId(sourceChatId);
     final messages = await _fetchAllSavedMessages(chatId);
-    return _groupPipelineMessages(
-      messages,
-      chatId,
-      MessageFetchDirection.latestFirst,
-    ).length;
+    return messages.length;
   }
 
   Future<void> _loadChatsMainUntilDone() async {

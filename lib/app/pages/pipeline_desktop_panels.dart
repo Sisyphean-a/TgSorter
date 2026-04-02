@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/controllers/pipeline_controller.dart';
-import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
-import 'package:tgsorter/app/pages/pipeline_log_formatter.dart';
 
 class DesktopStatusBar extends StatelessWidget {
   const DesktopStatusBar({
@@ -10,13 +8,11 @@ class DesktopStatusBar extends StatelessWidget {
     required this.online,
     required this.processing,
     required this.directionText,
-    required this.remainingCountText,
   });
 
   final bool online;
   final bool processing;
   final String directionText;
-  final String remainingCountText;
 
   @override
   Widget build(BuildContext context) {
@@ -32,8 +28,6 @@ class DesktopStatusBar extends StatelessWidget {
             Text('状态：$processingText'),
             const SizedBox(width: 12),
             Text('拉取：$directionText'),
-            const SizedBox(width: 12),
-            Text(remainingCountText),
           ],
         ),
       ),
@@ -128,44 +122,6 @@ class DesktopActionButtons extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class DesktopLogsCard extends StatelessWidget {
-  const DesktopLogsCard({super.key, required this.logs});
-
-  final List<ClassifyOperationLog> logs;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('最近日志', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ListView.builder(
-                itemCount: logs.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(
-                      formatPipelineLog(logs[index]),
-                      style: const TextStyle(fontSize: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                },
-              ),
             ),
           ],
         ),

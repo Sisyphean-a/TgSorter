@@ -64,7 +64,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('TgSorter 分发流水线'), findsOneWidget);
+    expect(find.text('TgSorter'), findsOneWidget);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/models/classify_operation_log.dart';
+import 'package:tgsorter/app/pages/pipeline_log_formatter.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/widgets/settings_section_card.dart';
@@ -176,6 +178,41 @@ class SettingsChatListRow extends StatelessWidget {
           child: Text(loading ? '加载中...' : '刷新会话'),
         ),
       ],
+    );
+  }
+}
+
+class SettingsRecentLogsPanel extends StatelessWidget {
+  const SettingsRecentLogsPanel({super.key, required this.logs});
+
+  final List<ClassifyOperationLog> logs;
+
+  @override
+  Widget build(BuildContext context) {
+    if (logs.isEmpty) {
+      return const Text('最近还没有操作记录。');
+    }
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 260),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black12,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: logs.length,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Text(
+                formatPipelineLog(logs[index]),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }

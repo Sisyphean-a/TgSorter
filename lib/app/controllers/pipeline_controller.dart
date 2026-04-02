@@ -203,7 +203,7 @@ class PipelineController extends GetxController {
           status: ClassifyOperationStatus.success,
         ),
       );
-      _decrementRemainingCount();
+      _decrementRemainingCount(message.messageIds.length);
       _removeCurrentMessage();
       await _ensureVisibleMessage();
       return true;
@@ -281,6 +281,7 @@ class PipelineController extends GetxController {
         ),
       );
       _lastSuccessReceipt = null;
+      _incrementRemainingCount(receipt.sourceMessageIds.length);
       await fetchNext();
     } on TdlibFailure catch (error) {
       await _appendLog(
@@ -743,12 +744,20 @@ class PipelineController extends GetxController {
     }
   }
 
-  void _decrementRemainingCount() {
+  void _decrementRemainingCount(int delta) {
     final current = remainingCount.value;
-    if (current == null || current <= 0) {
+    if (current == null || current <= 0 || delta <= 0) {
       return;
     }
-    remainingCount.value = current - 1;
+    remainingCount.value = math.max(0, current - delta);
+  }
+
+  void _incrementRemainingCount(int delta) {
+    final current = remainingCount.value;
+    if (current == null || delta <= 0) {
+      return;
+    }
+    remainingCount.value = current + delta;
   }
 
   void _reportError(String title, String message) {

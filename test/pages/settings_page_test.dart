@@ -56,6 +56,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('操作与工具'), findsOneWidget);
+    expect(find.text('最近操作'), findsOneWidget);
     expect(find.text('保存更改'), findsOneWidget);
     expect(find.text('放弃更改'), findsOneWidget);
     expect(find.text('保存代理'), findsNothing);

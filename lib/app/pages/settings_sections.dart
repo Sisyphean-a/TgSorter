@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/pages/settings_common_editors.dart';
@@ -115,12 +116,14 @@ class SettingsToolsSection extends StatelessWidget {
     required this.controller,
     required this.draft,
     required this.saved,
+    required this.recentLogs,
     required this.onReloadChats,
   });
 
   final SettingsController controller;
   final AppSettings draft;
   final AppSettings saved;
+  final List<ClassifyOperationLog> recentLogs;
   final Future<void> Function() onReloadChats;
 
   @override
@@ -147,6 +150,13 @@ class SettingsToolsSection extends StatelessWidget {
             ),
             onResetDefaults: controller.resetShortcutDefaultsDraft,
           ),
+          const SizedBox(height: 12),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('最近操作', style: TextStyle(fontSize: 16)),
+          ),
+          const SizedBox(height: 8),
+          SettingsRecentLogsPanel(logs: recentLogs),
         ],
       ),
     );

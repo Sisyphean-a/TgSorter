@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
-import 'package:tgsorter/app/pages/pipeline_log_formatter.dart';
 import 'package:tgsorter/app/widgets/message_viewer_card.dart';
 
 class PipelineMobileView extends StatelessWidget {
@@ -21,10 +20,6 @@ class PipelineMobileView extends StatelessWidget {
       final categories = settings.settings.value.categories;
       final processing = pipeline.processing.value;
       final canClick = pipeline.isOnline.value && !processing;
-      final latestLogs = pipeline.logs.take(5).toList(growable: false);
-      final remainingCountText = pipeline.remainingCountLoading.value
-          ? '剩余：统计中'
-          : '剩余：${pipeline.remainingCount.value ?? '-'}';
       return Focus(
         canRequestFocus: false,
         descendantsAreFocusable: false,
@@ -82,14 +77,6 @@ class PipelineMobileView extends StatelessWidget {
                         ],
                       ),
                     const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        remainingCountText,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
@@ -131,33 +118,6 @@ class PipelineMobileView extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 6),
-                    Expanded(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.black12,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: ListView.builder(
-                          itemCount: latestLogs.length,
-                          itemBuilder: (context, index) {
-                            final item = latestLogs[index];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              child: Text(
-                                formatPipelineLog(item),
-                                style: const TextStyle(fontSize: 12),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
                     ),
                   ],
                 ),
