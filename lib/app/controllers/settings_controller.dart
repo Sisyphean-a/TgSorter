@@ -11,60 +11,179 @@ class SettingsController extends GetxController {
 
   final SettingsRepository _repository;
   final TelegramGateway _telegram;
+
   final Rx<AppSettings> settings = AppSettings.defaults().obs;
+  final Rx<AppSettings> draftSettings = AppSettings.defaults().obs;
+  final RxBool isDirty = false.obs;
   final chats = <SelectableChat>[].obs;
   final chatsLoading = false.obs;
   final chatsError = RxnString();
 
+  Rx<AppSettings> get savedSettings => settings;
+
   @override
   void onInit() {
     super.onInit();
-    settings.value = _repository.load();
+    final loaded = _repository.load();
+    settings.value = loaded;
+    draftSettings.value = loaded;
+    _syncDirtyState();
   }
 
   CategoryConfig getCategory(String key) {
+    final category = _findCategory(draftSettings.value.categories, key);
+    if (category != null) {
+      return category;
+    }
     return settings.value.categories.firstWhere((item) => item.key == key);
   }
 
-  Future<void> addCategory(SelectableChat chat) async {
-    _assertNoDuplicateChat(chat.id);
-    final updated = settings.value.addCategory(
-      CategoryConfig(
-        key: _buildCategoryKey(),
-        targetChatId: chat.id,
-        targetChatTitle: chat.title,
+  void updateSourceChatDraft(int? sourceChatId) {
+    _updateDraft(
+      draftSettings.value.updateSourceChatId(sourceChatId),
+    );
+  }
+
+  void updateFetchDirectionDraft(MessageFetchDirection direction) {
+    _updateDraft(
+      draftSettings.value.updateFetchDirection(direction),
+    );
+  }
+
+  void updateForwardAsCopyDraft(bool value) {
+    _updateDraft(
+      draftSettings.value.updateForwardAsCopy(value),
+    );
+  }
+
+  void updateBatchOptionsDraft({
+    required int batchSize,
+    required int throttleMs,
+  }) {
+    final safeBatchSize = batchSize < 1 ? 1 : batchSize;
+    final safeThrottleMs = throttleMs < 0 ? 0 : throttleMs;
+    _updateDraft(
+      draftSettings.value.updateBatchOptions(
+        batchSize: safeBatchSize,
+        throttleMs: safeThrottleMs,
       ),
     );
-    settings.value = updated;
-    await _repository.save(updated);
+  }
+
+  void updateProxyDraft({
+    required String server,
+    required String port,
+    required String username,
+    required String password,
+  }) {
+    _updateDraft(
+      draftSettings.value.updateProxySettings(
+        ProxySettings(
+          server: server,
+          port: int.tryParse(port.trim()),
+          username: username,
+          password: password,
+        ),
+      ),
+    );
+  }
+
+  void addCategoryDraft(SelectableChat chat) {
+    _assertNoDuplicateChat(chat.id);
+    _updateDraft(
+      draftSettings.value.addCategory(
+        CategoryConfig(
+          key: _buildCategoryKey(),
+          targetChatId: chat.id,
+          targetChatTitle: chat.title,
+        ),
+      ),
+    );
+  }
+
+  void updateCategoryDraft({
+    required String key,
+    required SelectableChat chat,
+  }) {
+    _assertNoDuplicateChat(chat.id, exceptKey: key);
+    _updateDraft(
+      draftSettings.value.updateCategory(
+        CategoryConfig(
+          key: key,
+          targetChatId: chat.id,
+          targetChatTitle: chat.title,
+        ),
+      ),
+    );
+  }
+
+  void removeCategoryDraft(String key) {
+    _updateDraft(
+      draftSettings.value.removeCategory(key),
+    );
+  }
+
+  void updateShortcutDraft({
+    required ShortcutAction action,
+    required ShortcutTrigger trigger,
+    required bool ctrl,
+  }) {
+    _assertNoConflict(action: action, trigger: trigger, ctrl: ctrl);
+    _updateDraft(
+      draftSettings.value.updateShortcutBinding(
+        action,
+        ShortcutBinding(action: action, trigger: trigger, ctrl: ctrl),
+      ),
+    );
+  }
+
+  void resetShortcutDefaultsDraft() {
+    _updateDraft(
+      draftSettings.value.copyWith(
+        shortcutBindings: AppSettings.defaultShortcutBindings,
+      ),
+    );
+  }
+
+  void discardDraft() {
+    draftSettings.value = settings.value;
+    _syncDirtyState();
+  }
+
+  Future<void> saveDraft() async {
+    final previous = settings.value;
+    final next = draftSettings.value;
+    final proxyChanged = previous.proxy != next.proxy;
+    await _repository.save(next);
+    settings.value = next;
+    _syncDirtyState();
+    if (!proxyChanged) {
+      return;
+    }
+    await _telegram.restart();
+  }
+
+  Future<void> addCategory(SelectableChat chat) async {
+    addCategoryDraft(chat);
+    await saveDraft();
   }
 
   Future<void> updateCategoryTarget({
     required String key,
     required SelectableChat chat,
   }) async {
-    _assertNoDuplicateChat(chat.id, exceptKey: key);
-    final updated = settings.value.updateCategory(
-      CategoryConfig(
-        key: key,
-        targetChatId: chat.id,
-        targetChatTitle: chat.title,
-      ),
-    );
-    settings.value = updated;
-    await _repository.save(updated);
+    updateCategoryDraft(key: key, chat: chat);
+    await saveDraft();
   }
 
   Future<void> removeCategory(String key) async {
-    final updated = settings.value.removeCategory(key);
-    settings.value = updated;
-    await _repository.save(updated);
+    removeCategoryDraft(key);
+    await saveDraft();
   }
 
   Future<void> saveSourceChat(int? sourceChatId) async {
-    final updated = settings.value.updateSourceChatId(sourceChatId);
-    settings.value = updated;
-    await _repository.save(updated);
+    updateSourceChatDraft(sourceChatId);
+    await saveDraft();
   }
 
   Future<void> loadChats() async {
@@ -82,29 +201,21 @@ class SettingsController extends GetxController {
   }
 
   Future<void> saveFetchDirection(MessageFetchDirection direction) async {
-    final updated = settings.value.updateFetchDirection(direction);
-    settings.value = updated;
-    await _repository.save(updated);
+    updateFetchDirectionDraft(direction);
+    await saveDraft();
   }
 
   Future<void> saveForwardAsCopy(bool value) async {
-    final updated = settings.value.updateForwardAsCopy(value);
-    settings.value = updated;
-    await _repository.save(updated);
+    updateForwardAsCopyDraft(value);
+    await saveDraft();
   }
 
   Future<void> saveBatchOptions({
     required int batchSize,
     required int throttleMs,
   }) async {
-    final safeBatchSize = batchSize < 1 ? 1 : batchSize;
-    final safeThrottleMs = throttleMs < 0 ? 0 : throttleMs;
-    final updated = settings.value.updateBatchOptions(
-      batchSize: safeBatchSize,
-      throttleMs: safeThrottleMs,
-    );
-    settings.value = updated;
-    await _repository.save(updated);
+    updateBatchOptionsDraft(batchSize: batchSize, throttleMs: throttleMs);
+    await saveDraft();
   }
 
   Future<void> saveProxySettings({
@@ -114,17 +225,18 @@ class SettingsController extends GetxController {
     required String password,
     bool restart = false,
   }) async {
-    final updated = settings.value.updateProxySettings(
-      ProxySettings(
-        server: server,
-        port: int.tryParse(port.trim()),
-        username: username,
-        password: password,
-      ),
+    updateProxyDraft(
+      server: server,
+      port: port,
+      username: username,
+      password: password,
     );
-    settings.value = updated;
-    await _repository.save(updated);
-    if (!restart) {
+    final previous = settings.value;
+    final next = draftSettings.value;
+    await _repository.save(next);
+    settings.value = next;
+    _syncDirtyState();
+    if (!restart || previous.proxy == next.proxy) {
       return;
     }
     await _telegram.restart();
@@ -135,22 +247,22 @@ class SettingsController extends GetxController {
     required ShortcutTrigger trigger,
     required bool ctrl,
   }) async {
-    _assertNoConflict(action: action, trigger: trigger, ctrl: ctrl);
-    final updated = settings.value.updateShortcutBinding(
-      action,
-      ShortcutBinding(action: action, trigger: trigger, ctrl: ctrl),
-    );
-    settings.value = updated;
-    await _repository.save(updated);
+    updateShortcutDraft(action: action, trigger: trigger, ctrl: ctrl);
+    await saveDraft();
   }
 
   Future<void> resetShortcutDefaults() async {
-    var updated = settings.value;
-    for (final entry in AppSettings.defaultShortcutBindings.entries) {
-      updated = updated.updateShortcutBinding(entry.key, entry.value);
-    }
-    settings.value = updated;
-    await _repository.save(updated);
+    resetShortcutDefaultsDraft();
+    await saveDraft();
+  }
+
+  void _updateDraft(AppSettings next) {
+    draftSettings.value = next;
+    _syncDirtyState();
+  }
+
+  void _syncDirtyState() {
+    isDirty.value = draftSettings.value != settings.value;
   }
 
   void _assertNoConflict({
@@ -158,7 +270,7 @@ class SettingsController extends GetxController {
     required ShortcutTrigger trigger,
     required bool ctrl,
   }) {
-    for (final entry in settings.value.shortcutBindings.entries) {
+    for (final entry in draftSettings.value.shortcutBindings.entries) {
       if (entry.key == action) {
         continue;
       }
@@ -170,7 +282,7 @@ class SettingsController extends GetxController {
   }
 
   void _assertNoDuplicateChat(int chatId, {String? exceptKey}) {
-    for (final item in settings.value.categories) {
+    for (final item in draftSettings.value.categories) {
       if (item.key == exceptKey) {
         continue;
       }
@@ -183,5 +295,14 @@ class SettingsController extends GetxController {
   String _buildCategoryKey() {
     final now = DateTime.now().microsecondsSinceEpoch;
     return 'cat_$now';
+  }
+
+  CategoryConfig? _findCategory(List<CategoryConfig> categories, String key) {
+    for (final item in categories) {
+      if (item.key == key) {
+        return item;
+      }
+    }
+    return null;
   }
 }

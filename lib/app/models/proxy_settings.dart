@@ -29,4 +29,17 @@ class ProxySettings {
       password: password,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is ProxySettings &&
+            server == other.server &&
+            port == other.port &&
+            username == other.username &&
+            password == other.password;
+  }
+
+  @override
+  int get hashCode => Object.hash(server, port, username, password);
 }

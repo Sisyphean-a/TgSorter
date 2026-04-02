@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
-import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/pages/settings_common_editors.dart';
+import 'package:tgsorter/app/pages/settings_category_dialog.dart';
+import 'package:tgsorter/app/pages/settings_page_parts.dart';
+import 'package:tgsorter/app/pages/settings_sections.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
-import 'package:tgsorter/app/widgets/shortcut_bindings_editor.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -29,405 +29,183 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('加载会话失败：$error')));
+      _showMessage('加载会话失败：$error');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('分类设置')),
-      body: Obx(() {
-        final config = controller.settings.value;
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _ChatListCard(
-              loading: controller.chatsLoading.value,
-              chatsError: controller.chatsError.value,
-              onReload: _loadChats,
-            ),
-            const SizedBox(height: 8),
-            ProxySettingsEditor(
-              value: config.proxy,
-              onSave: ({
-                required server,
-                required port,
-                required username,
-                required password,
-              }) => controller.saveProxySettings(
-                server: server,
-                port: port,
-                username: username,
-                password: password,
-                restart: true,
+    return Obx(() {
+      final draft = controller.draftSettings.value;
+      final saved = controller.savedSettings.value;
+      return PopScope<void>(
+        canPop: !controller.isDirty.value,
+        onPopInvokedWithResult: _handlePopAttempt,
+        child: Scaffold(
+          appBar: AppBar(title: const Text('分类设置')),
+          bottomNavigationBar: SettingsPageActions(
+            isDirty: controller.isDirty.value,
+            onDiscard: _handleDiscard,
+            onSave: _handleSave,
+          ),
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (controller.isDirty.value)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: SettingsUnsavedChangesBanner(),
+                ),
+              SettingsWorkflowSection(
+                controller: controller,
+                draft: draft,
+                saved: saved,
               ),
-            ),
-            const SizedBox(height: 8),
-            _SourceChatEditor(
-              sourceChatId: config.sourceChatId,
-              onSave: controller.saveSourceChat,
-            ),
-            const SizedBox(height: 8),
-            FetchDirectionEditor(
-              value: config.fetchDirection,
-              onChanged: controller.saveFetchDirection,
-            ),
-            const SizedBox(height: 8),
-            _ForwardModeEditor(
-              value: config.forwardAsCopy,
-              onChanged: controller.saveForwardAsCopy,
-            ),
-            const SizedBox(height: 8),
-            BatchOptionsEditor(
-              batchSize: config.batchSize,
-              throttleMs: config.throttleMs,
-              onSave: controller.saveBatchOptions,
-            ),
-            const SizedBox(height: 8),
-            ShortcutBindingsEditor(
-              controller: controller,
-              bindings: config.shortcutBindings,
-            ),
-            const SizedBox(height: 8),
-            _CategorySection(categories: config.categories),
-          ],
-        );
-      }),
-    );
-  }
-}
-
-class _ChatListCard extends StatelessWidget {
-  const _ChatListCard({
-    required this.loading,
-    required this.chatsError,
-    required this.onReload,
-  });
-
-  final bool loading;
-  final String? chatsError;
-  final Future<void> Function() onReload;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                chatsError == null
-                    ? '可选会话：仅群组与频道'
-                    : '会话列表加载失败：$chatsError',
+              const SizedBox(height: 8),
+              SettingsCategorySection(
+                categories: draft.categories,
+                savedCategories: saved.categories,
+                chats: controller.chats.toList(growable: false),
+                onAdd: _showAddCategoryDialog,
+                onChanged: (key, chat) =>
+                    controller.updateCategoryDraft(key: key, chat: chat),
+                onRemove: _removeCategoryDraft,
               ),
-            ),
-            FilledButton.tonal(
-              onPressed: loading ? null : onReload,
-              child: Text(loading ? '加载中...' : '刷新会话'),
-            ),
-          ],
+              const SizedBox(height: 8),
+              SettingsConnectionSection(
+                controller: controller,
+                draft: draft,
+                saved: saved,
+              ),
+              const SizedBox(height: 8),
+              SettingsToolsSection(
+                controller: controller,
+                draft: draft,
+                saved: saved,
+                onReloadChats: _loadChats,
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
-}
 
-class _SourceChatEditor extends StatelessWidget {
-  const _SourceChatEditor({required this.sourceChatId, required this.onSave});
-
-  final int? sourceChatId;
-  final Future<void> Function(int?) onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = Get.find<SettingsController>();
-    final chats = controller.chats.toList(growable: true);
-    if (sourceChatId != null && !chats.any((item) => item.id == sourceChatId)) {
-      chats.add(SelectableChat(id: sourceChatId!, title: '未知会话'));
+  Future<void> _handleSave() async {
+    try {
+      await controller.saveDraft();
+      if (!mounted) {
+        return;
+      }
+      _showMessage('设置已保存');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage('保存失败：$error');
     }
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('来源会话', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<int?>(
-              initialValue: sourceChatId,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: [
-                const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text('收藏夹（Saved Messages）'),
-                ),
-                ...chats.map(
-                  (item) => DropdownMenuItem<int?>(
-                    value: item.id,
-                    child: Text(item.title),
-                  ),
-                ),
-              ],
-              onChanged: (next) async {
-                await onSave(next);
-                if (!context.mounted) {
-                  return;
-                }
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('来源会话已保存')));
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
-}
 
-class _CategorySection extends StatelessWidget {
-  const _CategorySection({required this.categories});
-
-  final List<CategoryConfig> categories;
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = Get.find<SettingsController>();
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('分类', style: TextStyle(fontSize: 16)),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: controller.chats.isEmpty
-                      ? null
-                      : () async {
-                          await showDialog<void>(
-                            context: context,
-                            builder: (_) => const _AddCategoryDialog(),
-                          );
-                        },
-                  icon: const Icon(Icons.add),
-                  label: const Text('新增分类'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (categories.isEmpty) const Text('当前没有分类'),
-            for (final item in categories)
-              _CategoryEditor(
-                key: ValueKey(item.key),
-                category: item,
-              ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _handleDiscard() async {
+    if (!controller.isDirty.value) {
+      return;
+    }
+    final shouldDiscard = await _confirmDiscard();
+    if (!shouldDiscard) {
+      return;
+    }
+    controller.discardDraft();
+    if (!mounted) {
+      return;
+    }
+    _showMessage('已放弃未保存更改');
   }
-}
 
-class _ForwardModeEditor extends StatelessWidget {
-  const _ForwardModeEditor({required this.value, required this.onChanged});
-
-  final bool value;
-  final Future<void> Function(bool) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: SwitchListTile(
-        value: value,
-        title: const Text('无引用转发'),
-        subtitle: const Text('开启后使用复制转发，不携带原始群组或频道来源信息'),
-        onChanged: (next) async {
-          await onChanged(next);
+  Future<void> _showAddCategoryDialog() async {
+    final availableChats = _availableCategoryChats();
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AddCategoryDialog(
+        chats: availableChats,
+        onAdd: (chat) {
+          try {
+            controller.addCategoryDraft(chat);
+          } catch (error) {
+            _showMessage(error.toString());
+          }
         },
       ),
     );
   }
-}
 
-class _CategoryEditor extends StatefulWidget {
-  const _CategoryEditor({super.key, required this.category});
-
-  final CategoryConfig category;
-
-  @override
-  State<_CategoryEditor> createState() => _CategoryEditorState();
-}
-
-class _CategoryEditorState extends State<_CategoryEditor> {
-  final SettingsController _controller = Get.find<SettingsController>();
-  late int _selectedChatId;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedChatId = widget.category.targetChatId;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final chats = _controller.chats.toList(growable: true);
-    if (!chats.any((item) => item.id == _selectedChatId)) {
-      chats.add(SelectableChat(id: _selectedChatId, title: '未知会话'));
+  Future<void> _removeCategoryDraft(String key) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('删除分类'),
+        content: const Text('这会从当前草稿中移除该分类，保存后才会真正生效。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
     }
-    final current = chats.firstWhere((item) => item.id == _selectedChatId);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(current.title, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<int>(
-              initialValue: _selectedChatId,
-              decoration: const InputDecoration(
-                labelText: '目标会话',
-                border: OutlineInputBorder(),
-              ),
-              items: chats
-                  .map(
-                    (item) => DropdownMenuItem<int>(
-                      value: item.id,
-                      child: Text(item.title),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (next) {
-                if (next == null) {
-                  return;
-                }
-                setState(() {
-                  _selectedChatId = next;
-                });
-              },
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                TextButton.icon(
-                  onPressed: () async {
-                    await _controller.removeCategory(widget.category.key);
-                  },
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('删除'),
-                ),
-                const Spacer(),
-                ElevatedButton(
-                  onPressed: () async {
-                    final selected = chats.firstWhere(
-                      (item) => item.id == _selectedChatId,
-                    );
-                    try {
-                      await _controller.updateCategoryTarget(
-                        key: widget.category.key,
-                        chat: selected,
-                      );
-                      if (!context.mounted) {
-                        return;
-                      }
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(const SnackBar(content: Text('已保存')));
-                    } catch (error) {
-                      if (!context.mounted) {
-                        return;
-                      }
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(error.toString())));
-                    }
-                  },
-                  child: const Text('保存'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+    controller.removeCategoryDraft(key);
   }
-}
 
-class _AddCategoryDialog extends StatefulWidget {
-  const _AddCategoryDialog();
+  Future<void> _handlePopAttempt(bool didPop, void _) async {
+    if (didPop || !controller.isDirty.value) {
+      return;
+    }
+    final confirmed = await _confirmDiscard();
+    if (!mounted || !confirmed) {
+      return;
+    }
+    Navigator.of(context).pop();
+  }
 
-  @override
-  State<_AddCategoryDialog> createState() => _AddCategoryDialogState();
-}
-
-class _AddCategoryDialogState extends State<_AddCategoryDialog> {
-  int? _selectedChatId;
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = Get.find<SettingsController>();
-    final chats = controller.chats.toList(growable: false);
-    return AlertDialog(
-      title: const Text('新增分类'),
-      content: DropdownButtonFormField<int>(
-        initialValue: _selectedChatId,
-        decoration: const InputDecoration(
-          labelText: '目标会话',
-          border: OutlineInputBorder(),
-        ),
-        items: chats
-            .map(
-              (item) => DropdownMenuItem<int>(
-                value: item.id,
-                child: Text(item.title),
-              ),
-            )
-            .toList(growable: false),
-        onChanged: (next) {
-          setState(() {
-            _selectedChatId = next;
-          });
-        },
+  Future<bool> _confirmDiscard() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('放弃更改'),
+        content: const Text('离开或放弃后，当前未保存的修改都会丢失。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('继续编辑'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('放弃'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: _selectedChatId == null
-              ? null
-              : () async {
-                  final selected = chats.firstWhere(
-                    (item) => item.id == _selectedChatId,
-                  );
-                  try {
-                    await controller.addCategory(selected);
-                    if (!context.mounted) {
-                      return;
-                    }
-                    Navigator.of(context).pop();
-                  } catch (error) {
-                    if (!context.mounted) {
-                      return;
-                    }
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(error.toString())));
-                  }
-                },
-          child: const Text('添加'),
-        ),
-      ],
     );
+    return confirmed ?? false;
+  }
+
+  List<SelectableChat> _availableCategoryChats() {
+    final usedIds = controller.draftSettings.value.categories
+        .map((item) => item.targetChatId)
+        .toSet();
+    return controller.chats
+        .where((item) => !usedIds.contains(item.id))
+        .toList(growable: false);
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

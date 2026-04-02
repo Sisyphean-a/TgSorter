@@ -38,4 +38,16 @@ class ShortcutBinding {
       ctrl: ctrl ?? this.ctrl,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is ShortcutBinding &&
+            action == other.action &&
+            trigger == other.trigger &&
+            ctrl == other.ctrl;
+  }
+
+  @override
+  int get hashCode => Object.hash(action, trigger, ctrl);
 }

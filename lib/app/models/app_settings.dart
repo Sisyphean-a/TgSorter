@@ -66,101 +66,68 @@ class AppSettings {
     ),
   };
 
+  AppSettings copyWith({
+    List<CategoryConfig>? categories,
+    int? sourceChatId,
+    bool clearSourceChatId = false,
+    MessageFetchDirection? fetchDirection,
+    bool? forwardAsCopy,
+    int? batchSize,
+    int? throttleMs,
+    ProxySettings? proxy,
+    Map<ShortcutAction, ShortcutBinding>? shortcutBindings,
+  }) {
+    return AppSettings(
+      categories: categories ?? this.categories,
+      sourceChatId: clearSourceChatId ? null : sourceChatId ?? this.sourceChatId,
+      fetchDirection: fetchDirection ?? this.fetchDirection,
+      forwardAsCopy: forwardAsCopy ?? this.forwardAsCopy,
+      batchSize: batchSize ?? this.batchSize,
+      throttleMs: throttleMs ?? this.throttleMs,
+      proxy: proxy ?? this.proxy,
+      shortcutBindings: shortcutBindings ?? this.shortcutBindings,
+    );
+  }
+
   AppSettings updateCategory(CategoryConfig config) {
     final updated = categories
         .map((item) => item.key == config.key ? config : item)
         .toList(growable: false);
-    return AppSettings(
-      categories: updated,
-      sourceChatId: sourceChatId,
-      fetchDirection: fetchDirection,
-      forwardAsCopy: forwardAsCopy,
-      batchSize: batchSize,
-      throttleMs: throttleMs,
-      proxy: proxy,
-      shortcutBindings: shortcutBindings,
-    );
+    return copyWith(categories: updated);
   }
 
   AppSettings addCategory(CategoryConfig config) {
-    return AppSettings(
-      categories: [...categories, config],
-      sourceChatId: sourceChatId,
-      fetchDirection: fetchDirection,
-      forwardAsCopy: forwardAsCopy,
-      batchSize: batchSize,
-      throttleMs: throttleMs,
-      proxy: proxy,
-      shortcutBindings: shortcutBindings,
-    );
+    return copyWith(categories: [...categories, config]);
   }
 
   AppSettings removeCategory(String key) {
-    return AppSettings(
-      categories: categories.where((item) => item.key != key).toList(growable: false),
-      sourceChatId: sourceChatId,
-      fetchDirection: fetchDirection,
-      forwardAsCopy: forwardAsCopy,
-      batchSize: batchSize,
-      throttleMs: throttleMs,
-      proxy: proxy,
-      shortcutBindings: shortcutBindings,
+    return copyWith(
+      categories: categories
+          .where((item) => item.key != key)
+          .toList(growable: false),
     );
   }
 
   AppSettings updateSourceChatId(int? chatId) {
-    return AppSettings(
-      categories: categories,
+    return copyWith(
       sourceChatId: chatId,
-      fetchDirection: fetchDirection,
-      forwardAsCopy: forwardAsCopy,
-      batchSize: batchSize,
-      throttleMs: throttleMs,
-      proxy: proxy,
-      shortcutBindings: shortcutBindings,
+      clearSourceChatId: chatId == null,
     );
   }
 
   AppSettings updateFetchDirection(MessageFetchDirection direction) {
-    return AppSettings(
-      categories: categories,
-      sourceChatId: sourceChatId,
-      fetchDirection: direction,
-      forwardAsCopy: forwardAsCopy,
-      batchSize: batchSize,
-      throttleMs: throttleMs,
-      proxy: proxy,
-      shortcutBindings: shortcutBindings,
-    );
+    return copyWith(fetchDirection: direction);
   }
 
   AppSettings updateBatchOptions({
     required int batchSize,
     required int throttleMs,
   }) {
-    return AppSettings(
-      categories: categories,
-      sourceChatId: sourceChatId,
-      fetchDirection: fetchDirection,
-      forwardAsCopy: forwardAsCopy,
-      batchSize: batchSize,
-      throttleMs: throttleMs,
-      proxy: proxy,
-      shortcutBindings: shortcutBindings,
-    );
+    return copyWith(batchSize: batchSize, throttleMs: throttleMs);
   }
 
   AppSettings updateProxySettings(ProxySettings nextProxy) {
-    return AppSettings(
-      categories: categories,
-      sourceChatId: sourceChatId,
-      fetchDirection: fetchDirection,
-      forwardAsCopy: forwardAsCopy,
-      batchSize: batchSize,
-      throttleMs: throttleMs,
-      proxy: nextProxy.sanitize(),
-      shortcutBindings: shortcutBindings,
-    );
+    return copyWith(proxy: nextProxy.sanitize());
   }
 
   AppSettings updateShortcutBinding(
@@ -169,28 +136,65 @@ class AppSettings {
   ) {
     final updated = Map<ShortcutAction, ShortcutBinding>.from(shortcutBindings);
     updated[action] = binding;
-    return AppSettings(
-      categories: categories,
-      sourceChatId: sourceChatId,
-      fetchDirection: fetchDirection,
-      forwardAsCopy: forwardAsCopy,
-      batchSize: batchSize,
-      throttleMs: throttleMs,
-      proxy: proxy,
-      shortcutBindings: Map.unmodifiable(updated),
-    );
+    return copyWith(shortcutBindings: Map.unmodifiable(updated));
   }
 
   AppSettings updateForwardAsCopy(bool value) {
-    return AppSettings(
-      categories: categories,
-      sourceChatId: sourceChatId,
-      fetchDirection: fetchDirection,
-      forwardAsCopy: value,
-      batchSize: batchSize,
-      throttleMs: throttleMs,
-      proxy: proxy,
-      shortcutBindings: shortcutBindings,
+    return copyWith(forwardAsCopy: value);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is AppSettings &&
+            _listEquals(categories, other.categories) &&
+            sourceChatId == other.sourceChatId &&
+            fetchDirection == other.fetchDirection &&
+            forwardAsCopy == other.forwardAsCopy &&
+            batchSize == other.batchSize &&
+            throttleMs == other.throttleMs &&
+            proxy == other.proxy &&
+            _mapEquals(shortcutBindings, other.shortcutBindings);
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      Object.hashAll(categories),
+      sourceChatId,
+      fetchDirection,
+      forwardAsCopy,
+      batchSize,
+      throttleMs,
+      proxy,
+      Object.hashAll(shortcutBindings.entries),
     );
+  }
+
+  bool _listEquals(List<CategoryConfig> left, List<CategoryConfig> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _mapEquals(
+    Map<ShortcutAction, ShortcutBinding> left,
+    Map<ShortcutAction, ShortcutBinding> right,
+  ) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (final entry in left.entries) {
+      if (right[entry.key] != entry.value) {
+        return false;
+      }
+    }
+    return true;
   }
 }

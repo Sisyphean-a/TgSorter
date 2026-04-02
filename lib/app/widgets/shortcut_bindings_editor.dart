@@ -1,62 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 
 class ShortcutBindingsEditor extends StatelessWidget {
   const ShortcutBindingsEditor({
     super.key,
-    required this.controller,
     required this.bindings,
+    required this.onChanged,
+    required this.onResetDefaults,
   });
 
-  final SettingsController controller;
   final Map<ShortcutAction, ShortcutBinding> bindings;
+  final void Function(
+    ShortcutAction action,
+    ShortcutTrigger trigger,
+    bool ctrl,
+  ) onChanged;
+  final VoidCallback onResetDefaults;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('桌面快捷键', style: TextStyle(fontSize: 16)),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    await controller.resetShortcutDefaults();
-                    if (!context.mounted) {
-                      return;
-                    }
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(const SnackBar(content: Text('快捷键已恢复默认')));
-                  },
-                  child: const Text('恢复默认'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            for (final action in ShortcutAction.values)
-              _ShortcutRow(
-                action: action,
-                binding: bindings[action] ??
-                    AppSettings.defaultShortcutBindings[action]!,
-                onSave: (trigger, ctrl) async {
-                  await controller.saveShortcutBinding(
-                    action: action,
-                    trigger: trigger,
-                    ctrl: ctrl,
-                  );
-                },
-              ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: onResetDefaults,
+            child: const Text('恢复默认'),
+          ),
         ),
-      ),
+        const SizedBox(height: 6),
+        for (final action in ShortcutAction.values)
+          _ShortcutRow(
+            action: action,
+            binding: bindings[action] ?? AppSettings.defaultShortcutBindings[action]!,
+            onChanged: (trigger, ctrl) => onChanged(action, trigger, ctrl),
+          ),
+      ],
     );
   }
 }
@@ -65,12 +46,12 @@ class _ShortcutRow extends StatelessWidget {
   const _ShortcutRow({
     required this.action,
     required this.binding,
-    required this.onSave,
+    required this.onChanged,
   });
 
   final ShortcutAction action;
   final ShortcutBinding binding;
-  final Future<void> Function(ShortcutTrigger trigger, bool ctrl) onSave;
+  final void Function(ShortcutTrigger trigger, bool ctrl) onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +63,7 @@ class _ShortcutRow extends StatelessWidget {
           SizedBox(
             width: 130,
             child: DropdownButtonFormField<ShortcutTrigger>(
+              key: ValueKey('${action.name}_${binding.trigger.name}_${binding.ctrl}'),
               initialValue: binding.trigger,
               decoration: const InputDecoration(
                 isDense: true,
@@ -94,16 +76,11 @@ class _ShortcutRow extends StatelessWidget {
                     child: Text(_labelTrigger(trigger)),
                   ),
               ],
-              onChanged: (next) async {
+              onChanged: (next) {
                 if (next == null) {
                   return;
                 }
-                await _saveAndNotify(
-                  context,
-                  action: action,
-                  trigger: next,
-                  ctrl: binding.ctrl,
-                );
+                onChanged(next, binding.ctrl);
               },
             ),
           ),
@@ -113,44 +90,13 @@ class _ShortcutRow extends StatelessWidget {
               const Text('Ctrl'),
               Switch(
                 value: binding.ctrl,
-                onChanged: (next) async {
-                  await _saveAndNotify(
-                    context,
-                    action: action,
-                    trigger: binding.trigger,
-                    ctrl: next,
-                  );
-                },
+                onChanged: (next) => onChanged(binding.trigger, next),
               ),
             ],
           ),
         ],
       ),
     );
-  }
-
-  Future<void> _saveAndNotify(
-    BuildContext context, {
-    required ShortcutAction action,
-    required ShortcutTrigger trigger,
-    required bool ctrl,
-  }) async {
-    try {
-      await onSave(trigger, ctrl);
-      if (!context.mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${_labelAction(action)} 快捷键已保存')));
-    } catch (error) {
-      if (!context.mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    }
   }
 
   String _labelAction(ShortcutAction value) {

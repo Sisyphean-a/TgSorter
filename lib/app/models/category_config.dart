@@ -16,4 +16,16 @@ class CategoryConfig {
       targetChatTitle: targetChatTitle ?? this.targetChatTitle,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is CategoryConfig &&
+            key == other.key &&
+            targetChatId == other.targetChatId &&
+            targetChatTitle == other.targetChatTitle;
+  }
+
+  @override
+  int get hashCode => Object.hash(key, targetChatId, targetChatTitle);
 }

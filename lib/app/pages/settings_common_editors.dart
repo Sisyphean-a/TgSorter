@@ -1,25 +1,125 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
+import 'package:tgsorter/app/services/telegram_gateway.dart';
 
-class BatchOptionsEditor extends StatefulWidget {
-  const BatchOptionsEditor({
+class SourceChatDraftEditor extends StatelessWidget {
+  const SourceChatDraftEditor({
+    super.key,
+    required this.sourceChatId,
+    required this.chats,
+    required this.onChanged,
+  });
+
+  final int? sourceChatId;
+  final List<SelectableChat> chats;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final options = chats.toList(growable: true);
+    if (sourceChatId != null && !options.any((item) => item.id == sourceChatId)) {
+      options.add(SelectableChat(id: sourceChatId!, title: '未知会话'));
+    }
+    return DropdownButtonFormField<int?>(
+      key: ValueKey(sourceChatId),
+      initialValue: sourceChatId,
+      decoration: const InputDecoration(
+        labelText: '来源会话',
+        border: OutlineInputBorder(),
+      ),
+      items: [
+        const DropdownMenuItem<int?>(
+          value: null,
+          child: Text('收藏夹（Saved Messages）'),
+        ),
+        ...options.map(
+          (item) => DropdownMenuItem<int?>(value: item.id, child: Text(item.title)),
+        ),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class FetchDirectionDraftEditor extends StatelessWidget {
+  const FetchDirectionDraftEditor({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final MessageFetchDirection value;
+  final ValueChanged<MessageFetchDirection> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<MessageFetchDirection>(
+      key: ValueKey(value),
+      initialValue: value,
+      decoration: const InputDecoration(
+        labelText: '消息拉取方向',
+        border: OutlineInputBorder(),
+      ),
+      items: const [
+        DropdownMenuItem(
+          value: MessageFetchDirection.latestFirst,
+          child: Text('最新优先'),
+        ),
+        DropdownMenuItem(
+          value: MessageFetchDirection.oldestFirst,
+          child: Text('最旧优先'),
+        ),
+      ],
+      onChanged: (next) {
+        if (next == null) {
+          return;
+        }
+        onChanged(next);
+      },
+    );
+  }
+}
+
+class ForwardModeDraftEditor extends StatelessWidget {
+  const ForwardModeDraftEditor({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      value: value,
+      title: const Text('无引用转发'),
+      subtitle: const Text('开启后使用复制转发，不携带原始群组或频道来源信息'),
+      onChanged: onChanged,
+    );
+  }
+}
+
+class BatchOptionsDraftEditor extends StatefulWidget {
+  const BatchOptionsDraftEditor({
     super.key,
     required this.batchSize,
     required this.throttleMs,
-    required this.onSave,
+    required this.onChanged,
   });
 
   final int batchSize;
   final int throttleMs;
-  final Future<void> Function({required int batchSize, required int throttleMs})
-  onSave;
+  final void Function({required int batchSize, required int throttleMs}) onChanged;
 
   @override
-  State<BatchOptionsEditor> createState() => _BatchOptionsEditorState();
+  State<BatchOptionsDraftEditor> createState() => _BatchOptionsDraftEditorState();
 }
 
-class _BatchOptionsEditorState extends State<BatchOptionsEditor> {
+class _BatchOptionsDraftEditorState extends State<BatchOptionsDraftEditor> {
   late final TextEditingController _batchCtrl;
   late final TextEditingController _throttleCtrl;
 
@@ -31,6 +131,17 @@ class _BatchOptionsEditorState extends State<BatchOptionsEditor> {
   }
 
   @override
+  void didUpdateWidget(covariant BatchOptionsDraftEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.batchSize != widget.batchSize) {
+      _batchCtrl.text = widget.batchSize.toString();
+    }
+    if (oldWidget.throttleMs != widget.throttleMs) {
+      _throttleCtrl.text = widget.throttleMs.toString();
+    }
+  }
+
+  @override
   void dispose() {
     _batchCtrl.dispose();
     _throttleCtrl.dispose();
@@ -39,123 +150,51 @@ class _BatchOptionsEditorState extends State<BatchOptionsEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('批处理与节流', style: TextStyle(fontSize: 16)),
-            ),
-            TextField(
-              controller: _batchCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: '批处理条数 N'),
-            ),
-            TextField(
-              controller: _throttleCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: '节流毫秒'),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final batch = int.tryParse(_batchCtrl.text.trim()) ?? 1;
-                  final throttle = int.tryParse(_throttleCtrl.text.trim()) ?? 0;
-                  await widget.onSave(batchSize: batch, throttleMs: throttle);
-                  if (!context.mounted) {
-                    return;
-                  }
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('批处理设置已保存')));
-                },
-                child: const Text('保存'),
-              ),
-            ),
-          ],
+    return Column(
+      children: [
+        TextField(
+          controller: _batchCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: '批处理条数 N'),
+          onChanged: (_) => _notifyChange(),
         ),
-      ),
+        TextField(
+          controller: _throttleCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: '节流毫秒'),
+          onChanged: (_) => _notifyChange(),
+        ),
+      ],
     );
+  }
+
+  void _notifyChange() {
+    final batch = int.tryParse(_batchCtrl.text.trim()) ?? 1;
+    final throttle = int.tryParse(_throttleCtrl.text.trim()) ?? 0;
+    widget.onChanged(batchSize: batch, throttleMs: throttle);
   }
 }
 
-class FetchDirectionEditor extends StatelessWidget {
-  const FetchDirectionEditor({
+class ProxySettingsDraftEditor extends StatefulWidget {
+  const ProxySettingsDraftEditor({
     super.key,
     required this.value,
     required this.onChanged,
   });
 
-  final MessageFetchDirection value;
-  final Future<void> Function(MessageFetchDirection) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('消息拉取方向', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<MessageFetchDirection>(
-              initialValue: value,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(
-                  value: MessageFetchDirection.latestFirst,
-                  child: Text('最新优先'),
-                ),
-                DropdownMenuItem(
-                  value: MessageFetchDirection.oldestFirst,
-                  child: Text('最旧优先'),
-                ),
-              ],
-              onChanged: (next) async {
-                if (next == null) {
-                  return;
-                }
-                await onChanged(next);
-                if (!context.mounted) {
-                  return;
-                }
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('拉取方向已保存')));
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ProxySettingsEditor extends StatefulWidget {
-  const ProxySettingsEditor({
-    super.key,
-    required this.value,
-    required this.onSave,
-  });
-
   final ProxySettings value;
-  final Future<void> Function({
+  final void Function({
     required String server,
     required String port,
     required String username,
     required String password,
-  }) onSave;
+  }) onChanged;
 
   @override
-  State<ProxySettingsEditor> createState() => _ProxySettingsEditorState();
+  State<ProxySettingsDraftEditor> createState() => _ProxySettingsDraftEditorState();
 }
 
-class _ProxySettingsEditorState extends State<ProxySettingsEditor> {
+class _ProxySettingsDraftEditorState extends State<ProxySettingsDraftEditor> {
   late final TextEditingController _serverCtrl;
   late final TextEditingController _portCtrl;
   late final TextEditingController _usernameCtrl;
@@ -171,6 +210,18 @@ class _ProxySettingsEditorState extends State<ProxySettingsEditor> {
   }
 
   @override
+  void didUpdateWidget(covariant ProxySettingsDraftEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value == widget.value) {
+      return;
+    }
+    _serverCtrl.text = widget.value.server;
+    _portCtrl.text = widget.value.port?.toString() ?? '';
+    _usernameCtrl.text = widget.value.username;
+    _passwordCtrl.text = widget.value.password;
+  }
+
+  @override
   void dispose() {
     _serverCtrl.dispose();
     _portCtrl.dispose();
@@ -181,56 +232,40 @@ class _ProxySettingsEditorState extends State<ProxySettingsEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('TDLib 代理', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _serverCtrl,
-              decoration: const InputDecoration(labelText: '代理服务器'),
-            ),
-            TextField(
-              controller: _portCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: '代理端口'),
-            ),
-            TextField(
-              controller: _usernameCtrl,
-              decoration: const InputDecoration(labelText: '代理用户名（可选）'),
-            ),
-            TextField(
-              controller: _passwordCtrl,
-              decoration: const InputDecoration(labelText: '代理密码（可选）'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                onPressed: () async {
-                  await widget.onSave(
-                    server: _serverCtrl.text,
-                    port: _portCtrl.text,
-                    username: _usernameCtrl.text,
-                    password: _passwordCtrl.text,
-                  );
-                  if (!context.mounted) {
-                    return;
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('代理设置已保存并重新连接')),
-                  );
-                },
-                child: const Text('保存代理'),
-              ),
-            ),
-          ],
+    return Column(
+      children: [
+        TextField(
+          controller: _serverCtrl,
+          decoration: const InputDecoration(labelText: '代理服务器'),
+          onChanged: (_) => _notifyChange(),
         ),
-      ),
+        TextField(
+          controller: _portCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: '代理端口'),
+          onChanged: (_) => _notifyChange(),
+        ),
+        TextField(
+          controller: _usernameCtrl,
+          decoration: const InputDecoration(labelText: '代理用户名（可选）'),
+          onChanged: (_) => _notifyChange(),
+        ),
+        TextField(
+          controller: _passwordCtrl,
+          decoration: const InputDecoration(labelText: '代理密码（可选）'),
+          obscureText: true,
+          onChanged: (_) => _notifyChange(),
+        ),
+      ],
+    );
+  }
+
+  void _notifyChange() {
+    widget.onChanged(
+      server: _serverCtrl.text,
+      port: _portCtrl.text,
+      username: _usernameCtrl.text,
+      password: _passwordCtrl.text,
     );
   }
 }
