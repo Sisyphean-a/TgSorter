@@ -79,10 +79,7 @@ class SettingsCategorySection extends StatelessWidget {
     return null;
   }
 
-  bool _sameCategories(
-    List<CategoryConfig> left,
-    List<CategoryConfig> right,
-  ) {
+  bool _sameCategories(List<CategoryConfig> left, List<CategoryConfig> right) {
     if (left.length != right.length) {
       return false;
     }
@@ -92,46 +89,6 @@ class SettingsCategorySection extends StatelessWidget {
       }
     }
     return true;
-  }
-}
-
-class SettingsPageActions extends StatelessWidget {
-  const SettingsPageActions({
-    super.key,
-    required this.isDirty,
-    required this.onDiscard,
-    required this.onSave,
-  });
-
-  final bool isDirty;
-  final Future<void> Function() onDiscard;
-  final Future<void> Function() onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: isDirty ? onDiscard : null,
-                child: const Text('放弃更改'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: isDirty ? onSave : null,
-                child: const Text('保存更改'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
@@ -237,7 +194,10 @@ class _CategoryRow extends StatelessWidget {
     final options = chats.toList(growable: true);
     if (!options.any((item) => item.id == category.targetChatId)) {
       options.add(
-        SelectableChat(id: category.targetChatId, title: category.targetChatTitle),
+        SelectableChat(
+          id: category.targetChatId,
+          title: category.targetChatTitle,
+        ),
       );
     }
     return DecoratedBox(

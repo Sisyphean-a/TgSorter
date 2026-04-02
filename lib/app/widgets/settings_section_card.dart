@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class SettingsSectionCard extends StatelessWidget {
   const SettingsSectionCard({
@@ -21,9 +22,18 @@ class SettingsSectionCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compactHeader = trailing != null && constraints.maxWidth < 520;
-        return Card(
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppTokens.panelBackground,
+            borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+            border: Border.all(
+              color: highlighted
+                  ? AppTokens.brandAccent
+                  : AppTokens.borderSubtle,
+            ),
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -69,7 +79,9 @@ class _InlineHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _SectionTitle(title: title, subtitle: subtitle)),
+        Expanded(
+          child: _SectionTitle(title: title, subtitle: subtitle),
+        ),
         if (highlighted)
           const Padding(
             padding: EdgeInsets.only(right: 8),
@@ -108,25 +120,21 @@ class _CompactHeader extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: _SectionTitle(title: title, subtitle: subtitle)),
+            Expanded(
+              child: _SectionTitle(title: title, subtitle: subtitle),
+            ),
             if (highlighted) const _DirtyBadge(),
           ],
         ),
         const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: trailing,
-        ),
+        Align(alignment: Alignment.centerRight, child: trailing),
       ],
     );
   }
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    required this.subtitle,
-  });
+  const _SectionTitle({required this.title, required this.subtitle});
 
   final String title;
   final String? subtitle;
@@ -142,7 +150,9 @@ class _SectionTitle extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppTokens.textMuted),
             ),
           ),
       ],
@@ -157,14 +167,17 @@ class _DirtyBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
+        color: AppTokens.brandAccentSoft,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTokens.borderSubtle),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Text(
           '已修改',
-          style: Theme.of(context).textTheme.labelSmall,
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppTokens.brandAccent),
         ),
       ),
     );

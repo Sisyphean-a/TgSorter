@@ -12,6 +12,8 @@ import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
+import 'package:tgsorter/app/widgets/brand_app_bar.dart';
+import 'package:tgsorter/app/widgets/sticky_action_bar.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -59,6 +61,8 @@ void main() {
     expect(find.text('最近操作'), findsOneWidget);
     expect(find.text('保存更改'), findsOneWidget);
     expect(find.text('放弃更改'), findsOneWidget);
+    expect(find.byType(BrandAppBar), findsOneWidget);
+    expect(find.byType(StickyActionBar), findsOneWidget);
     expect(find.text('保存代理'), findsNothing);
     expect(find.text('批处理设置已保存'), findsNothing);
     expect(find.text('保存'), findsNothing);
@@ -93,8 +97,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(controller.isDirty.value, isTrue);
-    expect(controller.savedSettings.value.fetchDirection, MessageFetchDirection.latestFirst);
-    expect(controller.draftSettings.value.fetchDirection, MessageFetchDirection.oldestFirst);
+    expect(
+      controller.savedSettings.value.fetchDirection,
+      MessageFetchDirection.latestFirst,
+    );
+    expect(
+      controller.draftSettings.value.fetchDirection,
+      MessageFetchDirection.oldestFirst,
+    );
 
     await tester.tap(find.text('放弃更改'));
     await tester.pumpAndSettle();
@@ -102,7 +112,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(controller.isDirty.value, isFalse);
-    expect(controller.draftSettings.value.fetchDirection, MessageFetchDirection.latestFirst);
+    expect(
+      controller.draftSettings.value.fetchDirection,
+      MessageFetchDirection.latestFirst,
+    );
   });
 
   testWidgets('does not overflow on narrow screen with category rows', (
@@ -120,9 +133,21 @@ void main() {
       ],
       initialSettings: const AppSettings(
         categories: [
-          CategoryConfig(key: 'cat_1', targetChatId: -1001, targetChatTitle: '星空'),
-          CategoryConfig(key: 'cat_2', targetChatId: -1002, targetChatTitle: 'mi_ASMR'),
-          CategoryConfig(key: 'cat_3', targetChatId: -1003, targetChatTitle: '艺术'),
+          CategoryConfig(
+            key: 'cat_1',
+            targetChatId: -1001,
+            targetChatTitle: '星空',
+          ),
+          CategoryConfig(
+            key: 'cat_2',
+            targetChatId: -1002,
+            targetChatTitle: 'mi_ASMR',
+          ),
+          CategoryConfig(
+            key: 'cat_3',
+            targetChatId: -1003,
+            targetChatTitle: '艺术',
+          ),
         ],
         sourceChatId: null,
         fetchDirection: MessageFetchDirection.latestFirst,
@@ -157,11 +182,7 @@ Future<SettingsController> _pumpSettingsPage(
   }
   Get.put<SettingsController>(controller);
 
-  await tester.pumpWidget(
-    const GetMaterialApp(
-      home: SettingsPage(),
-    ),
-  );
+  await tester.pumpWidget(const GetMaterialApp(home: SettingsPage()));
   await tester.pumpAndSettle();
   return controller;
 }

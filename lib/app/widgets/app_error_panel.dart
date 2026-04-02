@@ -15,13 +15,14 @@ class AppErrorPanel extends StatelessWidget {
         return const SizedBox.shrink();
       }
       return Container(
+        key: const Key('app-error-panel'),
         width: double.infinity,
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFF2A1618),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.45)),
+          color: const Color(0xFF31171E),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF7D3444)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

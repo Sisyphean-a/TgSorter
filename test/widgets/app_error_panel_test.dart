@@ -7,10 +7,7 @@ import 'package:tgsorter/app/widgets/app_error_panel.dart';
 void main() {
   testWidgets('AppErrorPanel keeps reported errors visible', (tester) async {
     final controller = AppErrorController();
-    controller.report(
-      title: '运行异常',
-      message: 'TDLib 授权未就绪，无法执行当前请求',
-    );
+    controller.report(title: '运行异常', message: 'TDLib 授权未就绪，无法执行当前请求');
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -26,5 +23,6 @@ void main() {
 
     expect(find.text('错误历史'), findsOneWidget);
     expect(find.textContaining('TDLib 授权未就绪'), findsOneWidget);
+    expect(find.byKey(const Key('app-error-panel')), findsOneWidget);
   });
 }

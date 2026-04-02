@@ -6,6 +6,10 @@ import 'package:tgsorter/app/pages/settings_category_dialog.dart';
 import 'package:tgsorter/app/pages/settings_page_parts.dart';
 import 'package:tgsorter/app/pages/settings_sections.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
+import 'package:tgsorter/app/widgets/app_shell.dart';
+import 'package:tgsorter/app/widgets/brand_app_bar.dart';
+import 'package:tgsorter/app/widgets/status_badge.dart';
+import 'package:tgsorter/app/widgets/sticky_action_bar.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -45,9 +49,24 @@ class _SettingsPageState extends State<SettingsPage> {
       return PopScope<void>(
         canPop: !controller.isDirty.value,
         onPopInvokedWithResult: _handlePopAttempt,
-        child: Scaffold(
-          appBar: AppBar(title: const Text('分类设置')),
-          bottomNavigationBar: SettingsPageActions(
+        child: AppShell(
+          appBar: BrandAppBar(
+            title: '分类设置',
+            subtitle: '统一管理分类规则、连接配置和工具项',
+            badges: [
+              StatusBadge(
+                label: controller.isDirty.value ? '草稿未保存' : '已保存',
+                tone: controller.isDirty.value
+                    ? StatusBadgeTone.warning
+                    : StatusBadgeTone.success,
+              ),
+              StatusBadge(
+                label: '分类 ${draft.categories.length}',
+                tone: StatusBadgeTone.accent,
+              ),
+            ],
+          ),
+          bottomBar: StickyActionBar(
             isDirty: controller.isDirty.value,
             onDiscard: _handleDiscard,
             onSave: _handleSave,
@@ -65,7 +84,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 draft: draft,
                 saved: saved,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               SettingsCategorySection(
                 categories: draft.categories,
                 savedCategories: saved.categories,
@@ -75,18 +94,19 @@ class _SettingsPageState extends State<SettingsPage> {
                     controller.updateCategoryDraft(key: key, chat: chat),
                 onRemove: _removeCategoryDraft,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               SettingsConnectionSection(
                 controller: controller,
                 draft: draft,
                 saved: saved,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               SettingsToolsSection(
                 controller: controller,
                 draft: draft,
                 saved: saved,
-                recentLogs: pipeline?.logs.take(20).toList(growable: false) ?? const [],
+                recentLogs:
+                    pipeline?.logs.take(20).toList(growable: false) ?? const [],
                 onReloadChats: _loadChats,
               ),
             ],
