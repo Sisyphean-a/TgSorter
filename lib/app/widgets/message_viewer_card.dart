@@ -83,10 +83,6 @@ class MessageViewerCard extends StatelessWidget {
   }
 
   Widget _buildPreviewContent(BuildContext context, PipelineMessage data) {
-    if (data == null) {
-      return _buildEmptyState();
-    }
-
     final preview = data.preview;
     final linkCard = preview.linkCard;
     final mediaItems = preview.mediaItems;
