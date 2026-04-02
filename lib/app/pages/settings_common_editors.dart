@@ -24,6 +24,7 @@ class SourceChatDraftEditor extends StatelessWidget {
     return DropdownButtonFormField<int?>(
       key: ValueKey(sourceChatId),
       initialValue: sourceChatId,
+      isExpanded: true,
       decoration: const InputDecoration(
         labelText: '来源会话',
         border: OutlineInputBorder(),
@@ -57,6 +58,7 @@ class FetchDirectionDraftEditor extends StatelessWidget {
     return DropdownButtonFormField<MessageFetchDirection>(
       key: ValueKey(value),
       initialValue: value,
+      isExpanded: true,
       decoration: const InputDecoration(
         labelText: '消息拉取方向',
         border: OutlineInputBorder(),

@@ -232,6 +232,7 @@ class _CategoryRow extends StatelessWidget {
             DropdownButtonFormField<int>(
               key: ValueKey('${category.key}_${category.targetChatId}'),
               initialValue: category.targetChatId,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: '目标会话',
                 border: OutlineInputBorder(),

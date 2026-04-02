@@ -24,6 +24,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
       title: const Text('新增分类'),
       content: DropdownButtonFormField<int>(
         initialValue: _selectedChatId,
+        isExpanded: true,
         decoration: const InputDecoration(
           labelText: '目标会话',
           border: OutlineInputBorder(),

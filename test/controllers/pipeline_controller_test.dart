@@ -103,6 +103,34 @@ void main() {
       expect(controller.currentMessage.value?.id, 31);
     });
 
+    test('changing fetch direction invalidates cache and reloads pipeline', () async {
+      service.pages.add([
+        _message(31, 'latest'),
+        _message(30, 'older'),
+      ]);
+      service.pages.add(const []);
+      service.pages.add([
+        _message(1, 'oldest'),
+        _message(2, 'next oldest'),
+      ]);
+      await controller.fetchNext();
+
+      expect(controller.currentMessage.value?.id, 31);
+
+      settingsController.settings.value = settingsController.settings.value
+          .updateFetchDirection(MessageFetchDirection.oldestFirst);
+      await _waitFor(() => service.fetchDirections.length == 2);
+
+      expect(controller.currentMessage.value?.id, 1);
+      expect(controller.canShowPrevious.value, isFalse);
+      expect(controller.canShowNext.value, isTrue);
+      expect(service.fetchDirections.last, MessageFetchDirection.oldestFirst);
+      expect(
+        service.fetchDirections.where((item) => item == MessageFetchDirection.oldestFirst),
+        isNotEmpty,
+      );
+    });
+
     test('does not auto fetch before authorization is ready', () async {
       controller.onClose();
       controller = PipelineController(
@@ -147,6 +175,40 @@ void main() {
         expect(controller.videoPreparing.value, isFalse);
       },
     );
+
+    test(
+      'showNextMessage starts media refresh for next cached video item',
+      () async {
+        service.pages.add([
+          _videoMessage(
+            id: 21,
+            title: 'first',
+            localThumbnailPath: 'C:/thumb-first.jpg',
+          ),
+          _videoMessage(id: 22, title: 'second', localThumbnailPath: null),
+        ]);
+        service.refreshedMessages[22] = _videoMessage(
+          id: 22,
+          title: 'second',
+          localThumbnailPath: 'C:/thumb-second.jpg',
+        );
+        await controller.fetchNext();
+
+        expect(
+          controller.currentMessage.value?.preview.localVideoThumbnailPath,
+          'C:/thumb-first.jpg',
+        );
+
+        await controller.showNextMessage();
+        await Future<void>.delayed(const Duration(milliseconds: 1100));
+
+        expect(controller.currentMessage.value?.id, 22);
+        expect(
+          controller.currentMessage.value?.preview.localVideoThumbnailPath,
+          'C:/thumb-second.jpg',
+        );
+      },
+    );
   });
 }
 
@@ -156,11 +218,13 @@ class _FakeTelegramService implements TelegramGateway {
 
   final List<List<PipelineMessage>> pages = <List<PipelineMessage>>[];
   final List<int> classifiedMessageIds = <int>[];
+  final List<MessageFetchDirection> fetchDirections = <MessageFetchDirection>[];
   int? lastFetchSourceChatId;
   int fetchNextCalls = 0;
   int videoRequestCount = 0;
   bool? lastAsCopy;
   PipelineMessage? refreshedMessage;
+  final Map<int, PipelineMessage> refreshedMessages = <int, PipelineMessage>{};
 
   @override
   Stream<TdAuthState> get authStates => _authController.stream;
@@ -215,6 +279,7 @@ class _FakeTelegramService implements TelegramGateway {
     required int limit,
   }) async {
     fetchNextCalls++;
+    fetchDirections.add(direction);
     lastFetchSourceChatId = sourceChatId;
     if (pages.isEmpty) {
       return const [];
@@ -244,7 +309,9 @@ class _FakeTelegramService implements TelegramGateway {
     required int sourceChatId,
     required int messageId,
   }) async {
-    return refreshedMessage ?? _videoMessage(id: messageId, title: 'video');
+    return refreshedMessages[messageId] ??
+        refreshedMessage ??
+        _videoMessage(id: messageId, title: 'video');
   }
 
   @override
@@ -287,6 +354,7 @@ PipelineMessage _videoMessage({
   required int id,
   required String title,
   String? localVideoPath,
+  String? localThumbnailPath,
 }) {
   return PipelineMessage(
     id: id,
@@ -296,7 +364,17 @@ PipelineMessage _videoMessage({
       kind: MessagePreviewKind.video,
       title: title,
       localVideoPath: localVideoPath,
+      localVideoThumbnailPath: localThumbnailPath,
       videoDurationSeconds: 688,
     ),
   );
+}
+
+Future<void> _waitFor(bool Function() condition) async {
+  for (var attempt = 0; attempt < 20; attempt++) {
+    if (condition()) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
 }

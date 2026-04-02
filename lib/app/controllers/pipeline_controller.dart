@@ -7,6 +7,7 @@ import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
+import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
@@ -47,6 +48,7 @@ class PipelineController extends GetxController {
 
   StreamSubscription<TdConnectionState>? _connectionSub;
   StreamSubscription<TdAuthState>? _authSub;
+  Worker? _settingsWorker;
   Timer? _videoRefreshTimer;
   ClassifyReceipt? _lastSuccessReceipt;
   bool _isAuthorized = false;
@@ -54,12 +56,16 @@ class PipelineController extends GetxController {
   int _currentIndex = -1;
   int? _tailMessageId;
   int? _refreshTargetMessageId;
+  MessageFetchDirection? _lastFetchDirection;
+  int? _lastSourceChatId;
 
   @override
   void onInit() {
     super.onInit();
     logs.assignAll(_journalRepository.loadLogs());
     retryQueue.assignAll(_journalRepository.loadRetryQueue());
+    _lastFetchDirection = _settingsController.settings.value.fetchDirection;
+    _lastSourceChatId = _settingsController.settings.value.sourceChatId;
     _connectionSub = _service.connectionStates.listen((state) {
       isOnline.value = state.isReady;
       _tryAutoFetchNext();
@@ -68,6 +74,10 @@ class PipelineController extends GetxController {
       _isAuthorized = state.isReady;
       _tryAutoFetchNext();
     });
+    _settingsWorker = ever<AppSettings>(
+      _settingsController.settings,
+      _handleSettingsChanged,
+    );
   }
 
   @override
@@ -213,6 +223,7 @@ class PipelineController extends GetxController {
     _stopVideoRefresh();
     _currentIndex--;
     _syncCurrentMessage();
+    await _refreshCurrentMediaIfNeeded();
   }
 
   Future<void> showNextMessage() async {
@@ -223,6 +234,7 @@ class PipelineController extends GetxController {
     if (_currentIndex + 1 < _messageCache.length) {
       _currentIndex++;
       _syncCurrentMessage();
+      await _refreshCurrentMediaIfNeeded();
       await _prefetchIfNeeded();
       return;
     }
@@ -230,6 +242,7 @@ class PipelineController extends GetxController {
     if (_currentIndex + 1 < _messageCache.length) {
       _currentIndex++;
       _syncCurrentMessage();
+      await _refreshCurrentMediaIfNeeded();
     }
   }
 
@@ -419,6 +432,27 @@ class PipelineController extends GetxController {
     unawaited(fetchNext());
   }
 
+  void _handleSettingsChanged(AppSettings settings) {
+    final directionChanged = settings.fetchDirection != _lastFetchDirection;
+    final sourceChanged = settings.sourceChatId != _lastSourceChatId;
+    _lastFetchDirection = settings.fetchDirection;
+    _lastSourceChatId = settings.sourceChatId;
+    if (!directionChanged && !sourceChanged) {
+      return;
+    }
+    _resetPipelineState();
+    _tryAutoFetchNext();
+  }
+
+  void _resetPipelineState() {
+    _stopVideoRefresh();
+    _messageCache.clear();
+    _currentIndex = -1;
+    _tailMessageId = null;
+    currentMessage.value = null;
+    _syncNavigationState();
+  }
+
   Future<void> _refreshCurrentMediaIfNeeded() async {
     final message = currentMessage.value;
     if (message == null || !_needsMediaRefresh(message.preview)) {
@@ -577,6 +611,7 @@ class PipelineController extends GetxController {
       _currentIndex = 0;
     }
     _syncCurrentMessage();
+    await _refreshCurrentMediaIfNeeded();
     await _prefetchIfNeeded();
   }
 
@@ -666,6 +701,7 @@ class PipelineController extends GetxController {
     _stopVideoRefresh();
     _connectionSub?.cancel();
     _authSub?.cancel();
+    _settingsWorker?.dispose();
     super.onClose();
   }
 }

@@ -314,6 +314,44 @@ void main() {
     );
 
     test(
+      'fetchMessagePage keeps album messageIds increasing in oldestFirst mode',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _videoMessageJson(12, albumId: '700'),
+                  _videoMessageJson(11, albumId: '700'),
+                ],
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [],
+              }),
+            ],
+            'downloadFile': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        final page = await service.fetchMessagePage(
+          direction: MessageFetchDirection.oldestFirst,
+          sourceChatId: 777,
+          fromMessageId: null,
+          limit: 2,
+        );
+
+        expect(page.length, 1);
+        expect(page.first.messageIds, [11, 12]);
+      },
+    );
+
+    test(
       'fetchMessagePage groups document-video album messages into one pipeline item',
       () async {
         final adapter = _FakeTdlibAdapter(

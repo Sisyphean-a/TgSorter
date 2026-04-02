@@ -127,7 +127,7 @@ class TelegramService implements TelegramGateway {
     for (final item in messages) {
       await _ensureMediaDownloadsStarted(item.content);
     }
-    return _groupPipelineMessages(messages, chatId);
+    return _groupPipelineMessages(messages, chatId, direction);
   }
 
   @override
@@ -486,8 +486,10 @@ class TelegramService implements TelegramGateway {
   List<PipelineMessage> _groupPipelineMessages(
     List<TdMessageDto> messages,
     int sourceChatId,
+    MessageFetchDirection direction,
   ) {
     final result = <PipelineMessage>[];
+    final shouldReverseGroup = direction == MessageFetchDirection.latestFirst;
     var index = 0;
     while (index < messages.length) {
       final current = messages[index];
@@ -507,12 +509,10 @@ class TelegramService implements TelegramGateway {
         group.add(candidate);
         next++;
       }
-      result.add(
-        _toPipelineMessage(
-          group.reversed.toList(growable: false),
-          sourceChatId,
-        ),
-      );
+      final orderedGroup = shouldReverseGroup
+          ? group.reversed.toList(growable: false)
+          : group;
+      result.add(_toPipelineMessage(orderedGroup, sourceChatId));
       index = next;
     }
     return result;

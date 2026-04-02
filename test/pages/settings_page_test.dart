@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/pages/settings_page.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -88,11 +90,44 @@ void main() {
     expect(controller.isDirty.value, isFalse);
     expect(controller.draftSettings.value.fetchDirection, MessageFetchDirection.latestFirst);
   });
+
+  testWidgets('does not overflow on narrow screen with category rows', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pumpSettingsPage(
+      tester,
+      chats: const [
+        SelectableChat(id: -1001, title: '星空'),
+        SelectableChat(id: -1002, title: 'mi_ASMR'),
+        SelectableChat(id: -1003, title: '艺术'),
+      ],
+      initialSettings: const AppSettings(
+        categories: [
+          CategoryConfig(key: 'cat_1', targetChatId: -1001, targetChatTitle: '星空'),
+          CategoryConfig(key: 'cat_2', targetChatId: -1002, targetChatTitle: 'mi_ASMR'),
+          CategoryConfig(key: 'cat_3', targetChatId: -1003, targetChatTitle: '艺术'),
+        ],
+        sourceChatId: null,
+        fetchDirection: MessageFetchDirection.latestFirst,
+        forwardAsCopy: false,
+        batchSize: 5,
+        throttleMs: 1200,
+        proxy: ProxySettings.empty,
+      ),
+    );
+
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Future<SettingsController> _pumpSettingsPage(
   WidgetTester tester, {
   required List<SelectableChat> chats,
+  AppSettings? initialSettings,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -101,6 +136,11 @@ Future<SettingsController> _pumpSettingsPage(
     _SettingsPageFakeGateway(chats),
   );
   controller.onInit();
+  if (initialSettings != null) {
+    controller.settings.value = initialSettings;
+    controller.draftSettings.value = initialSettings;
+    controller.isDirty.value = false;
+  }
   Get.put<SettingsController>(controller);
 
   await tester.pumpWidget(
