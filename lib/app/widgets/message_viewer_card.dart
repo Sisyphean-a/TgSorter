@@ -106,9 +106,12 @@ class MessageViewerCard extends StatelessWidget {
             fallbackVideoPath: preview.localVideoPath,
             fallbackThumbnailPath: preview.localVideoThumbnailPath,
           ),
-          const SizedBox(height: 12),
-          _buildVideoMeta(context, preview.videoDurationSeconds),
-          const SizedBox(height: 8),
+          if (mediaItems.isEmpty) ...[
+            const SizedBox(height: 12),
+            _buildVideoMeta(context, preview.videoDurationSeconds),
+            const SizedBox(height: 8),
+          ] else
+            const SizedBox(height: 12),
           _PreviewText(
             text: preview.text,
             fallbackText: preview.title,
@@ -231,6 +234,17 @@ class _MediaGalleryPreview extends StatelessWidget {
     }
     if (items.length == 1) {
       return _buildItem(items.single);
+    }
+    final allVideos = items.every((item) => item.kind == MediaItemKind.video);
+    if (allVideos) {
+      return Column(
+        children: [
+          for (var index = 0; index < items.length; index++) ...[
+            _buildItem(items[index]),
+            if (index < items.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      );
     }
     return SizedBox(
       height: 280,
