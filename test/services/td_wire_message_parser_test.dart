@@ -4,7 +4,7 @@ import 'package:tgsorter/app/services/td_wire_message.dart';
 
 void main() {
   group('TD wire message parser', () {
-    test('parses text/photo/video/audio/unsupported messages', () {
+    test('parses text/photo/video/audio/document-video/unsupported messages', () {
       final dto = TdMessagesDto.fromEnvelope(
         TdWireEnvelope.fromJson(<String, dynamic>{
           '@type': 'messages',
@@ -24,6 +24,18 @@ void main() {
                 'photo': {
                   'sizes': [
                     {
+                      'type': 's',
+                      'width': 90,
+                      'height': 90,
+                      'photo': {
+                        'id': '10',
+                        'local': {'path': '/tmp/p-small.jpg'},
+                      },
+                    },
+                    {
+                      'type': 'x',
+                      'width': 1280,
+                      'height': 720,
                       'photo': {
                         'id': '11',
                         'local': {'path': '/tmp/p.jpg'},
@@ -72,6 +84,29 @@ void main() {
             },
             {
               'id': 5,
+              'content': {
+                '@type': 'messageDocument',
+                'caption': {'text': '', 'entities': []},
+                'document': {
+                  'file_name': 'clip.mp4',
+                  'mime_type': 'video/mp4',
+                  'thumbnail': {
+                    'width': 320,
+                    'height': 180,
+                    'file': {
+                      'id': '51',
+                      'local': {'path': '/tmp/d-thumb.jpg'},
+                    },
+                  },
+                  'document': {
+                    'id': '52',
+                    'local': {'path': '/tmp/d-video.mp4'},
+                  },
+                },
+              },
+            },
+            {
+              'id': 6,
               'content': {'@type': 'messagePoll'},
             },
           ],
@@ -80,8 +115,10 @@ void main() {
 
       expect(dto.messages[0].content.kind, TdMessageContentKind.text);
       expect(dto.messages[1].content.kind, TdMessageContentKind.photo);
-      expect(dto.messages[1].content.localImagePath, '/tmp/p.jpg');
-      expect(dto.messages[1].content.remoteImageFileId, 11);
+      expect(dto.messages[1].content.localImagePath, '/tmp/p-small.jpg');
+      expect(dto.messages[1].content.remoteImageFileId, 10);
+      expect(dto.messages[1].content.fullImagePath, '/tmp/p.jpg');
+      expect(dto.messages[1].content.remoteFullImageFileId, 11);
       expect(dto.messages[2].content.kind, TdMessageContentKind.video);
       expect(dto.messages[2].content.localVideoPath, '/tmp/v.mp4');
       expect(dto.messages[2].content.localVideoThumbnailPath, '/tmp/t.jpg');
@@ -93,7 +130,54 @@ void main() {
       expect(dto.messages[3].content.remoteAudioFileId, 41);
       expect(dto.messages[3].content.audioDurationSeconds, 180);
       expect(dto.messages[3].content.fileName, 'track.mp3');
-      expect(dto.messages[4].content.kind, TdMessageContentKind.unsupported);
+      expect(dto.messages[4].content.kind, TdMessageContentKind.video);
+      expect(dto.messages[4].content.localVideoPath, '/tmp/d-video.mp4');
+      expect(dto.messages[4].content.localVideoThumbnailPath, '/tmp/d-thumb.jpg');
+      expect(dto.messages[5].content.kind, TdMessageContentKind.unsupported);
+    });
+
+    test('parses text message web page preview', () {
+      final dto = TdMessagesDto.fromEnvelope(
+        TdWireEnvelope.fromJson(<String, dynamic>{
+          '@type': 'messages',
+          'messages': [
+            {
+              'id': 7,
+              'content': {
+                '@type': 'messageText',
+                'text': {'text': 'https://example.com', 'entities': []},
+                'web_page': {
+                  'url': 'https://example.com',
+                  'display_url': 'example.com',
+                  'site_name': 'Example',
+                  'title': 'Example Title',
+                  'description': {'text': 'Example Description', 'entities': []},
+                  'photo': {
+                    'sizes': [
+                      {
+                        'type': 's',
+                        'width': 90,
+                        'height': 90,
+                        'photo': {
+                          'id': '71',
+                          'local': {'path': '/tmp/example.jpg'},
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(dto.messages.single.content.linkPreview?.url, 'https://example.com');
+      expect(dto.messages.single.content.linkPreview?.title, 'Example Title');
+      expect(
+        dto.messages.single.content.linkPreview?.localImagePath,
+        '/tmp/example.jpg',
+      );
     });
 
     test('parses voice note metadata and local file path', () {

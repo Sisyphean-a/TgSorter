@@ -160,7 +160,7 @@ class _ShortcutRow extends StatelessWidget {
       case ShortcutAction.nextMessage:
         return '下一条';
       case ShortcutAction.skipCurrent:
-        return '跳过当前';
+        return '略过此条';
       case ShortcutAction.undoLastStep:
         return '撤销上一步';
       case ShortcutAction.retryNextFailed:

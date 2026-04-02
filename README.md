@@ -1,94 +1,61 @@
 # TgSorter
 
-TgSorter 是一个基于 Flutter + TDLib 的 Android 工具应用，目标是把 Telegram `Saved Messages` 里的消息按人工点击快速分流到 3 个目标会话，并在分流后立即删除原消息，形成高效率的单条流水线处理。
+TgSorter 是一个基于 Flutter + TDLib 的 Telegram 消息分流工具。当前目标是从 `Saved Messages` 或指定来源会话中拉取消息，在桌面/移动端界面中逐条浏览并快速分类到目标会话，同时保留可见的错误、日志和重试队列，便于高频人工整理。
 
-## 项目理念
+## 当前状态
 
-- 单向流水线：一次只处理 1 条消息，避免 UI 和状态并发导致误操作。
-- TDLib 原生接入：仅使用 TDLib，不走 Bot API。
-- Raw JSON 调试优先：请求、响应、更新、解析失败都直接输出完整 payload，便于定位 schema 漂移。
-- 操作可见：遇到 FloodWait、断网、配置缺失时直接报错提示，不做静默降级。
-- 迭代优先：先搭建可运行骨架和核心闭环，再逐步完善更多消息类型和体验细节。
+- 运行平台：Flutter，已包含 Android 与 Windows 运行链路。
+- 接入方式：仅使用 TDLib，不走 Bot API。
+- 应用结构：`BootstrapApp -> GetX DI -> Auth / Pipeline / Settings`。
+- 消息浏览：支持分页缓存、前后切换、跳过、批处理、撤销上一步。
+- 预览能力：
+  - 文本：支持格式化文本与可点击链接。
+  - 图片：支持单图与多图相册预览，优先下载预览尺寸。
+  - 视频：支持单视频与多视频相册预览，缩略图优先下载，点击后下载原视频并播放。
+  - 音频：支持单音频播放；支持“多音频相册”聚合为一个流水线项。
+  - 富链接：支持基础网页摘要卡片。
 
-## 当前已实现
+## 文档
 
-- Flutter Android 项目骨架。
-- TDLib 低层传输层：
-  - `tdCreate/tdSend/tdReceive` raw JSON 轮询；
-  - 通过 `@extra` 做请求-响应关联；
-  - 提供授权状态/连接状态更新流；
-  - 在 debug 模式输出完整 `TD SEND / TD RECV / TD UPDATE / TD PARSE ERROR` 日志。
-- 授权流程（基础版）：
-  - `authorizationStateWaitPhoneNumber` 输入手机号；
-  - `authorizationStateWaitCode` 输入验证码；
-  - `authorizationStateReady` 自动进入主流水线页面。
-- 流水线核心动作：
-  - 从 `Saved Messages` 拉取 1 条消息；
-  - 支持文本 `MessageText` 与图片 `MessagePhoto` 的基础预览；
-  - 点击分类按钮后执行 `forwardMessages -> deleteMessages(revoke: true)`；
-  - 成功后自动拉取下一条。
-- 设置页：
-  - 3 个分类按钮名称可配置；
-  - 3 个目标 `Chat ID` 可配置；
-  - 批处理条数与节流毫秒可配置；
-  - 使用 `shared_preferences` 持久化。
-- 异常与边界：
-  - `420 FloodWait` 解析并提示等待秒数；
-  - 错误分级提示（网络/鉴权/权限/限流/通用 TDLib）；
-  - 连接状态非 `Ready` 时禁用分类按钮；
-  - 不支持消息类型显示兜底文案但允许继续分类。
-- 流水线增强：
-  - 跳过当前消息；
-  - 撤销上一步分类（从目标会话回退到 Saved Messages 并删除目标拷贝）；
-  - 批处理（按设置 N 条连续执行并按节流间隔处理）。
+- 架构文档：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- 媒体预览现状与方案：[docs/MEDIA_PREVIEW_ANALYSIS.md](docs/MEDIA_PREVIEW_ANALYSIS.md)
+- Android TDLib 参数说明：[docs/tdlib-android-params.md](docs/tdlib-android-params.md)
 
 ## 技术栈
 
-- Flutter / Dart
-- GetX（状态管理与路由）
-- tdlib（TDLib Dart 插件）
-- shared_preferences（本地配置存储）
+- Flutter / Dart 3.11
+- GetX
+- TDLib Dart 插件 `tdlib`
+- `shared_preferences`
+- `url_launcher`
+- `video_player`
+- `video_player_media_kit`
+- `just_audio`
 
-## 目录结构
+## 目录概览
 
 ```text
 lib/
+  main.dart
   app/
     app.dart
+    bootstrap_app.dart
     bindings.dart
     controllers/
-      auth_controller.dart
-      pipeline_controller.dart
-      settings_controller.dart
     domain/
-      flood_wait.dart
-      message_preview_mapper.dart
     models/
-      app_settings.dart
-      category_config.dart
-      pipeline_message.dart
     pages/
-      auth_page.dart
-      pipeline_page.dart
-      settings_page.dart
     services/
-      settings_repository.dart
-      td_client_transport.dart
-      tdlib_credentials.dart
-      telegram_service.dart
     widgets/
-      message_viewer_card.dart
-  main.dart
-
 test/
-  domain/
-    flood_wait_test.dart
-    message_preview_mapper_test.dart
+docs/
 ```
 
-## 运行方式
+更完整的职责说明见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
-1. 在项目根目录准备 `.env.local.json`（已存在可跳过）：
+## 启动方式
+
+1. 在项目根目录准备 `.env.local.json`：
 
 ```json
 {
@@ -97,74 +64,41 @@ test/
 }
 ```
 
-2. 命令行运行（推荐）：
+2. 安装依赖：
 
 ```bash
 flutter pub get
-flutter run \
-  --dart-define-from-file=.env.local.json
 ```
 
-3. VS Code F5 运行：
-   - 直接按 `F5`；
-   - 选择 `TgSorter (env.local debug)`；
-   - 将自动携带 `--dart-define-from-file=.env.local.json`。
+3. Android 运行：
 
-## 调试日志
+```bash
+flutter run --dart-define-from-file=.env.local.json
+```
 
-F5 调试时，TDLib raw JSON 日志会直接出现在 VS Code / Flutter Debug Console。
+4. Windows 运行前需要额外准备 TDLib 动态库：
+   - `windows/tdjson.dll`
+   - `windows/libssl-3-x64.dll`
+   - `windows/libcrypto-3-x64.dll`
+   - `windows/zlib1.dll`
 
-- 发送请求：`[TD SEND] request=... extra=... payload={...}`
-- 收到请求响应：`[TD RECV] type=... extra=... payload={...}`
-- 收到更新：`[TD UPDATE] type=... payload={...}`
-- 解析失败：`[TD PARSE ERROR] stage=... reason=... payload={...}`
-
-说明：
-
-- debug 模式默认输出完整 payload；
-- release 模式不要求输出完整调试日志；
-- 后续若 TDLib DLL schema 与 Dart 侧预期不一致，优先查看这里的原始 JSON。
-
-### Windows 桌面端额外要求
-
-`tdlib` 依赖仅内置 Android 动态库，Windows 需要你手动提供 `tdjson.dll`：
-
-1. 先按 TDLib 官方方式编译出 Windows 版 `tdjson.dll`；
-2. 将 `tdjson.dll` 放到项目 `windows/tdjson.dll`；
-3. 同时将依赖 `libssl-3-x64.dll`、`libcrypto-3-x64.dll`、`zlib1.dll` 放到 `windows/`；
-4. 重新 `flutter run -d windows --dart-define-from-file=.env.local.json` 或使用 F5。
-
-也可以通过环境变量指定 DLL 绝对路径：
+也可以通过环境变量指定 TDLib DLL：
 
 ```powershell
 $env:TDLIB_DLL_PATH="D:\\path\\to\\tdjson.dll"
 ```
 
-## 使用说明
+## 关键行为
 
-1. 首次进入登录页，输入手机号并提交。
-2. 收到验证码后输入并提交。
-3. 登录完成后进入主界面：
-   - 上半区查看当前待分类消息；
-   - 下半区点击“分类 A/B/C”。
-4. 若未配置分类目标，进入设置页填写对应 `Chat ID`。
+- 启动时先初始化视频播放后端，再执行依赖注入与 TDLib 启动。
+- 登录流程覆盖手机号、验证码、二步验证密码。
+- 流水线页会监听 TDLib 授权状态与连接状态，自动拉取首批消息。
+- 分类操作通过 `forwardMessages -> deleteMessages` 完成，失败时写入日志与重试队列。
+- 删除使用原有 `deleteMessages(revoke: true)` 路径。
+- 所有 TDLib 业务请求都经由 `TelegramService`，TDLib 生命周期由 `TdlibAdapter` 管理。
 
-## 注意事项
+## 已知边界
 
-- 目前目标平台是 Android。
-- 项目严格依赖 TDLib，本地需可正常加载插件。
-- 请不要把 `api_hash` 写进源码，使用 `--dart-define-from-file` 注入。
-- Android TDLib 参数细化文档见：`docs/tdlib-android-params.md`。
-
-## TODO（后续对话可直接接续）
-
-- [x] 完成 Android 侧 TDLib 运行参数细化（目录、设备信息、日志级别等）并补充文档。
-- [x] 支持 `authorizationStateWaitPassword`（两步验证密码）流程。
-- [x] 在图片预览中补齐文件下载流程（当本地文件不存在时主动 `downloadFile`）。
-- [x] 增加消息拉取方向配置（最新优先 / 最旧优先）。
-- [x] 增加“跳过当前消息”与“撤销上一步”能力。
-- [x] 增加批处理模式（N 条连续处理）并配套节流策略。
-- [x] 增加分类操作日志（本地持久化）与失败重试队列。
-- [x] 增加更完整的异常分级（网络、鉴权、权限、TDLib 错误码）。
-- [x] 增加控制器与服务层单元测试（流水线顺序、异常路径、状态流）。
-- [x] 增加集成测试，验证 Auth->Pipeline 全链路。
+- 安卓端“跳过当前”文案已改为“略过此条”，用于规避第三方跳过工具误判。
+- 第三方 TG 客户端的删除显示样式仍受其自身实现影响。
+- 现有文档设计稿较多，真正反映当前代码状态的文档以 `README.md`、`docs/ARCHITECTURE.md`、`docs/MEDIA_PREVIEW_ANALYSIS.md` 为准。

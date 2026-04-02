@@ -113,7 +113,7 @@ class DesktopActionButtons extends StatelessWidget {
                     onPressed: canClick
                         ? () => pipeline.skipCurrent('desktop_button')
                         : null,
-                    child: const Text('跳过当前'),
+                    child: const Text('略过此条'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -208,7 +208,7 @@ String labelShortcutAction(ShortcutAction action) {
     case ShortcutAction.nextMessage:
       return '下一条';
     case ShortcutAction.skipCurrent:
-      return '跳过当前';
+      return '略过此条';
     case ShortcutAction.undoLastStep:
       return '撤销上一步';
     case ShortcutAction.retryNextFailed:

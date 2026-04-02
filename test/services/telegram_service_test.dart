@@ -9,7 +9,6 @@ import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
-import 'package:tgsorter/app/services/tdlib_request_executor.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
 import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
@@ -146,6 +145,32 @@ void main() {
     );
 
     test(
+      'classifyMessage deletes with revoke true',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'forwardMessages': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [_textMessageJson(88, 'copied')],
+              }),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        await service.classifyMessage(
+          sourceChatId: 777,
+          messageIds: const [10],
+          targetChatId: 999,
+          asCopy: false,
+        );
+
+        expect(adapter.deleteMessageRevokes, <bool>[true]);
+      },
+    );
+
+    test(
       'requireSelfChatId resolves real private chat id via createPrivateChat',
       () async {
         final adapter = _FakeTdlibAdapter(
@@ -217,6 +242,111 @@ void main() {
         ]);
       },
     );
+
+    test(
+      'fetchMessagePage groups photo album messages into one pipeline item',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _photoMessageJson(12, albumId: '700'),
+                  _photoMessageJson(11, albumId: '700'),
+                ],
+              }),
+            ],
+            'downloadFile': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        final page = await service.fetchMessagePage(
+          direction: MessageFetchDirection.latestFirst,
+          sourceChatId: 777,
+          fromMessageId: null,
+          limit: 2,
+        );
+
+        expect(page.length, 1);
+        expect(page.first.messageIds, [11, 12]);
+        expect(page.first.preview.mediaItems.length, 2);
+      },
+    );
+
+    test(
+      'fetchMessagePage groups video album messages into one pipeline item',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _videoMessageJson(12, albumId: '700'),
+                  _videoMessageJson(11, albumId: '700'),
+                ],
+              }),
+            ],
+            'downloadFile': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        final page = await service.fetchMessagePage(
+          direction: MessageFetchDirection.latestFirst,
+          sourceChatId: 777,
+          fromMessageId: null,
+          limit: 2,
+        );
+
+        expect(page.length, 1);
+        expect(page.first.messageIds, [11, 12]);
+        expect(page.first.preview.mediaItems.length, 2);
+      },
+    );
+
+    test(
+      'fetchMessagePage groups document-video album messages into one pipeline item',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _documentVideoMessageJson(12, albumId: '700'),
+                  _documentVideoMessageJson(11, albumId: '700'),
+                ],
+              }),
+            ],
+            'downloadFile': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        final page = await service.fetchMessagePage(
+          direction: MessageFetchDirection.latestFirst,
+          sourceChatId: 777,
+          fromMessageId: null,
+          limit: 2,
+        );
+
+        expect(page.length, 1);
+        expect(page.first.messageIds, [11, 12]);
+        expect(page.first.preview.mediaItems.length, 2);
+      },
+    );
   });
 }
 
@@ -251,6 +381,7 @@ class _FakeTdlibAdapter extends TdlibAdapter {
 
   final Map<String, List<TdWireEnvelope>> wireResponses;
   final List<int> downloadedFileIds = <int>[];
+  final List<bool> deleteMessageRevokes = <bool>[];
   int deleteMessageCalls = 0;
   bool? lastForwardSendCopy;
   int? lastHistoryChatId;
@@ -293,6 +424,7 @@ class _FakeTdlibAdapter extends TdlibAdapter {
     Duration timeout = const Duration(seconds: 20),
   }) async {
     if (function is DeleteMessages) {
+      deleteMessageRevokes.add(function.revoke);
       deleteMessageCalls++;
       return;
     }
@@ -326,6 +458,90 @@ Map<String, dynamic> _audioMessageJson(
         'title': title,
         'audio': {
           'id': id + 100,
+          'local': {'path': ''},
+        },
+      },
+    },
+  };
+}
+
+Map<String, dynamic> _photoMessageJson(int id, {required String albumId}) {
+  return <String, dynamic>{
+    'id': id,
+    'media_album_id': albumId,
+    'content': {
+      '@type': 'messagePhoto',
+      'caption': {'text': '', 'entities': []},
+      'photo': {
+        'sizes': [
+          {
+            'type': 's',
+            'width': 90,
+            'height': 90,
+            'photo': {
+              'id': id + 100,
+              'local': {'path': ''},
+            },
+          },
+          {
+            'type': 'x',
+            'width': 1280,
+            'height': 720,
+            'photo': {
+              'id': id + 200,
+              'local': {'path': ''},
+            },
+          },
+        ],
+      },
+    },
+  };
+}
+
+Map<String, dynamic> _videoMessageJson(int id, {required String albumId}) {
+  return <String, dynamic>{
+    'id': id,
+    'media_album_id': albumId,
+    'content': {
+      '@type': 'messageVideo',
+      'caption': {'text': '', 'entities': []},
+      'video': {
+        'duration': 12,
+        'thumbnail': {
+          'file': {
+            'id': id + 100,
+            'local': {'path': ''},
+          },
+        },
+        'video': {
+          'id': id + 200,
+          'local': {'path': ''},
+        },
+      },
+    },
+  };
+}
+
+Map<String, dynamic> _documentVideoMessageJson(int id, {required String albumId}) {
+  return <String, dynamic>{
+    'id': id,
+    'media_album_id': albumId,
+    'content': {
+      '@type': 'messageDocument',
+      'caption': {'text': '', 'entities': []},
+      'document': {
+        'file_name': 'clip_$id.mp4',
+        'mime_type': 'video/mp4',
+        'thumbnail': {
+          'width': 320,
+          'height': 180,
+          'file': {
+            'id': id + 100,
+            'local': {'path': ''},
+          },
+        },
+        'document': {
+          'id': id + 200,
           'local': {'path': ''},
         },
       },

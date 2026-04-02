@@ -53,6 +53,7 @@ class PipelineController extends GetxController {
   final List<PipelineMessage> _messageCache = <PipelineMessage>[];
   int _currentIndex = -1;
   int? _tailMessageId;
+  int? _refreshTargetMessageId;
 
   @override
   void onInit() {
@@ -99,6 +100,7 @@ class PipelineController extends GetxController {
       return;
     }
     final requestedMessageId = targetMessageId ?? message.id;
+    _refreshTargetMessageId = requestedMessageId;
     videoPreparing.value = true;
     try {
       final prepared = await _service.prepareMediaPlayback(
@@ -421,6 +423,7 @@ class PipelineController extends GetxController {
     final message = currentMessage.value;
     if (message == null || !_needsMediaRefresh(message.preview)) {
       videoPreparing.value = false;
+      _refreshTargetMessageId = null;
       return;
     }
     _syncPreparingState(message.preview);
@@ -431,13 +434,15 @@ class PipelineController extends GetxController {
         _stopVideoRefresh();
         return;
       }
+      final refreshMessageId = _refreshTargetMessageId ?? current.id;
       final refreshed = await _service.refreshMessage(
         sourceChatId: current.sourceChatId,
-        messageId: current.id,
+        messageId: refreshMessageId,
       );
-      currentMessage.value = refreshed;
-      _syncPreparingState(refreshed.preview);
-      if (!_needsMediaRefresh(refreshed.preview)) {
+      final merged = _mergePreparedMessage(current, refreshed);
+      currentMessage.value = merged;
+      _syncPreparingState(merged.preview);
+      if (!_needsMediaRefresh(merged.preview)) {
         _stopVideoRefresh();
       }
     });
@@ -445,6 +450,19 @@ class PipelineController extends GetxController {
 
   bool _needsMediaRefresh(MessagePreview preview) {
     if (preview.kind == MessagePreviewKind.video) {
+      if (preview.mediaItems.isNotEmpty) {
+        return preview.mediaItems.any((item) {
+          if (item.kind != MediaItemKind.video) {
+            return item.previewPath == null;
+          }
+          final waitingForPlayback =
+              videoPreparing.value &&
+              (_refreshTargetMessageId == null ||
+                  _refreshTargetMessageId == item.messageId);
+          return item.previewPath == null ||
+              (waitingForPlayback && item.fullPath == null);
+        });
+      }
       return preview.localVideoThumbnailPath == null ||
           (videoPreparing.value && preview.localVideoPath == null);
     }
@@ -456,6 +474,20 @@ class PipelineController extends GetxController {
 
   void _syncPreparingState(MessagePreview preview) {
     if (preview.kind == MessagePreviewKind.video) {
+      if (preview.mediaItems.isNotEmpty) {
+        final targetId = _refreshTargetMessageId;
+        final waiting = preview.mediaItems.any((item) {
+          if (item.kind != MediaItemKind.video) {
+            return false;
+          }
+          if (targetId != null && item.messageId != targetId) {
+            return false;
+          }
+          return item.fullPath == null;
+        });
+        videoPreparing.value = waiting && videoPreparing.value;
+        return;
+      }
       videoPreparing.value =
           preview.localVideoPath == null && videoPreparing.value;
       return;
@@ -568,6 +600,33 @@ class PipelineController extends GetxController {
     PipelineMessage current,
     PipelineMessage prepared,
   ) {
+    if (current.preview.mediaItems.isNotEmpty) {
+      final preparedItem = prepared.preview.mediaItems.isEmpty
+          ? null
+          : prepared.preview.mediaItems.first;
+      if (preparedItem != null) {
+        final items = current.preview.mediaItems
+            .map((item) {
+              if (item.messageId != prepared.id) {
+                return item;
+              }
+              return item.copyWith(
+                previewPath: preparedItem.previewPath,
+                fullPath: preparedItem.fullPath,
+                durationSeconds: preparedItem.durationSeconds,
+                caption: preparedItem.caption,
+              );
+            })
+            .toList(growable: false);
+        final preview = current.preview.copyWith(
+          mediaItems: items,
+          localVideoPath: prepared.preview.localVideoPath,
+          localVideoThumbnailPath: prepared.preview.localVideoThumbnailPath,
+          localImagePath: prepared.preview.localImagePath,
+        );
+        return current.copyWith(preview: preview);
+      }
+    }
     if (current.preview.kind != MessagePreviewKind.audio ||
         current.preview.audioTracks.length <= 1) {
       return prepared;
@@ -594,6 +653,7 @@ class PipelineController extends GetxController {
   void _stopVideoRefresh() {
     _videoRefreshTimer?.cancel();
     _videoRefreshTimer = null;
+    _refreshTargetMessageId = null;
     videoPreparing.value = false;
   }
 

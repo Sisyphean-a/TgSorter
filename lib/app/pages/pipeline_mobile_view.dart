@@ -110,7 +110,7 @@ class PipelineMobileView extends StatelessWidget {
                             onPressed: canClick
                                 ? () => pipeline.skipCurrent('mobile_button')
                                 : null,
-                            child: const Text('跳过当前'),
+                            child: const Text('略过此条'),
                           ),
                         ),
                         const SizedBox(width: 8),

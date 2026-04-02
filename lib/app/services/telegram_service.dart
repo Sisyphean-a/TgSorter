@@ -342,6 +342,14 @@ class TelegramService implements TelegramGateway {
     if (content.kind == TdMessageContentKind.audio) {
       return;
     }
+    final linkPreview = content.linkPreview;
+    if (linkPreview != null) {
+      await _ensureFileDownloadStarted(
+        fileId: linkPreview.remoteImageFileId,
+        localPath: linkPreview.localImagePath,
+        priority: _downloadPriorityPhotoPreview,
+      );
+    }
   }
 
   Future<void> _ensureFileDownloadStarted({
@@ -483,7 +491,7 @@ class TelegramService implements TelegramGateway {
     var index = 0;
     while (index < messages.length) {
       final current = messages[index];
-      if (!_isAudioAlbumMessage(current)) {
+      if (!_isGroupedMediaMessage(current)) {
         result.add(_toPipelineMessage([current], sourceChatId));
         index++;
         continue;
@@ -493,8 +501,7 @@ class TelegramService implements TelegramGateway {
       var next = index + 1;
       while (next < messages.length) {
         final candidate = messages[next];
-        if (candidate.mediaAlbumId != albumId ||
-            candidate.content.kind != TdMessageContentKind.audio) {
+        if (candidate.mediaAlbumId != albumId || !_isGroupedMediaMessage(candidate)) {
           break;
         }
         group.add(candidate);
@@ -511,9 +518,12 @@ class TelegramService implements TelegramGateway {
     return result;
   }
 
-  bool _isAudioAlbumMessage(TdMessageDto message) {
+  bool _isGroupedMediaMessage(TdMessageDto message) {
+    final kind = message.content.kind;
     return message.mediaAlbumId != null &&
-        message.content.kind == TdMessageContentKind.audio;
+        (kind == TdMessageContentKind.audio ||
+            kind == TdMessageContentKind.photo ||
+            kind == TdMessageContentKind.video);
   }
 
   PipelineMessage _toPipelineMessage(
@@ -533,8 +543,14 @@ class TelegramService implements TelegramGateway {
   MessagePreview _buildPreview(List<TdMessageDto> messages) {
     final first = messages.first;
     final primary = mapMessagePreview(first.content);
-    if (messages.length == 1 || primary.kind != MessagePreviewKind.audio) {
+    if (messages.length == 1) {
       return primary;
+    }
+    final allAudio = messages.every(
+      (item) => item.content.kind == TdMessageContentKind.audio,
+    );
+    if (!allAudio) {
+      return _buildMediaGalleryPreview(messages, primary);
     }
     final tracks = messages
         .map((item) => mapAudioTrackPreview(item.content, messageId: item.id))
@@ -545,6 +561,40 @@ class TelegramService implements TelegramGateway {
       localAudioPath: null,
       audioDurationSeconds: null,
       audioTracks: tracks,
+    );
+  }
+
+  MessagePreview _buildMediaGalleryPreview(
+    List<TdMessageDto> messages,
+    MessagePreview primary,
+  ) {
+    final items = messages
+        .map((item) => mapMessagePreview(item.content))
+        .expand((preview) => preview.mediaItems)
+        .toList(growable: false);
+    final containsVideo = items.any((item) => item.kind == MediaItemKind.video);
+    final caption = _firstNonEmptyText(messages) ?? primary.text;
+    MediaItemPreview? firstVideo;
+    for (final item in items) {
+      if (item.kind == MediaItemKind.video) {
+        firstVideo = item;
+        break;
+      }
+    }
+    final firstItem = items.first;
+    return primary.copyWith(
+      kind: containsVideo ? MessagePreviewKind.video : MessagePreviewKind.photo,
+      title: containsVideo
+          ? '媒体组 (${items.length} 项)'
+          : '图片组 (${items.length} 张)',
+      text: caption,
+      mediaItems: items,
+      localImagePath: firstItem.kind == MediaItemKind.photo
+          ? firstItem.previewPath ?? firstItem.fullPath
+          : primary.localImagePath,
+      localVideoThumbnailPath: firstVideo?.previewPath ?? primary.localVideoThumbnailPath,
+      localVideoPath: firstVideo?.fullPath ?? primary.localVideoPath,
+      videoDurationSeconds: firstVideo?.durationSeconds ?? primary.videoDurationSeconds,
     );
   }
 
@@ -617,6 +667,7 @@ class TelegramService implements TelegramGateway {
       timeout: timeout,
     );
   }
+
 
   Future<void> _requireAuthorizationReady() {
     return _adapter.waitUntilReady().timeout(

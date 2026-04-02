@@ -1,6 +1,75 @@
 import 'package:tgsorter/app/services/td_message_dto.dart';
 
-enum MessagePreviewKind { text, photo, video, audio, unsupported }
+enum MessagePreviewKind { text, photo, video, audio, link, unsupported }
+enum MediaItemKind { photo, video }
+
+class MediaItemPreview {
+  const MediaItemPreview({
+    required this.messageId,
+    required this.kind,
+    this.previewPath,
+    this.fullPath,
+    this.previewFileId,
+    this.fullFileId,
+    this.durationSeconds,
+    this.caption,
+  });
+
+  final int messageId;
+  final MediaItemKind kind;
+  final String? previewPath;
+  final String? fullPath;
+  final int? previewFileId;
+  final int? fullFileId;
+  final int? durationSeconds;
+  final TdFormattedTextDto? caption;
+
+  bool get hasReadyPreview =>
+      (previewPath != null && previewPath!.isNotEmpty) ||
+      (fullPath != null && fullPath!.isNotEmpty);
+
+  MediaItemPreview copyWith({
+    int? messageId,
+    MediaItemKind? kind,
+    String? previewPath,
+    String? fullPath,
+    int? previewFileId,
+    int? fullFileId,
+    int? durationSeconds,
+    TdFormattedTextDto? caption,
+  }) {
+    return MediaItemPreview(
+      messageId: messageId ?? this.messageId,
+      kind: kind ?? this.kind,
+      previewPath: previewPath ?? this.previewPath,
+      fullPath: fullPath ?? this.fullPath,
+      previewFileId: previewFileId ?? this.previewFileId,
+      fullFileId: fullFileId ?? this.fullFileId,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      caption: caption ?? this.caption,
+    );
+  }
+}
+
+class LinkCardPreview {
+  const LinkCardPreview({
+    required this.url,
+    required this.displayUrl,
+    required this.siteName,
+    required this.title,
+    required this.description,
+    this.localImagePath,
+    this.remoteImageFileId,
+  });
+
+  final String url;
+  final String displayUrl;
+  final String siteName;
+  final String title;
+  final String description;
+  final String? localImagePath;
+  final int? remoteImageFileId;
+}
 
 class AudioTrackPreview {
   const AudioTrackPreview({
@@ -47,6 +116,8 @@ class MessagePreview {
     this.localAudioPath,
     this.audioDurationSeconds,
     this.audioTracks = const <AudioTrackPreview>[],
+    this.mediaItems = const <MediaItemPreview>[],
+    this.linkCard,
   });
 
   final MessagePreviewKind kind;
@@ -60,6 +131,8 @@ class MessagePreview {
   final String? localAudioPath;
   final int? audioDurationSeconds;
   final List<AudioTrackPreview> audioTracks;
+  final List<MediaItemPreview> mediaItems;
+  final LinkCardPreview? linkCard;
 
   MessagePreview copyWith({
     MessagePreviewKind? kind,
@@ -73,6 +146,8 @@ class MessagePreview {
     String? localAudioPath,
     int? audioDurationSeconds,
     List<AudioTrackPreview>? audioTracks,
+    List<MediaItemPreview>? mediaItems,
+    LinkCardPreview? linkCard,
   }) {
     return MessagePreview(
       kind: kind ?? this.kind,
@@ -87,6 +162,8 @@ class MessagePreview {
       localAudioPath: localAudioPath ?? this.localAudioPath,
       audioDurationSeconds: audioDurationSeconds ?? this.audioDurationSeconds,
       audioTracks: audioTracks ?? this.audioTracks,
+      mediaItems: mediaItems ?? this.mediaItems,
+      linkCard: linkCard ?? this.linkCard,
     );
   }
 }
@@ -101,6 +178,7 @@ MessagePreview mapMessagePreview(TdMessageContentDto content) {
       kind: MessagePreviewKind.text,
       title: text.text,
       text: text,
+      linkCard: mapLinkCardPreview(content),
     );
   }
 
@@ -111,6 +189,17 @@ MessagePreview mapMessagePreview(TdMessageContentDto content) {
       title: caption.isEmpty ? '[图片]' : caption,
       text: content.text,
       localImagePath: content.localImagePath,
+      mediaItems: [
+        MediaItemPreview(
+          messageId: content.messageId,
+          kind: MediaItemKind.photo,
+          previewPath: content.localImagePath,
+          fullPath: content.fullImagePath,
+          previewFileId: content.remoteImageFileId,
+          fullFileId: content.remoteFullImageFileId,
+          caption: content.text,
+        ),
+      ],
     );
   }
 
@@ -123,6 +212,18 @@ MessagePreview mapMessagePreview(TdMessageContentDto content) {
       localVideoPath: content.localVideoPath,
       localVideoThumbnailPath: content.localVideoThumbnailPath,
       videoDurationSeconds: content.videoDurationSeconds,
+      mediaItems: [
+        MediaItemPreview(
+          messageId: content.messageId,
+          kind: MediaItemKind.video,
+          previewPath: content.localVideoThumbnailPath,
+          fullPath: content.localVideoPath,
+          previewFileId: content.remoteVideoThumbnailFileId,
+          fullFileId: content.remoteVideoFileId,
+          durationSeconds: content.videoDurationSeconds,
+          caption: content.text,
+        ),
+      ],
     );
   }
 
@@ -142,6 +243,28 @@ MessagePreview mapMessagePreview(TdMessageContentDto content) {
   return const MessagePreview(
     kind: MessagePreviewKind.unsupported,
     title: '[暂不支持预览的消息类型，请直接分类]',
+  );
+}
+
+LinkCardPreview? mapLinkCardPreview(TdMessageContentDto content) {
+  final preview = content.linkPreview;
+  if (preview == null) {
+    return null;
+  }
+  final title = preview.title.trim();
+  final site = preview.siteName.trim();
+  final description = preview.description.trim();
+  if (title.isEmpty && site.isEmpty && description.isEmpty) {
+    return null;
+  }
+  return LinkCardPreview(
+    url: preview.url,
+    displayUrl: preview.displayUrl,
+    siteName: site,
+    title: title,
+    description: description,
+    localImagePath: preview.localImagePath,
+    remoteImageFileId: preview.remoteImageFileId,
   );
 }
 

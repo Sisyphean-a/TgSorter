@@ -5,6 +5,42 @@ enum TdTextEntityKind { url, textUrl, emailAddress, phoneNumber, other }
 
 enum TdMessageContentKind { text, photo, video, audio, unsupported }
 
+class TdPhotoSizeDto {
+  const TdPhotoSizeDto({
+    required this.type,
+    required this.width,
+    required this.height,
+    required this.localPath,
+    required this.remoteFileId,
+  });
+
+  final String type;
+  final int width;
+  final int height;
+  final String? localPath;
+  final int remoteFileId;
+}
+
+class TdLinkPreviewDto {
+  const TdLinkPreviewDto({
+    required this.url,
+    required this.displayUrl,
+    required this.siteName,
+    required this.title,
+    required this.description,
+    this.localImagePath,
+    this.remoteImageFileId,
+  });
+
+  final String url;
+  final String displayUrl;
+  final String siteName;
+  final String title;
+  final String description;
+  final String? localImagePath;
+  final int? remoteImageFileId;
+}
+
 class TdTextEntityDto {
   const TdTextEntityDto({
     required this.offset,
@@ -90,6 +126,10 @@ class TdMessageContentDto {
     this.fileName,
     this.audioTitle,
     this.audioPerformer,
+    this.photoSizes = const <TdPhotoSizeDto>[],
+    this.fullImagePath,
+    this.remoteFullImageFileId,
+    this.linkPreview,
   });
 
   final TdMessageContentKind kind;
@@ -108,6 +148,10 @@ class TdMessageContentDto {
   final String? fileName;
   final String? audioTitle;
   final String? audioPerformer;
+  final List<TdPhotoSizeDto> photoSizes;
+  final String? fullImagePath;
+  final int? remoteFullImageFileId;
+  final TdLinkPreviewDto? linkPreview;
 }
 
 class TdMessageDto {
@@ -146,11 +190,14 @@ class TdMessageDto {
           text: TdFormattedTextDto.fromJson(
             TdResponseReader.readMap(content, 'text'),
           ),
+          linkPreview: _parseLinkPreview(content),
         );
       case 'messagePhoto':
         return _parsePhotoContent(content, messageId: messageId);
       case 'messageVideo':
         return _parseVideoContent(content, messageId: messageId);
+      case 'messageDocument':
+        return _parseDocumentContent(content, messageId: messageId);
       case 'messageAudio':
         return _parseAudioContent(content, messageId: messageId);
       case 'messageVoiceNote':
@@ -174,18 +221,33 @@ class TdMessageDto {
         'Missing required list item at photo.sizes.last',
       );
     }
-    final last = TdResponseReader.readMap(<String, dynamic>{
-      'item': sizes.last,
-    }, 'item');
-    final photoFile = TdResponseReader.readMap(last, 'photo');
+    final parsedSizes = sizes
+        .map(
+          (item) => _parsePhotoSize(
+            TdResponseReader.readMap(<String, dynamic>{'item': item}, 'item'),
+          ),
+        )
+        .toList(growable: false)
+      ..sort((a, b) {
+        final areaCompare = (a.width * a.height).compareTo(b.width * b.height);
+        if (areaCompare != 0) {
+          return areaCompare;
+        }
+        return a.remoteFileId.compareTo(b.remoteFileId);
+      });
+    final preview = parsedSizes.first;
+    final full = parsedSizes.last;
     return TdMessageContentDto(
       kind: TdMessageContentKind.photo,
       messageId: messageId,
       text: TdFormattedTextDto.fromJson(
         TdResponseReader.readMap(content, 'caption'),
       ),
-      localImagePath: _readLocalPath(photoFile),
-      remoteImageFileId: TdResponseReader.readInt(photoFile, 'id'),
+      photoSizes: parsedSizes,
+      localImagePath: preview.localPath,
+      remoteImageFileId: preview.remoteFileId,
+      fullImagePath: full.localPath,
+      remoteFullImageFileId: full.remoteFileId,
     );
   }
 
@@ -284,6 +346,120 @@ class TdMessageDto {
       return null;
     }
     return value;
+  }
+
+  static TdPhotoSizeDto _parsePhotoSize(Map<String, dynamic> payload) {
+    final photoFile = TdResponseReader.readMap(payload, 'photo');
+    return TdPhotoSizeDto(
+      type: payload['type']?.toString() ?? '',
+      width: _readOptionalInt(payload['width']),
+      height: _readOptionalInt(payload['height']),
+      localPath: _readLocalPath(photoFile),
+      remoteFileId: TdResponseReader.readInt(photoFile, 'id'),
+    );
+  }
+
+  static TdMessageContentDto _parseDocumentContent(
+    Map<String, dynamic> content, {
+    required int messageId,
+  }) {
+    final document = TdResponseReader.readMap(content, 'document');
+    final mimeType = document['mime_type']?.toString() ?? '';
+    if (!mimeType.startsWith('video/')) {
+      return TdMessageContentDto(
+        kind: TdMessageContentKind.unsupported,
+        messageId: messageId,
+        text: TdFormattedTextDto.fromJson(
+          TdResponseReader.readMap(content, 'caption'),
+        ),
+      );
+    }
+    final documentFile = TdResponseReader.readMap(document, 'document');
+    final thumbnail = document['thumbnail'];
+    final thumbnailFile = thumbnail == null
+        ? null
+        : TdResponseReader.readMap(
+            TdResponseReader.readMap(<String, dynamic>{
+              'thumbnail': thumbnail,
+            }, 'thumbnail'),
+            'file',
+          );
+    return TdMessageContentDto(
+      kind: TdMessageContentKind.video,
+      messageId: messageId,
+      text: TdFormattedTextDto.fromJson(
+        TdResponseReader.readMap(content, 'caption'),
+      ),
+      localVideoPath: _readLocalPath(documentFile),
+      localVideoThumbnailPath: thumbnailFile == null
+          ? null
+          : _readLocalPath(thumbnailFile),
+      remoteVideoFileId: TdResponseReader.readInt(documentFile, 'id'),
+      remoteVideoThumbnailFileId: thumbnailFile == null
+          ? null
+          : TdResponseReader.readInt(thumbnailFile, 'id'),
+      fileName: document['file_name']?.toString(),
+    );
+  }
+
+  static TdLinkPreviewDto? _parseLinkPreview(Map<String, dynamic> content) {
+    final raw = content['web_page'];
+    if (raw == null) {
+      return null;
+    }
+    final webPage = TdResponseReader.readMap(
+      <String, dynamic>{'web_page': raw},
+      'web_page',
+    );
+    final photo = webPage['photo'];
+    final image = photo == null ? null : _parsePreviewPhoto(photo);
+    return TdLinkPreviewDto(
+      url: webPage['url']?.toString() ?? '',
+      displayUrl: webPage['display_url']?.toString() ?? '',
+      siteName: webPage['site_name']?.toString() ?? '',
+      title: webPage['title']?.toString() ?? '',
+      description: _readFormattedTextText(webPage['description']),
+      localImagePath: image?.localPath,
+      remoteImageFileId: image?.remoteFileId,
+    );
+  }
+
+  static TdPhotoSizeDto? _parsePreviewPhoto(dynamic photoRaw) {
+    final photo = TdResponseReader.readMap(
+      <String, dynamic>{'photo': photoRaw},
+      'photo',
+    );
+    final sizes = TdResponseReader.readList(photo, 'sizes');
+    if (sizes.isEmpty) {
+      return null;
+    }
+    final parsedSizes = sizes
+        .map(
+          (item) => _parsePhotoSize(
+            TdResponseReader.readMap(<String, dynamic>{'item': item}, 'item'),
+          ),
+        )
+        .toList(growable: false)
+      ..sort((a, b) => (a.width * a.height).compareTo(b.width * b.height));
+    return parsedSizes.first;
+  }
+
+  static String _readFormattedTextText(dynamic raw) {
+    if (raw is! Map<String, dynamic>) {
+      return '';
+    }
+    final text = raw['text'];
+    return text is String ? text : '';
+  }
+
+  static int _readOptionalInt(dynamic raw) {
+    if (raw is int) {
+      return raw;
+    }
+    if (raw is String) {
+      return int.tryParse(raw) ?? 0;
+    }
+    return 0;
   }
 }
 

@@ -70,11 +70,19 @@ class MessageViewerCard extends StatelessWidget {
     }
 
     final preview = data.preview;
+    final linkCard = preview.linkCard;
+    final mediaItems = preview.mediaItems;
     if (preview.kind == MessagePreviewKind.photo) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildPhoto(preview.localImagePath),
+          _MediaGalleryPreview(
+            items: mediaItems,
+            preparing: videoPreparing,
+            onRequestPlayback: onRequestMediaPlayback,
+            controllerInitializer: videoControllerInitializer,
+            fallbackImagePath: preview.localImagePath,
+          ),
           const SizedBox(height: 12),
           _PreviewText(
             text: preview.text,
@@ -89,12 +97,14 @@ class MessageViewerCard extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _VideoPreview(
-            videoPath: preview.localVideoPath,
-            thumbnailPath: preview.localVideoThumbnailPath,
+          _MediaGalleryPreview(
+            items: mediaItems,
             preparing: videoPreparing,
             onRequestPlayback: onRequestMediaPlayback,
             controllerInitializer: videoControllerInitializer,
+            preferVideoFallback: true,
+            fallbackVideoPath: preview.localVideoPath,
+            fallbackThumbnailPath: preview.localVideoThumbnailPath,
           ),
           const SizedBox(height: 12),
           _buildVideoMeta(context, preview.videoDurationSeconds),
@@ -142,11 +152,129 @@ class MessageViewerCard extends StatelessWidget {
       );
     }
 
+    if (linkCard != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _LinkCard(link: linkCard),
+          const SizedBox(height: 12),
+          _PreviewText(
+            text: preview.text,
+            fallbackText: preview.title,
+            fontSize: 18,
+          ),
+        ],
+      );
+    }
+
     return _PreviewText(
       text: preview.text,
       fallbackText: preview.title,
       fontSize: 18,
     );
+  }
+
+  Widget _buildVideoMeta(BuildContext context, int? durationSeconds) {
+    if (durationSeconds == null) {
+      return const SizedBox.shrink();
+    }
+    return Text(
+      '时长 ${_formatDuration(durationSeconds)}',
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+    );
+  }
+
+  String _formatDuration(int totalSeconds) {
+    final safe = totalSeconds < 0 ? 0 : totalSeconds;
+    final minutes = safe ~/ 60;
+    final seconds = safe % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+}
+
+class _MediaGalleryPreview extends StatelessWidget {
+  const _MediaGalleryPreview({
+    required this.items,
+    required this.preparing,
+    required this.onRequestPlayback,
+    required this.controllerInitializer,
+    this.preferVideoFallback = false,
+    this.fallbackImagePath,
+    this.fallbackVideoPath,
+    this.fallbackThumbnailPath,
+  });
+
+  final List<MediaItemPreview> items;
+  final bool preparing;
+  final Future<void> Function([int? messageId]) onRequestPlayback;
+  final VideoControllerInitializer? controllerInitializer;
+  final bool preferVideoFallback;
+  final String? fallbackImagePath;
+  final String? fallbackVideoPath;
+  final String? fallbackThumbnailPath;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      if (preferVideoFallback ||
+          fallbackVideoPath != null ||
+          fallbackThumbnailPath != null) {
+        return _VideoPreview(
+          videoPath: fallbackVideoPath,
+          thumbnailPath: fallbackThumbnailPath,
+          preparing: preparing,
+          onRequestPlayback: onRequestPlayback,
+          controllerInitializer: controllerInitializer,
+        );
+      }
+      return _buildPhoto(fallbackImagePath);
+    }
+    if (items.length == 1) {
+      return _buildItem(items.single);
+    }
+    return SizedBox(
+      height: 280,
+      child: PageView.builder(
+        itemCount: items.length,
+        controller: PageController(viewportFraction: 0.92),
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: EdgeInsets.only(right: index == items.length - 1 ? 0 : 8),
+            child: _buildItem(items[index]),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildItem(MediaItemPreview item) {
+    if (item.kind == MediaItemKind.video) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _VideoPreview(
+            videoPath: item.fullPath,
+            thumbnailPath: item.previewPath,
+            preparing: preparing,
+            onRequestPlayback: ([messageId]) =>
+                onRequestPlayback(item.messageId),
+            controllerInitializer: controllerInitializer,
+          ),
+          if (item.durationSeconds != null) ...[
+            const SizedBox(height: 8),
+            Builder(
+              builder: (context) => Text(
+                '时长 ${_formatDuration(item.durationSeconds!)}',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+    return _buildPhoto(item.previewPath ?? item.fullPath);
   }
 
   Widget _buildPhoto(String? imagePath) {
@@ -177,21 +305,99 @@ class MessageViewerCard extends StatelessWidget {
     );
   }
 
-  Widget _buildVideoMeta(BuildContext context, int? durationSeconds) {
-    if (durationSeconds == null) {
-      return const SizedBox.shrink();
-    }
-    return Text(
-      '时长 ${_formatDuration(durationSeconds)}',
-      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-    );
-  }
-
   String _formatDuration(int totalSeconds) {
     final safe = totalSeconds < 0 ? 0 : totalSeconds;
     final minutes = safe ~/ 60;
     final seconds = safe % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+}
+
+class _LinkCard extends StatelessWidget {
+  const _LinkCard({required this.link});
+
+  final LinkCardPreview link;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: () async {
+          final uri = Uri.tryParse(link.url);
+          if (uri == null) {
+            return;
+          }
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (link.localImagePath != null && link.localImagePath!.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    io.File(link.localImagePath!),
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox(width: 72),
+                  ),
+                ),
+              if (link.localImagePath != null && link.localImagePath!.isNotEmpty)
+                const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (link.siteName.isNotEmpty)
+                      Text(
+                        link.siteName,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    if (link.title.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          link.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    if (link.description.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          link.description,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    const SizedBox(height: 6),
+                    Text(
+                      link.displayUrl.isEmpty ? link.url : link.displayUrl,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
