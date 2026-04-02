@@ -40,6 +40,35 @@ void main() {
     expect(playRequests, 1);
   });
 
+  testWidgets('renders workspace header above current message content', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: PipelineMessage(
+              id: 99,
+              messageIds: const [99],
+              sourceChatId: 100,
+              preview: const MessagePreview(
+                kind: MessagePreviewKind.text,
+                title: '当前需要处理的文本消息',
+              ),
+            ),
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('当前消息'), findsOneWidget);
+    expect(find.text('待分类内容预览'), findsOneWidget);
+  });
+
   testWidgets('uses high contrast text color on dark theme', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

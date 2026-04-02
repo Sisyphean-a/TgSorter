@@ -57,16 +57,34 @@ class MessageViewerCard extends StatelessWidget {
 
   Widget _buildContent(BuildContext context) {
     final data = message;
+    final content = data == null
+        ? _buildEmptyState()
+        : _buildPreviewContent(context, data);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _MessageViewerHeader(),
+        const SizedBox(height: 16),
+        content,
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(height: 100),
+        Icon(Icons.check_circle, color: Colors.green, size: 96),
+        SizedBox(height: 16),
+        Text('收藏夹已清空，干得漂亮！', style: TextStyle(fontSize: 18)),
+      ],
+    );
+  }
+
+  Widget _buildPreviewContent(BuildContext context, PipelineMessage data) {
     if (data == null) {
-      return const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(height: 100),
-          Icon(Icons.check_circle, color: Colors.green, size: 96),
-          SizedBox(height: 16),
-          Text('收藏夹已清空，干得漂亮！', style: TextStyle(fontSize: 18)),
-        ],
-      );
+      return _buildEmptyState();
     }
 
     final preview = data.preview;
@@ -327,6 +345,33 @@ class _MediaGalleryPreview extends StatelessWidget {
   }
 }
 
+class _MessageViewerHeader extends StatelessWidget {
+  const _MessageViewerHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '当前消息',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '待分类内容预览',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _LinkCard extends StatelessWidget {
   const _LinkCard({required this.link});
 
@@ -349,7 +394,8 @@ class _LinkCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (link.localImagePath != null && link.localImagePath!.isNotEmpty)
+              if (link.localImagePath != null &&
+                  link.localImagePath!.isNotEmpty)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.file(
@@ -360,7 +406,8 @@ class _LinkCard extends StatelessWidget {
                     errorBuilder: (_, _, _) => const SizedBox(width: 72),
                   ),
                 ),
-              if (link.localImagePath != null && link.localImagePath!.isNotEmpty)
+              if (link.localImagePath != null &&
+                  link.localImagePath!.isNotEmpty)
                 const SizedBox(width: 12),
               Expanded(
                 child: Column(

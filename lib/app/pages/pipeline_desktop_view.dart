@@ -7,7 +7,9 @@ import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/pages/pipeline_desktop_panels.dart';
+import 'package:tgsorter/app/widgets/classification_action_group.dart';
 import 'package:tgsorter/app/widgets/message_viewer_card.dart';
+import 'package:tgsorter/app/widgets/workspace_panel.dart';
 
 class PipelineDesktopView extends StatelessWidget {
   const PipelineDesktopView({
@@ -34,7 +36,7 @@ class PipelineDesktopView extends StatelessWidget {
     final processing = pipeline.processing.value;
     final canClick = pipeline.isOnline.value && !processing;
     return Padding(
-      key: const Key('pipeline-desktop-layout'),
+      key: const Key('pipeline-desktop-workspace'),
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
@@ -48,58 +50,56 @@ class PipelineDesktopView extends StatelessWidget {
 
   Widget _buildLeftPane(bool processing, bool canClick) {
     final categories = settings.settings.value.categories;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DesktopStatusBar(
-          online: pipeline.isOnline.value,
-          processing: processing,
-          directionText: settings.settings.value.fetchDirection.name,
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: MessageViewerCard(
-            key: ValueKey(
-              '${pipeline.currentMessage.value?.sourceChatId}-${pipeline.currentMessage.value?.id}',
+    return WorkspacePanel(
+      key: const Key('desktop-message-panel'),
+      title: '消息工作区',
+      subtitle: '阅读消息并直接完成分类',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: MessageViewerCard(
+              key: ValueKey(
+                '${pipeline.currentMessage.value?.sourceChatId}-${pipeline.currentMessage.value?.id}',
+              ),
+              message: pipeline.currentMessage.value,
+              processing: pipeline.loading.value || processing,
+              videoPreparing: pipeline.videoPreparing.value,
+              onRequestMediaPlayback: pipeline.prepareCurrentMedia,
             ),
-            message: pipeline.currentMessage.value,
-            processing: pipeline.loading.value || processing,
-            videoPreparing: pipeline.videoPreparing.value,
-            onRequestMediaPlayback: pipeline.prepareCurrentMedia,
           ),
-        ),
-        const SizedBox(height: 12),
-        if (categories.isEmpty)
-          const Text('暂无分类，请先到设置页新增')
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final category in categories)
-                SizedBox(
-                  width: 180,
-                  child: ElevatedButton(
-                    onPressed: canClick
-                        ? () => pipeline.classify(category.key)
-                        : null,
-                    child: Text(category.targetChatTitle),
-                  ),
-                ),
-            ],
+          const SizedBox(height: 12),
+          ClassificationActionGroup(
+            categories: categories,
+            enabled: canClick,
+            onClassify: pipeline.classify,
           ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildRightPane(bool canClick) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DesktopShortcutCard(bindings: settings.settings.value.shortcutBindings),
-        const SizedBox(height: 10),
-        DesktopActionButtons(pipeline: pipeline, canClick: canClick),
-      ],
+    return WorkspacePanel(
+      key: const Key('desktop-action-panel'),
+      title: '操作面板',
+      subtitle: '查看状态、快捷键与辅助操作',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DesktopStatusBar(
+            online: pipeline.isOnline.value,
+            processing: pipeline.processing.value,
+            directionText: settings.settings.value.fetchDirection.name,
+          ),
+          const SizedBox(height: 12),
+          DesktopActionButtons(pipeline: pipeline, canClick: canClick),
+          const SizedBox(height: 12),
+          DesktopShortcutCard(
+            bindings: settings.settings.value.shortcutBindings,
+          ),
+        ],
+      ),
     );
   }
 

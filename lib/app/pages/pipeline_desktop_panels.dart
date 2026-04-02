@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/controllers/pipeline_controller.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
+import 'package:tgsorter/app/widgets/status_badge.dart';
 
 class DesktopStatusBar extends StatelessWidget {
   const DesktopStatusBar({
@@ -18,19 +19,21 @@ class DesktopStatusBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final onlineText = online ? '在线' : '离线';
     final processingText = processing ? '处理中' : '空闲';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Text('网络：$onlineText'),
-            const SizedBox(width: 12),
-            Text('状态：$processingText'),
-            const SizedBox(width: 12),
-            Text('拉取：$directionText'),
-          ],
+    final directionLabel = directionText == 'latestFirst' ? '最新优先' : '最旧优先';
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        StatusBadge(
+          label: onlineText,
+          tone: online ? StatusBadgeTone.success : StatusBadgeTone.danger,
         ),
-      ),
+        StatusBadge(
+          label: processingText,
+          tone: processing ? StatusBadgeTone.warning : StatusBadgeTone.neutral,
+        ),
+        StatusBadge(label: '拉取 $directionLabel', tone: StatusBadgeTone.accent),
+      ],
     );
   }
 }
