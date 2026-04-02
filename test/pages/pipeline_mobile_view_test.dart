@@ -19,6 +19,7 @@ import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
+import 'package:tgsorter/app/widgets/mobile_action_tray.dart';
 
 void main() {
   testWidgets('mobile skip button avoids 跳过 wording', (tester) async {
@@ -85,6 +86,9 @@ void main() {
     expect(find.text('重试下一条'), findsNothing);
     expect(find.text('剩余：12'), findsNothing);
     expect(find.textContaining('成功 m:1'), findsNothing);
+    expect(find.byKey(const Key('mobile-message-pane')), findsOneWidget);
+    expect(find.byType(MobileActionTray), findsOneWidget);
+    expect(find.byKey(const Key('mobile-secondary-actions')), findsOneWidget);
   });
 }
 
