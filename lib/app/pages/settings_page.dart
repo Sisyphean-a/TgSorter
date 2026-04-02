@@ -8,7 +8,6 @@ import 'package:tgsorter/app/pages/settings_sections.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/widgets/app_shell.dart';
-import 'package:tgsorter/app/widgets/brand_app_bar.dart';
 import 'package:tgsorter/app/widgets/status_badge.dart';
 import 'package:tgsorter/app/widgets/sticky_action_bar.dart';
 
@@ -51,22 +50,7 @@ class _SettingsPageState extends State<SettingsPage> {
         canPop: !controller.isDirty.value,
         onPopInvokedWithResult: _handlePopAttempt,
         child: AppShell(
-          appBar: BrandAppBar(
-            title: '分类设置',
-            subtitle: '统一管理分类规则、连接配置和工具项',
-            badges: [
-              StatusBadge(
-                label: controller.isDirty.value ? '草稿未保存' : '已保存',
-                tone: controller.isDirty.value
-                    ? StatusBadgeTone.warning
-                    : StatusBadgeTone.success,
-              ),
-              StatusBadge(
-                label: '分类 ${draft.categories.length}',
-                tone: StatusBadgeTone.accent,
-              ),
-            ],
-          ),
+          appBar: _SettingsCompactAppBar(dirty: controller.isDirty.value),
           bottomBar: StickyActionBar(
             isDirty: controller.isDirty.value,
             onDiscard: _handleDiscard,
@@ -242,5 +226,47 @@ class _SettingsPageState extends State<SettingsPage> {
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _SettingsCompactAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _SettingsCompactAppBar({required this.dirty});
+
+  final bool dirty;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(72);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: AppTokens.pageBackground,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '分类设置',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              StatusBadge(
+                label: dirty ? '草稿未保存' : '已保存',
+                tone: dirty ? StatusBadgeTone.warning : StatusBadgeTone.success,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

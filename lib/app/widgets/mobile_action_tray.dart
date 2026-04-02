@@ -25,11 +25,9 @@ class MobileActionTray extends StatelessWidget {
       duration: AppTokens.quick,
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        color: online ? AppTokens.panelBackground : AppTokens.surfaceBase,
+        color: AppTokens.panelBackground,
         borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
-        border: Border.all(
-          color: online ? AppTokens.borderSubtle : AppTokens.danger,
-        ),
+        border: Border.all(color: AppTokens.borderSubtle),
         boxShadow: const [
           BoxShadow(
             color: Color(0x22000000),
@@ -38,66 +36,80 @@ class MobileActionTray extends StatelessWidget {
           ),
         ],
       ),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTokens.spaceMd),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!online) ...[
               Text(
-                '分类操作',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+                '当前网络不可用，分类按钮已禁用',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppTokens.danger,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
+            ],
+            if (categories.isEmpty)
               Text(
-                online ? '操作区固定在底部，便于连续分类' : '当前网络不可用，分类按钮已禁用',
+                '暂无分类，请先到设置页新增',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: online ? AppTokens.textMuted : AppTokens.danger,
+                  color: AppTokens.textMuted,
                 ),
-              ),
-              const SizedBox(height: AppTokens.spaceMd),
-              if (categories.isEmpty)
-                Text(
-                  '暂无分类，请先到设置页新增',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppTokens.textMuted,
-                  ),
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var index = 0; index < categories.length; index++) ...[
-                      FilledButton(
-                        onPressed: canClick
-                            ? () => onClassify(categories[index].key)
-                            : null,
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(52),
-                          backgroundColor: AppTokens.brandAccent,
-                          foregroundColor: const Color(0xFF03211C),
-                          textStyle: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppTokens.radiusSmall,
+              )
+            else
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  const spacing = 8.0;
+                  final columns = constraints.maxWidth >= 360 ? 3 : 2;
+                  final itemWidth =
+                      (constraints.maxWidth - spacing * (columns - 1)) /
+                      columns;
+                  return Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: [
+                      for (final category in categories)
+                        SizedBox(
+                          width: itemWidth,
+                          child: FilledButton(
+                            onPressed: canClick
+                                ? () => onClassify(category.key)
+                                : null,
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(36),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              backgroundColor: AppTokens.brandAccent,
+                              foregroundColor: const Color(0xFF03211C),
+                              disabledBackgroundColor: AppTokens.surfaceRaised,
+                              disabledForegroundColor: AppTokens.textMuted,
+                              textStyle: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppTokens.radiusSmall,
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              category.targetChatTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
-                        child: Text(categories[index].targetChatTitle),
-                      ),
-                      if (index < categories.length - 1)
-                        const SizedBox(height: AppTokens.spaceSm),
                     ],
-                  ],
-                ),
-              const SizedBox(height: AppTokens.spaceMd),
-              secondaryActions,
-            ],
-          ),
+                  );
+                },
+              ),
+            const SizedBox(height: 6),
+            secondaryActions,
+          ],
         ),
       ),
     );

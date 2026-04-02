@@ -21,46 +21,41 @@ class PipelineMobileView extends StatelessWidget {
       final categories = settings.settings.value.categories;
       final processing = pipeline.processing.value;
       final canClick = pipeline.isOnline.value && !processing;
-      return Focus(
-        canRequestFocus: false,
-        descendantsAreFocusable: false,
-        child: Padding(
-          key: const Key('pipeline-mobile-layout'),
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              Expanded(
-                key: const Key('mobile-message-pane'),
-                flex: 6,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: MessageViewerCard(
-                    key: ValueKey(
-                      '${pipeline.currentMessage.value?.sourceChatId}-${pipeline.currentMessage.value?.id}-${pipeline.processing.value}',
+      final currentMessage = pipeline.currentMessage.value;
+      final videoPreparing = pipeline.videoPreparing.value;
+      final canShowPrevious = pipeline.canShowPrevious.value;
+      final canShowNext = pipeline.canShowNext.value;
+      final online = pipeline.isOnline.value;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return Focus(
+            canRequestFocus: false,
+            descendantsAreFocusable: false,
+            child: Padding(
+              key: const Key('pipeline-mobile-layout'),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: Column(
+                children: [
+                  Expanded(
+                    key: const Key('mobile-message-pane'),
+                    child: MessageViewerCard(
+                      key: ValueKey(
+                        '${currentMessage?.sourceChatId}-${currentMessage?.id}-$processing',
+                      ),
+                      message: currentMessage,
+                      processing: pipeline.loading.value || processing,
+                      videoPreparing: videoPreparing,
+                      onRequestMediaPlayback: pipeline.prepareCurrentMedia,
                     ),
-                    message: pipeline.currentMessage.value,
-                    processing: pipeline.loading.value || processing,
-                    videoPreparing: pipeline.videoPreparing.value,
-                    onRequestMediaPlayback: pipeline.prepareCurrentMedia,
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                flex: 4,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: MobileActionTray(
+                  const SizedBox(height: 8),
+                  MobileActionTray(
                     key: ValueKey(
-                      '${categories.length}-${pipeline.isOnline.value}-$processing',
+                      '${categories.length}-$online-$processing-$canShowNext-$canShowPrevious',
                     ),
                     categories: categories,
                     canClick: canClick,
-                    online: pipeline.isOnline.value,
+                    online: online,
                     onClassify: pipeline.classify,
                     secondaryActions: Column(
                       key: const Key('mobile-secondary-actions'),
@@ -69,27 +64,38 @@ class PipelineMobileView extends StatelessWidget {
                           children: [
                             Expanded(
                               child: OutlinedButton(
-                                onPressed:
-                                    !processing &&
-                                        pipeline.canShowPrevious.value
+                                onPressed: !processing && canShowPrevious
                                     ? pipeline.showPreviousMessage
                                     : null,
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(38),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
                                 child: const Text('上一条'),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: OutlinedButton(
-                                onPressed:
-                                    !processing && pipeline.canShowNext.value
+                                onPressed: !processing && canShowNext
                                     ? pipeline.showNextMessage
                                     : null,
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(38),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
                                 child: const Text('下一条'),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             Expanded(
@@ -98,6 +104,13 @@ class PipelineMobileView extends StatelessWidget {
                                     ? () =>
                                           pipeline.skipCurrent('mobile_button')
                                     : null,
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(38),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
                                 child: const Text('略过此条'),
                               ),
                             ),
@@ -107,6 +120,13 @@ class PipelineMobileView extends StatelessWidget {
                                 onPressed: canClick
                                     ? pipeline.undoLastStep
                                     : null,
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(38),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
                                 child: const Text('撤销上一步'),
                               ),
                             ),
@@ -115,11 +135,11 @@ class PipelineMobileView extends StatelessWidget {
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     });
   }

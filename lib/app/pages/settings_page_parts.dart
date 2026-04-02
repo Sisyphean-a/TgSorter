@@ -28,7 +28,6 @@ class SettingsCategorySection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SettingsSectionCard(
       title: '分类管理',
-      subtitle: '新增、改动和删除都只会进入草稿，统一随页面保存。',
       highlighted: !_sameCategories(categories, savedCategories),
       trailing: FilledButton.tonalIcon(
         onPressed: chats.isEmpty ? null : onAdd,
@@ -38,12 +37,10 @@ class SettingsCategorySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('当前共 ${categories.length} 个分类'),
-          const SizedBox(height: 12),
           if (categories.isEmpty) const Text('当前没有分类'),
           for (final item in categories)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 8),
               child: _CategoryRow(
                 category: item,
                 statusLabel: _statusLabel(item, savedCategories),
@@ -209,58 +206,60 @@ class _CategoryRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    category.targetChatTitle,
-                    style: const TextStyle(fontSize: 15),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                key: ValueKey('${category.key}_${category.targetChatId}'),
+                initialValue: category.targetChatId,
+                isExpanded: true,
+                isDense: true,
+                decoration: const InputDecoration(
+                  hintText: '目标会话',
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
                   ),
                 ),
-                if (statusLabel != null)
-                  Chip(
-                    label: Text(statusLabel!),
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<int>(
-              key: ValueKey('${category.key}_${category.targetChatId}'),
-              initialValue: category.targetChatId,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: '目标会话'),
-              items: options
-                  .map(
-                    (item) => DropdownMenuItem<int>(
-                      value: item.id,
-                      child: Text(item.title),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (next) {
-                if (next == null) {
-                  return;
-                }
-                final selected = options.firstWhere((item) => item.id == next);
-                onChanged(category.key, selected);
-              },
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.tonalIcon(
-                style: FilledButton.styleFrom(
-                  foregroundColor: AppTokens.danger,
-                ),
-                onPressed: () => onRemove(category.key),
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('删除'),
+                items: options
+                    .map(
+                      (item) => DropdownMenuItem<int>(
+                        value: item.id,
+                        child: Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (next) {
+                  if (next == null) {
+                    return;
+                  }
+                  final selected = options.firstWhere(
+                    (item) => item.id == next,
+                  );
+                  onChanged(category.key, selected);
+                },
               ),
+            ),
+            if (statusLabel != null) ...[
+              const SizedBox(width: 6),
+              Chip(
+                label: Text(statusLabel!),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+            const SizedBox(width: 6),
+            IconButton(
+              key: ValueKey('delete-category-${category.key}'),
+              onPressed: () => onRemove(category.key),
+              icon: const Icon(Icons.delete_outline_rounded),
+              tooltip: '删除分类',
+              visualDensity: VisualDensity.compact,
+              color: AppTokens.danger,
             ),
           ],
         ),

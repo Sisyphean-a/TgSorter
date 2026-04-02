@@ -17,7 +17,6 @@ import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
-import 'package:tgsorter/app/widgets/brand_app_bar.dart';
 import 'package:tgsorter/app/widgets/pipeline_layout_switch.dart';
 import 'package:tgsorter/app/widgets/status_badge.dart';
 
@@ -123,8 +122,8 @@ void main() {
         GetMaterialApp(theme: AppTheme.dark(), home: PipelinePage()),
       );
 
-      expect(find.byType(BrandAppBar), findsOneWidget);
-      expect(find.byType(StatusBadge), findsAtLeastNWidgets(2));
+      expect(find.text('TgSorter'), findsOneWidget);
+      expect(find.byType(StatusBadge), findsAtLeastNWidgets(1));
       expect(
         find.byKey(const Key('pipeline-desktop-workspace')),
         findsOneWidget,
@@ -132,9 +131,61 @@ void main() {
       expect(find.byKey(const Key('desktop-message-panel')), findsOneWidget);
       expect(find.byKey(const Key('desktop-action-panel')), findsOneWidget);
       expect(find.byType(AnimatedSwitcher), findsWidgets);
-      expect(find.byType(AppBar), findsNothing);
       await tester.binding.setSurfaceSize(null);
     });
+  });
+
+  testWidgets('pipeline page keeps compact mobile header with remaining only', (
+    tester,
+  ) async {
+    Get.testMode = true;
+    Get.reset();
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final gateway = _PipelineLayoutFakeGateway();
+    final settingsController = SettingsController(
+      SettingsRepository(prefs),
+      gateway,
+    );
+    settingsController.onInit();
+    settingsController.settings.value = const AppSettings(
+      categories: [],
+      sourceChatId: 888,
+      fetchDirection: MessageFetchDirection.latestFirst,
+      forwardAsCopy: false,
+      batchSize: 2,
+      throttleMs: 0,
+      proxy: ProxySettings.empty,
+    );
+    final errorController = AppErrorController();
+    final pipelineController = PipelineController(
+      service: gateway,
+      settingsController: settingsController,
+      journalRepository: OperationJournalRepository(prefs),
+      errorController: errorController,
+    );
+    pipelineController.isOnline.value = false;
+    pipelineController.processing.value = false;
+    pipelineController.remainingCount.value = 32;
+    Get.put(settingsController);
+    Get.put(pipelineController);
+    Get.put(errorController);
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() {
+      tester.binding.setSurfaceSize(null);
+      Get.reset();
+    });
+
+    await tester.pumpWidget(
+      GetMaterialApp(theme: AppTheme.dark(), home: PipelinePage()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('TgSorter'), findsOneWidget);
+    expect(find.text('剩余 32'), findsOneWidget);
+    expect(find.text('离线'), findsNothing);
+    expect(find.text('待命'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 }
 

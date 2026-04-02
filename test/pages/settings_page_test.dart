@@ -12,7 +12,6 @@ import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
-import 'package:tgsorter/app/widgets/brand_app_bar.dart';
 import 'package:tgsorter/app/widgets/sticky_action_bar.dart';
 
 void main() {
@@ -61,7 +60,7 @@ void main() {
     expect(find.text('最近操作'), findsOneWidget);
     expect(find.text('保存更改'), findsOneWidget);
     expect(find.text('放弃更改'), findsOneWidget);
-    expect(find.byType(BrandAppBar), findsOneWidget);
+    expect(find.text('分类设置'), findsOneWidget);
     expect(find.byType(StickyActionBar), findsOneWidget);
     expect(find.text('保存代理'), findsNothing);
     expect(find.text('批处理设置已保存'), findsNothing);
@@ -159,6 +158,54 @@ void main() {
     );
 
     await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('settings page uses compact header on mobile', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    expect(find.text('分类设置'), findsOneWidget);
+    expect(find.text('统一管理分类规则、连接配置和工具项'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('category rows use single-line compact actions', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pumpSettingsPage(
+      tester,
+      chats: const [
+        SelectableChat(id: -1001, title: '星空'),
+        SelectableChat(id: -1002, title: 'mi_ASMR'),
+      ],
+      initialSettings: const AppSettings(
+        categories: [
+          CategoryConfig(
+            key: 'cat_1',
+            targetChatId: -1001,
+            targetChatTitle: '星空',
+          ),
+        ],
+        sourceChatId: null,
+        fetchDirection: MessageFetchDirection.latestFirst,
+        forwardAsCopy: false,
+        batchSize: 5,
+        throttleMs: 1200,
+        proxy: ProxySettings.empty,
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('删除'), findsNothing);
+    expect(find.text('目标会话'), findsNothing);
+    expect(find.text('星空'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
