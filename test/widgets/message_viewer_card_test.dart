@@ -69,6 +69,30 @@ void main() {
     expect(find.text('待分类内容预览'), findsOneWidget);
   });
 
+  testWidgets('renders empty state inside dedicated preview shell', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: null,
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const Key('message-preview-empty-state')),
+      findsOneWidget,
+    );
+    expect(find.text('收藏夹已清空，干得漂亮！'), findsOneWidget);
+  });
+
   testWidgets('uses high contrast text color on dark theme', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -201,6 +225,85 @@ void main() {
       expect(playRequests, 1);
     },
   );
+
+  testWidgets('link preview renders dedicated link card shell', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: PipelineMessage(
+              id: 55,
+              messageIds: const [55],
+              sourceChatId: 100,
+              preview: const MessagePreview(
+                kind: MessagePreviewKind.text,
+                title: 'OpenAI',
+                linkCard: LinkCardPreview(
+                  url: 'https://openai.com',
+                  displayUrl: 'openai.com',
+                  siteName: 'OpenAI',
+                  title: 'OpenAI',
+                  description: 'AI research and products',
+                ),
+              ),
+            ),
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('message-preview-link-card')), findsOneWidget);
+    expect(find.text('AI research and products'), findsOneWidget);
+  });
+
+  testWidgets('audio album keeps a dedicated track list container', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: PipelineMessage(
+              id: 77,
+              messageIds: const [77, 78],
+              sourceChatId: 100,
+              preview: MessagePreview(
+                kind: MessagePreviewKind.audio,
+                title: '合集',
+                audioTracks: const [
+                  AudioTrackPreview(
+                    messageId: 77,
+                    title: 'Track A',
+                    localAudioPath: null,
+                  ),
+                  AudioTrackPreview(
+                    messageId: 78,
+                    title: 'Track B',
+                    localAudioPath: null,
+                  ),
+                ],
+              ),
+            ),
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const Key('message-preview-audio-tracks')),
+      findsOneWidget,
+    );
+    expect(find.text('Track A'), findsOneWidget);
+    expect(find.text('Track B'), findsOneWidget);
+  });
 
   testWidgets('video group shows all video items instead of a single page', (
     tester,
