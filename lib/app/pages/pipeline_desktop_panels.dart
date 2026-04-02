@@ -10,11 +10,13 @@ class DesktopStatusBar extends StatelessWidget {
     required this.online,
     required this.processing,
     required this.directionText,
+    required this.remainingCountText,
   });
 
   final bool online;
   final bool processing;
   final String directionText;
+  final String remainingCountText;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +32,8 @@ class DesktopStatusBar extends StatelessWidget {
             Text('状态：$processingText'),
             const SizedBox(width: 12),
             Text('拉取：$directionText'),
+            const SizedBox(width: 12),
+            Text(remainingCountText),
           ],
         ),
       ),
@@ -124,37 +128,6 @@ class DesktopActionButtons extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class DesktopRetryCard extends StatelessWidget {
-  const DesktopRetryCard({
-    super.key,
-    required this.retryCount,
-    required this.canClick,
-    required this.onRetry,
-  });
-
-  final int retryCount;
-  final bool canClick;
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(child: Text('失败重试队列：$retryCount')),
-            ElevatedButton(
-              onPressed: canClick && retryCount > 0 ? onRetry : null,
-              child: const Text('重试下一条'),
             ),
           ],
         ),

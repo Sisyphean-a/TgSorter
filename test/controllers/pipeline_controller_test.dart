@@ -86,9 +86,11 @@ void main() {
     });
 
     test('fetchNext passes sourceChatId from settings', () async {
+      service.remainingCount = 42;
       await controller.fetchNext();
 
       expect(service.lastFetchSourceChatId, 8888);
+      expect(controller.remainingCount.value, 42);
     });
 
     test('showPreviousMessage returns to prior cached message', () async {
@@ -108,7 +110,6 @@ void main() {
         _message(31, 'latest'),
         _message(30, 'older'),
       ]);
-      service.pages.add(const []);
       service.pages.add([
         _message(1, 'oldest'),
         _message(2, 'next oldest'),
@@ -119,7 +120,7 @@ void main() {
 
       settingsController.settings.value = settingsController.settings.value
           .updateFetchDirection(MessageFetchDirection.oldestFirst);
-      await _waitFor(() => service.fetchDirections.length == 2);
+      await _waitFor(() => controller.currentMessage.value?.id == 1);
 
       expect(controller.currentMessage.value?.id, 1);
       expect(controller.canShowPrevious.value, isFalse);
@@ -209,6 +210,36 @@ void main() {
         );
       },
     );
+
+    test('classify decrements remaining count by one pipeline item', () async {
+      service.remainingCount = 3;
+      service.pages.add([_message(1, '1'), _message(2, '2')]);
+      await controller.fetchNext();
+
+      await controller.classify('a');
+
+      expect(controller.remainingCount.value, 2);
+    });
+
+    test('showNextMessage prefetches previews for next configured items', () async {
+      settingsController.settings.value = settingsController.settings.value.copyWith(
+        previewPrefetchCount: 3,
+      );
+      service.pages.add([
+        _videoMessage(id: 1, title: '1'),
+        _videoMessage(id: 2, title: '2'),
+        _videoMessage(id: 3, title: '3'),
+        _videoMessage(id: 4, title: '4'),
+      ]);
+
+      await controller.fetchNext();
+
+      expect(service.previewPreparedMessageIds, [2, 3, 4]);
+
+      await controller.showNextMessage();
+
+      expect(service.previewPreparedMessageIds, [2, 3, 4]);
+    });
   });
 }
 
@@ -219,12 +250,14 @@ class _FakeTelegramService implements TelegramGateway {
   final List<List<PipelineMessage>> pages = <List<PipelineMessage>>[];
   final List<int> classifiedMessageIds = <int>[];
   final List<MessageFetchDirection> fetchDirections = <MessageFetchDirection>[];
+  final List<int> previewPreparedMessageIds = <int>[];
   int? lastFetchSourceChatId;
   int fetchNextCalls = 0;
   int videoRequestCount = 0;
   bool? lastAsCopy;
   PipelineMessage? refreshedMessage;
   final Map<int, PipelineMessage> refreshedMessages = <int, PipelineMessage>{};
+  int remainingCount = 0;
 
   @override
   Stream<TdAuthState> get authStates => _authController.stream;
@@ -272,6 +305,11 @@ class _FakeTelegramService implements TelegramGateway {
   }
 
   @override
+  Future<int> countRemainingMessages({required int? sourceChatId}) async {
+    return remainingCount;
+  }
+
+  @override
   Future<List<PipelineMessage>> fetchMessagePage({
     required MessageFetchDirection direction,
     required int? sourceChatId,
@@ -293,6 +331,14 @@ class _FakeTelegramService implements TelegramGateway {
     required int? sourceChatId,
   }) async {
     throw UnimplementedError();
+  }
+
+  @override
+  Future<void> prepareMediaPreview({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    previewPreparedMessageIds.add(messageId);
   }
 
   @override

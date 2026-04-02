@@ -55,6 +55,7 @@ void main() {
       preview: const MessagePreview(kind: MessagePreviewKind.text, title: 'hi'),
     );
     controller.isOnline.value = true;
+    controller.remainingCount.value = 12;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -69,6 +70,9 @@ void main() {
 
     expect(find.text('跳过当前'), findsNothing);
     expect(find.text('略过此条'), findsOneWidget);
+    expect(find.text('失败重试队列：0'), findsNothing);
+    expect(find.text('重试下一条'), findsNothing);
+    expect(find.text('剩余：12'), findsOneWidget);
   });
 }
 
@@ -115,12 +119,21 @@ class _FakeTelegramService implements TelegramGateway {
   Future<List<SelectableChat>> listSelectableChats() async => const [];
 
   @override
+  Future<int> countRemainingMessages({required int? sourceChatId}) async => 0;
+
+  @override
   Future<PipelineMessage> prepareMediaPlayback({
     required int sourceChatId,
     required int messageId,
   }) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> prepareMediaPreview({
+    required int sourceChatId,
+    required int messageId,
+  }) async {}
 
   @override
   Future<PipelineMessage> refreshMessage({

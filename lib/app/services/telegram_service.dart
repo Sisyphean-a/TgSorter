@@ -92,6 +92,18 @@ class TelegramService implements TelegramGateway {
     return result;
   }
 
+  @override
+  Future<int> countRemainingMessages({required int? sourceChatId}) async {
+    await _requireAuthorizationReady();
+    final chatId = await _resolveSourceChatId(sourceChatId);
+    final messages = await _fetchAllSavedMessages(chatId);
+    return _groupPipelineMessages(
+      messages,
+      chatId,
+      MessageFetchDirection.latestFirst,
+    ).length;
+  }
+
   Future<void> _loadChatsMainUntilDone() async {
     while (true) {
       try {
@@ -173,6 +185,16 @@ class TelegramService implements TelegramGateway {
       priority: _downloadPriorityVideoFile,
     );
     return refreshMessage(sourceChatId: sourceChatId, messageId: messageId);
+  }
+
+  @override
+  Future<void> prepareMediaPreview({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    await _requireAuthorizationReady();
+    final message = await _loadMessage(sourceChatId, messageId);
+    await _ensureMediaDownloadsStarted(message.content);
   }
 
   @override
@@ -407,6 +429,30 @@ class TelegramService implements TelegramGateway {
       fromMessageId: fromMessageId,
       limit: limit,
     );
+  }
+
+  Future<List<TdMessageDto>> _fetchAllSavedMessages(int chatId) async {
+    final all = <TdMessageDto>[];
+    var cursor = 0;
+    while (true) {
+      final page = await _fetchHistoryPage(
+        chatId: chatId,
+        fromMessageId: cursor,
+        limit: _historyBatchSize,
+      );
+      if (page.isEmpty) {
+        return all;
+      }
+      all.addAll(page);
+      if (page.length < _historyBatchSize) {
+        return all;
+      }
+      final nextCursor = page.last.id;
+      if (nextCursor == cursor) {
+        throw StateError('统计剩余消息时游标未推进，history_id=$cursor');
+      }
+      cursor = nextCursor;
+    }
   }
 
   Future<List<TdMessageDto>> _fetchLatestSavedMessagePage({

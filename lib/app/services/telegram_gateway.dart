@@ -37,6 +37,7 @@ abstract class TelegramGateway {
   Future<void> submitPassword(String password);
 
   Future<List<SelectableChat>> listSelectableChats();
+  Future<int> countRemainingMessages({required int? sourceChatId});
 
   Future<List<PipelineMessage>> fetchMessagePage({
     required MessageFetchDirection direction,
@@ -51,6 +52,11 @@ abstract class TelegramGateway {
   });
 
   Future<PipelineMessage> prepareMediaPlayback({
+    required int sourceChatId,
+    required int messageId,
+  });
+
+  Future<void> prepareMediaPreview({
     required int sourceChatId,
     required int messageId,
   });

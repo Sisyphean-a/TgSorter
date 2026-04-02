@@ -53,6 +53,11 @@ class SettingsWorkflowSection extends StatelessWidget {
               throttleMs: throttleMs,
             ),
           ),
+          const SizedBox(height: 12),
+          PreviewPrefetchDraftEditor(
+            value: draft.previewPrefetchCount,
+            onChanged: controller.updatePreviewPrefetchCountDraft,
+          ),
         ],
       ),
     );
@@ -63,7 +68,8 @@ class SettingsWorkflowSection extends StatelessWidget {
         current.fetchDirection != original.fetchDirection ||
         current.forwardAsCopy != original.forwardAsCopy ||
         current.batchSize != original.batchSize ||
-        current.throttleMs != original.throttleMs;
+        current.throttleMs != original.throttleMs ||
+        current.previewPrefetchCount != original.previewPrefetchCount;
   }
 }
 

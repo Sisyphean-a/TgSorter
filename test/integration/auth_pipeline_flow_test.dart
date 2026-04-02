@@ -173,6 +173,9 @@ class _IntegrationFakeGateway implements TelegramGateway {
   }
 
   @override
+  Future<int> countRemainingMessages({required int? sourceChatId}) async => 0;
+
+  @override
   Future<List<PipelineMessage>> fetchMessagePage({
     required MessageFetchDirection direction,
     required int? sourceChatId,
@@ -197,6 +200,12 @@ class _IntegrationFakeGateway implements TelegramGateway {
   }) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> prepareMediaPreview({
+    required int sourceChatId,
+    required int messageId,
+  }) async {}
 
   @override
   Future<PipelineMessage> refreshMessage({

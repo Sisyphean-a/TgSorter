@@ -21,8 +21,10 @@ class PipelineMobileView extends StatelessWidget {
       final categories = settings.settings.value.categories;
       final processing = pipeline.processing.value;
       final canClick = pipeline.isOnline.value && !processing;
-      final retryCount = pipeline.retryQueue.length;
       final latestLogs = pipeline.logs.take(5).toList(growable: false);
+      final remainingCountText = pipeline.remainingCountLoading.value
+          ? '剩余：统计中'
+          : '剩余：${pipeline.remainingCount.value ?? '-'}';
       return Focus(
         canRequestFocus: false,
         descendantsAreFocusable: false,
@@ -80,6 +82,14 @@ class PipelineMobileView extends StatelessWidget {
                         ],
                       ),
                     const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        remainingCountText,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
@@ -119,18 +129,6 @@ class PipelineMobileView extends StatelessWidget {
                             onPressed: canClick ? pipeline.undoLastStep : null,
                             child: const Text('撤销上一步'),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(child: Text('失败重试队列：$retryCount')),
-                        ElevatedButton(
-                          onPressed: canClick && retryCount > 0
-                              ? pipeline.retryNextFailed
-                              : null,
-                          child: const Text('重试下一条'),
                         ),
                       ],
                     ),

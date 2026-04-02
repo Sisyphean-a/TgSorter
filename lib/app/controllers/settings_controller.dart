@@ -70,6 +70,13 @@ class SettingsController extends GetxController {
     );
   }
 
+  void updatePreviewPrefetchCountDraft(int value) {
+    final safeValue = value < 0 ? 0 : value;
+    _updateDraft(
+      draftSettings.value.updatePreviewPrefetchCount(safeValue),
+    );
+  }
+
   void updateProxyDraft({
     required String server,
     required String port,

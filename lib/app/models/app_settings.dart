@@ -5,6 +5,8 @@ import 'package:tgsorter/app/models/shortcut_binding.dart';
 enum MessageFetchDirection { latestFirst, oldestFirst }
 
 class AppSettings {
+  static const int defaultPreviewPrefetchCount = 3;
+
   const AppSettings({
     required this.categories,
     required this.sourceChatId,
@@ -13,6 +15,7 @@ class AppSettings {
     required this.batchSize,
     required this.throttleMs,
     required this.proxy,
+    this.previewPrefetchCount = defaultPreviewPrefetchCount,
     this.shortcutBindings = defaultShortcutBindings,
   });
 
@@ -23,6 +26,7 @@ class AppSettings {
   final int batchSize;
   final int throttleMs;
   final ProxySettings proxy;
+  final int previewPrefetchCount;
   final Map<ShortcutAction, ShortcutBinding> shortcutBindings;
 
   static AppSettings defaults() {
@@ -34,6 +38,7 @@ class AppSettings {
       batchSize: 5,
       throttleMs: 1200,
       proxy: ProxySettings.empty,
+      previewPrefetchCount: defaultPreviewPrefetchCount,
       shortcutBindings: defaultShortcutBindings,
     );
   }
@@ -75,6 +80,7 @@ class AppSettings {
     int? batchSize,
     int? throttleMs,
     ProxySettings? proxy,
+    int? previewPrefetchCount,
     Map<ShortcutAction, ShortcutBinding>? shortcutBindings,
   }) {
     return AppSettings(
@@ -85,6 +91,8 @@ class AppSettings {
       batchSize: batchSize ?? this.batchSize,
       throttleMs: throttleMs ?? this.throttleMs,
       proxy: proxy ?? this.proxy,
+      previewPrefetchCount:
+          previewPrefetchCount ?? this.previewPrefetchCount,
       shortcutBindings: shortcutBindings ?? this.shortcutBindings,
     );
   }
@@ -126,6 +134,10 @@ class AppSettings {
     return copyWith(batchSize: batchSize, throttleMs: throttleMs);
   }
 
+  AppSettings updatePreviewPrefetchCount(int value) {
+    return copyWith(previewPrefetchCount: value);
+  }
+
   AppSettings updateProxySettings(ProxySettings nextProxy) {
     return copyWith(proxy: nextProxy.sanitize());
   }
@@ -154,6 +166,7 @@ class AppSettings {
             batchSize == other.batchSize &&
             throttleMs == other.throttleMs &&
             proxy == other.proxy &&
+            previewPrefetchCount == other.previewPrefetchCount &&
             _mapEquals(shortcutBindings, other.shortcutBindings);
   }
 
@@ -167,6 +180,7 @@ class AppSettings {
       batchSize,
       throttleMs,
       proxy,
+      previewPrefetchCount,
       Object.hashAll(shortcutBindings.entries),
     );
   }

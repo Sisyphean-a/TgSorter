@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:math' as math;
 
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
@@ -45,6 +46,8 @@ class PipelineController extends GetxController {
   final retryQueue = <RetryQueueItem>[].obs;
   final canShowPrevious = false.obs;
   final canShowNext = false.obs;
+  final remainingCount = RxnInt();
+  final remainingCountLoading = false.obs;
 
   StreamSubscription<TdConnectionState>? _connectionSub;
   StreamSubscription<TdAuthState>? _authSub;
@@ -58,6 +61,7 @@ class PipelineController extends GetxController {
   int? _refreshTargetMessageId;
   MessageFetchDirection? _lastFetchDirection;
   int? _lastSourceChatId;
+  final Set<int> _previewPreparedMessageIds = <int>{};
 
   @override
   void onInit() {
@@ -199,6 +203,7 @@ class PipelineController extends GetxController {
           status: ClassifyOperationStatus.success,
         ),
       );
+      _decrementRemainingCount();
       _removeCurrentMessage();
       await _ensureVisibleMessage();
       return true;
@@ -224,6 +229,7 @@ class PipelineController extends GetxController {
     _currentIndex--;
     _syncCurrentMessage();
     await _refreshCurrentMediaIfNeeded();
+    await _prefetchIfNeeded();
   }
 
   Future<void> showNextMessage() async {
@@ -243,6 +249,7 @@ class PipelineController extends GetxController {
       _currentIndex++;
       _syncCurrentMessage();
       await _refreshCurrentMediaIfNeeded();
+      await _prefetchIfNeeded();
     }
   }
 
@@ -447,9 +454,11 @@ class PipelineController extends GetxController {
   void _resetPipelineState() {
     _stopVideoRefresh();
     _messageCache.clear();
+    _previewPreparedMessageIds.clear();
     _currentIndex = -1;
     _tailMessageId = null;
     currentMessage.value = null;
+    remainingCount.value = null;
     _syncNavigationState();
   }
 
@@ -535,7 +544,9 @@ class PipelineController extends GetxController {
   }
 
   Future<void> _loadInitialMessages() async {
+    await _refreshRemainingCount();
     _messageCache.clear();
+    _previewPreparedMessageIds.clear();
     _currentIndex = -1;
     _tailMessageId = null;
     final page = await _service.fetchMessagePage(
@@ -553,7 +564,7 @@ class PipelineController extends GetxController {
     }
     _currentIndex = 0;
     _syncCurrentMessage();
-    await _prefetchIfNeeded();
+    await _prepareUpcomingPreviews();
   }
 
   Future<void> _appendMoreMessages() async {
@@ -580,11 +591,10 @@ class PipelineController extends GetxController {
   }
 
   Future<void> _prefetchIfNeeded() async {
-    final remaining = _messageCache.length - _currentIndex - 1;
-    if (remaining > 2) {
-      return;
+    if (_shouldAppendMoreMessages()) {
+      await _appendMoreMessages();
     }
-    await _appendMoreMessages();
+    await _prepareUpcomingPreviews();
   }
 
   void _removeCurrentMessage() {
@@ -690,6 +700,55 @@ class PipelineController extends GetxController {
     _videoRefreshTimer = null;
     _refreshTargetMessageId = null;
     videoPreparing.value = false;
+  }
+
+  Future<void> _refreshRemainingCount() async {
+    remainingCountLoading.value = true;
+    try {
+      remainingCount.value = await _service.countRemainingMessages(
+        sourceChatId: _settingsController.settings.value.sourceChatId,
+      );
+    } catch (error) {
+      remainingCount.value = null;
+      _showGeneralError('剩余统计失败：$error');
+    } finally {
+      remainingCountLoading.value = false;
+    }
+  }
+
+  bool _shouldAppendMoreMessages() {
+    final remaining = _messageCache.length - _currentIndex - 1;
+    return remaining <= 2;
+  }
+
+  Future<void> _prepareUpcomingPreviews() async {
+    final prefetchCount =
+        _settingsController.settings.value.previewPrefetchCount;
+    if (prefetchCount <= 0 || _currentIndex < 0) {
+      return;
+    }
+    final start = _currentIndex + 1;
+    final end = math.min(_messageCache.length, start + prefetchCount);
+    for (var index = start; index < end; index++) {
+      final item = _messageCache[index];
+      for (final messageId in item.messageIds) {
+        if (!_previewPreparedMessageIds.add(messageId)) {
+          continue;
+        }
+        await _service.prepareMediaPreview(
+          sourceChatId: item.sourceChatId,
+          messageId: messageId,
+        );
+      }
+    }
+  }
+
+  void _decrementRemainingCount() {
+    final current = remainingCount.value;
+    if (current == null || current <= 0) {
+      return;
+    }
+    remainingCount.value = current - 1;
   }
 
   void _reportError(String title, String message) {

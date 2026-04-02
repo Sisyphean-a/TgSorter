@@ -385,6 +385,45 @@ void main() {
         expect(page.first.preview.mediaItems.length, 2);
       },
     );
+
+    test('prepareMediaPreview downloads thumbnail for video only', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<TdWireEnvelope>>{
+          'getMessage': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'message',
+              'id': 10,
+              'chat_id': 777,
+              'content': {
+                '@type': 'messageVideo',
+                'caption': {'text': '', 'entities': []},
+                'video': {
+                  'duration': 12,
+                  'thumbnail': {
+                    'file': {
+                      'id': 31,
+                      'local': {'path': ''},
+                    },
+                  },
+                  'video': {
+                    'id': 32,
+                    'local': {'path': ''},
+                  },
+                },
+              },
+            }),
+          ],
+          'downloadFile': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+          ],
+        },
+      );
+      final service = TelegramService(adapter: adapter);
+
+      await service.prepareMediaPreview(sourceChatId: 777, messageId: 10);
+
+      expect(adapter.downloadedFileIds, [31]);
+    });
   });
 }
 

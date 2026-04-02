@@ -19,6 +19,7 @@ class SettingsRepository {
   static const _fetchDirectionOldest = 'oldest_first';
   static const _batchSizeKey = 'pipeline_batch_size';
   static const _throttleMsKey = 'pipeline_throttle_ms';
+  static const _previewPrefetchCountKey = 'preview_prefetch_count';
   static const _shortcutPrefix = 'shortcut_';
   static const _shortcutCtrlPrefix = 'ctrl+';
   static const _defaultBatchSize = 5;
@@ -45,6 +46,10 @@ class SettingsRepository {
       batchSize: batchSize,
       throttleMs: throttleMs,
     );
+    final previewPrefetchCount =
+        _prefs.getInt(_previewPrefetchCountKey) ??
+        AppSettings.defaultPreviewPrefetchCount;
+    settings = settings.updatePreviewPrefetchCount(previewPrefetchCount);
     settings = settings.updateProxySettings(_loadProxySettings());
     for (final action in ShortcutAction.values) {
       final raw = _prefs.getString('$_shortcutPrefix${action.name}');
@@ -89,6 +94,10 @@ class SettingsRepository {
     }
     await _prefs.setInt(_batchSizeKey, settings.batchSize);
     await _prefs.setInt(_throttleMsKey, settings.throttleMs);
+    await _prefs.setInt(
+      _previewPrefetchCountKey,
+      settings.previewPrefetchCount,
+    );
     await _saveProxySettings(settings.proxy);
     await _saveCategories(settings.categories);
   }

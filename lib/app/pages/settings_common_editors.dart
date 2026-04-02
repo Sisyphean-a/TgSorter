@@ -121,6 +121,42 @@ class BatchOptionsDraftEditor extends StatefulWidget {
   State<BatchOptionsDraftEditor> createState() => _BatchOptionsDraftEditorState();
 }
 
+class PreviewPrefetchDraftEditor extends StatelessWidget {
+  const PreviewPrefetchDraftEditor({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<int>(
+      key: ValueKey(value),
+      initialValue: value,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: '预加载后续预览',
+        border: OutlineInputBorder(),
+      ),
+      items: const [
+        DropdownMenuItem(value: 0, child: Text('关闭')),
+        DropdownMenuItem(value: 1, child: Text('1 条')),
+        DropdownMenuItem(value: 3, child: Text('3 条')),
+        DropdownMenuItem(value: 5, child: Text('5 条')),
+      ],
+      onChanged: (next) {
+        if (next == null) {
+          return;
+        }
+        onChanged(next);
+      },
+    );
+  }
+}
+
 class _BatchOptionsDraftEditorState extends State<BatchOptionsDraftEditor> {
   late final TextEditingController _batchCtrl;
   late final TextEditingController _throttleCtrl;

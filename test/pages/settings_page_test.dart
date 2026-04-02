@@ -35,6 +35,12 @@ void main() {
     );
 
     expect(find.text('基础流程'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('分类管理'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('分类管理'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('连接设置'),
@@ -63,6 +69,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('新增分类'), findsOneWidget);
     expect(controller.draftSettings.value.categories, isEmpty);
+    await tester.scrollUntilVisible(
+      find.text('预加载后续预览'),
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('预加载后续预览'), findsOneWidget);
   });
 
   testWidgets('edits stay in draft until save and can be discarded', (
@@ -182,6 +195,9 @@ class _SettingsPageFakeGateway implements TelegramGateway {
   Future<List<SelectableChat>> listSelectableChats() async => _chats;
 
   @override
+  Future<int> countRemainingMessages({required int? sourceChatId}) async => 0;
+
+  @override
   Future<List<PipelineMessage>> fetchMessagePage({
     required MessageFetchDirection direction,
     required int? sourceChatId,
@@ -206,6 +222,12 @@ class _SettingsPageFakeGateway implements TelegramGateway {
   }) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> prepareMediaPreview({
+    required int sourceChatId,
+    required int messageId,
+  }) async {}
 
   @override
   Future<PipelineMessage> refreshMessage({
