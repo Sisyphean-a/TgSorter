@@ -4,10 +4,10 @@ import 'dart:math' as math;
 
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/controllers/pipeline_settings_provider.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
-import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -24,16 +24,16 @@ class PipelineController extends GetxController {
 
   PipelineController({
     required TelegramGateway service,
-    required SettingsController settingsController,
+    required PipelineSettingsProvider settingsProvider,
     required OperationJournalRepository journalRepository,
     required AppErrorController errorController,
   }) : _service = service,
-       _settingsController = settingsController,
+       _settingsProvider = settingsProvider,
        _journalRepository = journalRepository,
        _errorController = errorController;
 
   final TelegramGateway _service;
-  final SettingsController _settingsController;
+  final PipelineSettingsProvider _settingsProvider;
   final OperationJournalRepository _journalRepository;
   final AppErrorController _errorController;
 
@@ -71,8 +71,8 @@ class PipelineController extends GetxController {
     super.onInit();
     logs.assignAll(_journalRepository.loadLogs());
     retryQueue.assignAll(_journalRepository.loadRetryQueue());
-    _lastFetchDirection = _settingsController.settings.value.fetchDirection;
-    _lastSourceChatId = _settingsController.settings.value.sourceChatId;
+    _lastFetchDirection = _settingsProvider.currentSettings.fetchDirection;
+    _lastSourceChatId = _settingsProvider.currentSettings.sourceChatId;
     _connectionSub = _service.connectionStates.listen((state) {
       isOnline.value = state.isReady;
       _tryAutoFetchNext();
@@ -82,7 +82,7 @@ class PipelineController extends GetxController {
       _tryAutoFetchNext();
     });
     _settingsWorker = ever<AppSettings>(
-      _settingsController.settings,
+      _settingsProvider.settingsStream,
       _handleSettingsChanged,
     );
   }
@@ -161,7 +161,7 @@ class PipelineController extends GetxController {
     if (processing.value || !isOnline.value) {
       return;
     }
-    final maxCount = _settingsController.settings.value.batchSize;
+    final maxCount = _settingsProvider.currentSettings.batchSize;
     for (var i = 0; i < maxCount; i++) {
       if (currentMessage.value == null) {
         await fetchNext();
@@ -185,7 +185,7 @@ class PipelineController extends GetxController {
       return false;
     }
 
-    final target = _settingsController.getCategory(key);
+    final target = _settingsProvider.getCategory(key);
 
     processing.value = true;
     try {
@@ -193,7 +193,7 @@ class PipelineController extends GetxController {
         sourceChatId: message.sourceChatId,
         messageIds: message.messageIds,
         targetChatId: target.targetChatId,
-        asCopy: _settingsController.settings.value.forwardAsCopy,
+        asCopy: _settingsProvider.currentSettings.forwardAsCopy,
       );
       _lastSuccessReceipt = receipt;
       await _appendLog(
@@ -313,11 +313,10 @@ class PipelineController extends GetxController {
     try {
       await _service.classifyMessage(
         sourceChatId:
-            item.sourceChatId ??
-            _settingsController.settings.value.sourceChatId,
+            item.sourceChatId ?? _settingsProvider.currentSettings.sourceChatId,
         messageIds: item.messageIds,
         targetChatId: item.targetChatId,
-        asCopy: _settingsController.settings.value.forwardAsCopy,
+        asCopy: _settingsProvider.currentSettings.forwardAsCopy,
       );
       retryQueue.removeAt(0);
       await _journalRepository.saveRetryQueue(retryQueue);
@@ -394,7 +393,7 @@ class PipelineController extends GetxController {
   }
 
   Future<void> _delayThrottle() async {
-    final delayMs = _settingsController.settings.value.throttleMs;
+    final delayMs = _settingsProvider.currentSettings.throttleMs;
     if (delayMs <= 0) {
       return;
     }
@@ -598,8 +597,8 @@ class PipelineController extends GetxController {
     _currentIndex = -1;
     _tailMessageId = null;
     final page = await _service.fetchMessagePage(
-      direction: _settingsController.settings.value.fetchDirection,
-      sourceChatId: _settingsController.settings.value.sourceChatId,
+      direction: _settingsProvider.currentSettings.fetchDirection,
+      sourceChatId: _settingsProvider.currentSettings.sourceChatId,
       fromMessageId: null,
       limit: _messagePageSize,
     );
@@ -620,8 +619,8 @@ class PipelineController extends GetxController {
       return;
     }
     final page = await _service.fetchMessagePage(
-      direction: _settingsController.settings.value.fetchDirection,
-      sourceChatId: _settingsController.settings.value.sourceChatId,
+      direction: _settingsProvider.currentSettings.fetchDirection,
+      sourceChatId: _settingsProvider.currentSettings.sourceChatId,
       fromMessageId: _tailMessageId,
       limit: _messagePageSize,
     );
@@ -755,7 +754,7 @@ class PipelineController extends GetxController {
     remainingCountLoading.value = true;
     try {
       final nextCount = await _service.countRemainingMessages(
-        sourceChatId: _settingsController.settings.value.sourceChatId,
+        sourceChatId: _settingsProvider.currentSettings.sourceChatId,
       );
       if (requestId != _remainingCountRequestId) {
         return;
@@ -781,7 +780,7 @@ class PipelineController extends GetxController {
 
   Future<void> _prepareUpcomingPreviews() async {
     final prefetchCount =
-        _settingsController.settings.value.previewPrefetchCount;
+        _settingsProvider.currentSettings.previewPrefetchCount;
     if (prefetchCount <= 0 || _currentIndex < 0) {
       return;
     }

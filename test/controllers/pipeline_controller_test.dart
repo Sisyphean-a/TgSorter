@@ -5,14 +5,13 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/controllers/pipeline_controller.dart';
-import 'package:tgsorter/app/controllers/settings_controller.dart';
+import 'package:tgsorter/app/controllers/pipeline_settings_provider.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
-import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
@@ -20,7 +19,7 @@ import 'package:tgsorter/app/services/telegram_gateway.dart';
 void main() {
   group('PipelineController', () {
     late _FakeTelegramService service;
-    late SettingsController settingsController;
+    late _TestPipelineSettingsProvider settingsProvider;
     late OperationJournalRepository journalRepository;
     late AppErrorController errorController;
     late PipelineController controller;
@@ -30,29 +29,38 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       service = _FakeTelegramService();
-      settingsController = SettingsController(
-        SettingsRepository(prefs),
-        service,
-      );
-      settingsController.onInit();
-      settingsController.settings.value = const AppSettings(
-        categories: [
-          CategoryConfig(key: 'a', targetChatId: 10001, targetChatTitle: '分类一'),
-          CategoryConfig(key: 'b', targetChatId: 10002, targetChatTitle: '分类二'),
-          CategoryConfig(key: 'c', targetChatId: 10003, targetChatTitle: '分类三'),
-        ],
-        sourceChatId: 8888,
-        fetchDirection: MessageFetchDirection.latestFirst,
-        forwardAsCopy: false,
-        batchSize: 2,
-        throttleMs: 0,
-        proxy: ProxySettings.empty,
+      settingsProvider = _TestPipelineSettingsProvider(
+        const AppSettings(
+          categories: [
+            CategoryConfig(
+              key: 'a',
+              targetChatId: 10001,
+              targetChatTitle: '分类一',
+            ),
+            CategoryConfig(
+              key: 'b',
+              targetChatId: 10002,
+              targetChatTitle: '分类二',
+            ),
+            CategoryConfig(
+              key: 'c',
+              targetChatId: 10003,
+              targetChatTitle: '分类三',
+            ),
+          ],
+          sourceChatId: 8888,
+          fetchDirection: MessageFetchDirection.latestFirst,
+          forwardAsCopy: false,
+          batchSize: 2,
+          throttleMs: 0,
+          proxy: ProxySettings.empty,
+        ),
       );
       journalRepository = OperationJournalRepository(prefs);
       errorController = AppErrorController();
       controller = PipelineController(
         service: service,
-        settingsController: settingsController,
+        settingsProvider: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
       );
@@ -138,8 +146,11 @@ void main() {
 
         expect(controller.currentMessage.value?.id, 31);
 
-        settingsController.settings.value = settingsController.settings.value
-            .updateFetchDirection(MessageFetchDirection.oldestFirst);
+        settingsProvider.update(
+          settingsProvider.currentSettings.updateFetchDirection(
+            MessageFetchDirection.oldestFirst,
+          ),
+        );
         await _waitFor(() => controller.currentMessage.value?.id == 1);
 
         expect(controller.currentMessage.value?.id, 1);
@@ -159,7 +170,7 @@ void main() {
       controller.onClose();
       controller = PipelineController(
         service: service,
-        settingsController: settingsController,
+        settingsProvider: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
       );
@@ -179,7 +190,7 @@ void main() {
       controller.onClose();
       controller = PipelineController(
         service: service,
-        settingsController: settingsController,
+        settingsProvider: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
       );
@@ -271,8 +282,9 @@ void main() {
     test(
       'showNextMessage prefetches previews for next configured items',
       () async {
-        settingsController.settings.value = settingsController.settings.value
-            .copyWith(previewPrefetchCount: 3);
+        settingsProvider.update(
+          settingsProvider.currentSettings.copyWith(previewPrefetchCount: 3),
+        );
         service.pages.add([
           _videoMessage(id: 1, title: '1'),
           _videoMessage(id: 2, title: '2'),
@@ -290,6 +302,26 @@ void main() {
       },
     );
   });
+}
+
+class _TestPipelineSettingsProvider implements PipelineSettingsProvider {
+  _TestPipelineSettingsProvider(AppSettings initialSettings)
+    : settingsStream = initialSettings.obs;
+
+  @override
+  final Rx<AppSettings> settingsStream;
+
+  @override
+  AppSettings get currentSettings => settingsStream.value;
+
+  @override
+  CategoryConfig getCategory(String key) {
+    return currentSettings.categories.firstWhere((item) => item.key == key);
+  }
+
+  void update(AppSettings next) {
+    settingsStream.value = next;
+  }
 }
 
 class _FakeTelegramService

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:tgsorter/app/controllers/pipeline_settings_provider.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
@@ -6,7 +7,8 @@ import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
-class SettingsController extends GetxController {
+class SettingsController extends GetxController
+    implements PipelineSettingsProvider {
   SettingsController(this._repository, this._telegram);
 
   final SettingsRepository _repository;
@@ -19,6 +21,12 @@ class SettingsController extends GetxController {
   final chatsLoading = false.obs;
   final chatsError = RxnString();
 
+  @override
+  Rx<AppSettings> get settingsStream => settings;
+
+  @override
+  AppSettings get currentSettings => settings.value;
+
   Rx<AppSettings> get savedSettings => settings;
 
   @override
@@ -30,6 +38,7 @@ class SettingsController extends GetxController {
     _syncDirtyState();
   }
 
+  @override
   CategoryConfig getCategory(String key) {
     final category = _findCategory(draftSettings.value.categories, key);
     if (category != null) {
@@ -39,21 +48,15 @@ class SettingsController extends GetxController {
   }
 
   void updateSourceChatDraft(int? sourceChatId) {
-    _updateDraft(
-      draftSettings.value.updateSourceChatId(sourceChatId),
-    );
+    _updateDraft(draftSettings.value.updateSourceChatId(sourceChatId));
   }
 
   void updateFetchDirectionDraft(MessageFetchDirection direction) {
-    _updateDraft(
-      draftSettings.value.updateFetchDirection(direction),
-    );
+    _updateDraft(draftSettings.value.updateFetchDirection(direction));
   }
 
   void updateForwardAsCopyDraft(bool value) {
-    _updateDraft(
-      draftSettings.value.updateForwardAsCopy(value),
-    );
+    _updateDraft(draftSettings.value.updateForwardAsCopy(value));
   }
 
   void updateBatchOptionsDraft({
@@ -72,9 +75,7 @@ class SettingsController extends GetxController {
 
   void updatePreviewPrefetchCountDraft(int value) {
     final safeValue = value < 0 ? 0 : value;
-    _updateDraft(
-      draftSettings.value.updatePreviewPrefetchCount(safeValue),
-    );
+    _updateDraft(draftSettings.value.updatePreviewPrefetchCount(safeValue));
   }
 
   void updateProxyDraft({
@@ -125,9 +126,7 @@ class SettingsController extends GetxController {
   }
 
   void removeCategoryDraft(String key) {
-    _updateDraft(
-      draftSettings.value.removeCategory(key),
-    );
+    _updateDraft(draftSettings.value.removeCategory(key));
   }
 
   void updateShortcutDraft({

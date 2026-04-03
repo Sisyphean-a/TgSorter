@@ -46,7 +46,7 @@ void main() {
     );
     final controller = PipelineController(
       service: service,
-      settingsController: settingsController,
+      settingsProvider: settingsController,
       journalRepository: OperationJournalRepository(prefs),
       errorController: AppErrorController(),
     );
@@ -125,7 +125,7 @@ void main() {
       );
       final controller = PipelineController(
         service: service,
-        settingsController: settingsController,
+        settingsProvider: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: AppErrorController(),
       );
@@ -227,7 +227,7 @@ void main() {
       );
       final controller = PipelineController(
         service: service,
-        settingsController: settingsController,
+        settingsProvider: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: AppErrorController(),
       );
@@ -281,7 +281,7 @@ void main() {
       settingsController.onInit();
       final controller = PipelineController(
         service: service,
-        settingsController: settingsController,
+        settingsProvider: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: AppErrorController(),
       );

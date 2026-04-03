@@ -31,7 +31,7 @@ void main() {
     final settings = SettingsController(SettingsRepository(prefs), service);
     final pipeline = PipelineController(
       service: service,
-      settingsController: settings,
+      settingsProvider: settings,
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
@@ -50,8 +50,19 @@ void main() {
       GetMaterialApp(
         initialRoute: '/auth',
         getPages: [
-          GetPage(name: '/auth', page: () => AuthPage()),
-          GetPage(name: '/pipeline', page: () => PipelinePage()),
+          GetPage(
+            name: '/auth',
+            page: () =>
+                AuthPage(auth: auth, errors: errors, settings: settings),
+          ),
+          GetPage(
+            name: '/pipeline',
+            page: () => PipelinePage(
+              pipeline: pipeline,
+              settings: settings,
+              errors: errors,
+            ),
+          ),
         ],
       ),
     );
@@ -85,7 +96,7 @@ void main() {
     final settings = SettingsController(SettingsRepository(prefs), service);
     final pipeline = PipelineController(
       service: service,
-      settingsController: settings,
+      settingsProvider: settings,
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
@@ -102,7 +113,13 @@ void main() {
     await tester.pumpWidget(
       GetMaterialApp(
         initialRoute: '/auth',
-        getPages: [GetPage(name: '/auth', page: () => const AuthPage())],
+        getPages: [
+          GetPage(
+            name: '/auth',
+            page: () =>
+                AuthPage(auth: auth, errors: errors, settings: settings),
+          ),
+        ],
       ),
     );
     await tester.pump();

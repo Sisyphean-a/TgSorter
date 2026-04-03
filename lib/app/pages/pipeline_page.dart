@@ -12,11 +12,16 @@ import 'package:tgsorter/app/widgets/pipeline_layout_switch.dart';
 import 'package:tgsorter/app/widgets/status_badge.dart';
 
 class PipelinePage extends StatelessWidget {
-  PipelinePage({super.key});
+  const PipelinePage({
+    required this.pipeline,
+    required this.settings,
+    required this.errors,
+    super.key,
+  });
 
-  final PipelineController pipeline = Get.find<PipelineController>();
-  final SettingsController settings = Get.find<SettingsController>();
-  final AppErrorController errors = Get.find<AppErrorController>();
+  final PipelineController pipeline;
+  final SettingsController settings;
+  final AppErrorController errors;
 
   @override
   Widget build(BuildContext context) {

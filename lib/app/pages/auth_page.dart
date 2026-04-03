@@ -10,16 +10,25 @@ import 'package:tgsorter/app/widgets/brand_app_bar.dart';
 import 'package:tgsorter/app/widgets/status_badge.dart';
 
 class AuthPage extends StatefulWidget {
-  const AuthPage({super.key});
+  const AuthPage({
+    required this.auth,
+    required this.errors,
+    required this.settings,
+    super.key,
+  });
+
+  final AuthController auth;
+  final AppErrorController errors;
+  final SettingsController settings;
 
   @override
   State<AuthPage> createState() => _AuthPageState();
 }
 
 class _AuthPageState extends State<AuthPage> {
-  final AuthController _auth = Get.find<AuthController>();
-  final AppErrorController _errors = Get.find<AppErrorController>();
-  final SettingsController _settings = Get.find<SettingsController>();
+  AuthController get _auth => widget.auth;
+  AppErrorController get _errors => widget.errors;
+  SettingsController get _settings => widget.settings;
 
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _codeCtrl;

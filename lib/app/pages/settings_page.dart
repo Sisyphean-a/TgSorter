@@ -12,17 +12,18 @@ import 'package:tgsorter/app/widgets/status_badge.dart';
 import 'package:tgsorter/app/widgets/sticky_action_bar.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({required this.controller, this.pipeline, super.key});
+
+  final SettingsController controller;
+  final PipelineController? pipeline;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final SettingsController controller = Get.find<SettingsController>();
-  final PipelineController? pipeline = Get.isRegistered<PipelineController>()
-      ? Get.find<PipelineController>()
-      : null;
+  SettingsController get controller => widget.controller;
+  PipelineController? get pipeline => widget.pipeline;
 
   @override
   void initState() {

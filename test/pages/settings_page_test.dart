@@ -229,7 +229,9 @@ Future<SettingsController> _pumpSettingsPage(
   }
   Get.put<SettingsController>(controller);
 
-  await tester.pumpWidget(const GetMaterialApp(home: SettingsPage()));
+  await tester.pumpWidget(
+    GetMaterialApp(home: SettingsPage(controller: controller)),
+  );
   await tester.pumpAndSettle();
   return controller;
 }

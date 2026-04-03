@@ -90,7 +90,7 @@ void main() {
       errorController = AppErrorController();
       pipelineController = PipelineController(
         service: gateway,
-        settingsController: settingsController,
+        settingsProvider: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: errorController,
       );
@@ -119,7 +119,14 @@ void main() {
     ) async {
       await tester.binding.setSurfaceSize(const Size(1280, 900));
       await tester.pumpWidget(
-        GetMaterialApp(theme: AppTheme.dark(), home: PipelinePage()),
+        GetMaterialApp(
+          theme: AppTheme.dark(),
+          home: PipelinePage(
+            pipeline: pipelineController,
+            settings: settingsController,
+            errors: errorController,
+          ),
+        ),
       );
 
       expect(find.text('TgSorter'), findsOneWidget);
@@ -160,7 +167,7 @@ void main() {
     final errorController = AppErrorController();
     final pipelineController = PipelineController(
       service: gateway,
-      settingsController: settingsController,
+      settingsProvider: settingsController,
       journalRepository: OperationJournalRepository(prefs),
       errorController: errorController,
     );
@@ -177,7 +184,14 @@ void main() {
     });
 
     await tester.pumpWidget(
-      GetMaterialApp(theme: AppTheme.dark(), home: PipelinePage()),
+      GetMaterialApp(
+        theme: AppTheme.dark(),
+        home: PipelinePage(
+          pipeline: pipelineController,
+          settings: settingsController,
+          errors: errorController,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 

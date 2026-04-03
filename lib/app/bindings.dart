@@ -71,7 +71,7 @@ Future<void> initDependencies() async {
   Get.put(
     PipelineController(
       service: telegram,
-      settingsController: Get.find<SettingsController>(),
+      settingsProvider: Get.find<SettingsController>(),
       journalRepository: Get.find<OperationJournalRepository>(),
       errorController: appErrors,
     ),

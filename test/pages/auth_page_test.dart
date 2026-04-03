@@ -84,7 +84,10 @@ Future<void> _pumpAuthPage(
   auth.onInit();
 
   await tester.pumpWidget(
-    GetMaterialApp(theme: AppTheme.dark(), home: const AuthPage()),
+    GetMaterialApp(
+      theme: AppTheme.dark(),
+      home: AuthPage(auth: auth, errors: errors, settings: settings),
+    ),
   );
   await tester.pump();
 }

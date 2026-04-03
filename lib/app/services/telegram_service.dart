@@ -5,6 +5,7 @@ import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/classify_transaction_coordinator.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_chat_dto.dart';
@@ -36,9 +37,6 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   static const Duration _forwardDeliveryPollIntervalDefault = Duration(
     milliseconds: 350,
   );
-  static const String _manualReviewReason =
-      '应用在转发确认前中断，无法自动判断是否已转发，请人工核查目标会话后再处理';
-
   TelegramService({
     required TdlibAdapter adapter,
     OperationJournalRepository? journalRepository,
@@ -56,6 +54,15 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   final Duration _forwardDeliveryPollInterval;
 
   int? _selfChatId;
+
+  late final ClassifyTransactionCoordinator _classifyCoordinator =
+      ClassifyTransactionCoordinator(
+        repository: _journalRepository,
+        anySourceMessageExists: _anySourceMessageExists,
+        deleteSourceMessages: _deleteSourceMessagesForRecovery,
+        nowMs: _nowMs,
+        buildTransactionId: _buildClassifyTransactionId,
+      );
 
   @override
   Stream<TdAuthState> get authStates => _adapter.authorizationStates;
@@ -236,13 +243,12 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   }) async {
     await _requireAuthorizationReady();
     final actualSourceChatId = await _resolveSourceChatId(sourceChatId);
-    final startedTransaction = _buildClassifyTransaction(
+    final startedTransaction = await _classifyCoordinator.startTransaction(
       sourceChatId: actualSourceChatId,
       sourceMessageIds: messageIds,
       targetChatId: targetChatId,
       asCopy: asCopy,
     );
-    await _upsertClassifyTransaction(startedTransaction);
     var transaction = startedTransaction;
     try {
       final targetMessageIds = await _forwardMessagesAndConfirmDelivery(
@@ -252,13 +258,10 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
         sendCopy: asCopy,
         requestLabel: 'forwardMessages',
       );
-      transaction = transaction.copyWith(
+      transaction = await _classifyCoordinator.markForwardConfirmed(
+        transaction,
         targetMessageIds: targetMessageIds,
-        stage: ClassifyTransactionStage.forwardConfirmed,
-        updatedAtMs: _nowMs(),
-        lastError: null,
       );
-      await _upsertClassifyTransaction(transaction);
 
       await _sendExpectOk(
         DeleteMessages(
@@ -270,13 +273,7 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
         phase: TdlibPhase.business,
       );
 
-      transaction = transaction.copyWith(
-        stage: ClassifyTransactionStage.sourceDeleteConfirmed,
-        updatedAtMs: _nowMs(),
-        lastError: null,
-      );
-      await _upsertClassifyTransaction(transaction);
-      await _removeClassifyTransaction(transaction.id);
+      await _classifyCoordinator.markSourceDeleteConfirmed(transaction);
 
       return ClassifyReceipt(
         sourceChatId: actualSourceChatId,
@@ -285,7 +282,7 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
         targetMessageIds: targetMessageIds,
       );
     } catch (error) {
-      await _recordClassifyTransactionError(transaction, error);
+      await _classifyCoordinator.recordFailure(transaction, error);
       rethrow;
     }
   }
@@ -318,134 +315,7 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   @override
   Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
     await _requireAuthorizationReady();
-    final repository = _journalRepository;
-    if (repository == null) {
-      return ClassifyRecoverySummary.empty;
-    }
-    final pending = repository.loadClassifyTransactions();
-    if (pending.isEmpty) {
-      return ClassifyRecoverySummary.empty;
-    }
-    var recoveredCount = 0;
-    var manualReviewCount = 0;
-    var failedCount = 0;
-    for (final transaction in pending) {
-      switch (transaction.stage) {
-        case ClassifyTransactionStage.created:
-          await _upsertClassifyTransaction(
-            transaction.copyWith(
-              stage: ClassifyTransactionStage.needsManualReview,
-              updatedAtMs: _nowMs(),
-              lastError: _manualReviewReason,
-            ),
-          );
-          manualReviewCount++;
-          break;
-        case ClassifyTransactionStage.forwardConfirmed:
-          try {
-            final sourceExists = await _anySourceMessageExists(transaction);
-            if (sourceExists) {
-              await _sendExpectOk(
-                DeleteMessages(
-                  chatId: transaction.sourceChatId,
-                  messageIds: transaction.sourceMessageIds,
-                  revoke: true,
-                ),
-                request: 'deleteMessages(recover)',
-                phase: TdlibPhase.business,
-              );
-            }
-            await _removeClassifyTransaction(transaction.id);
-            recoveredCount++;
-          } catch (error) {
-            await _upsertClassifyTransaction(
-              transaction.copyWith(
-                updatedAtMs: _nowMs(),
-                lastError: error.toString(),
-              ),
-            );
-            failedCount++;
-          }
-          break;
-        case ClassifyTransactionStage.sourceDeleteConfirmed:
-          await _removeClassifyTransaction(transaction.id);
-          recoveredCount++;
-          break;
-        case ClassifyTransactionStage.needsManualReview:
-          manualReviewCount++;
-          break;
-      }
-    }
-    return ClassifyRecoverySummary(
-      recoveredCount: recoveredCount,
-      manualReviewCount: manualReviewCount,
-      failedCount: failedCount,
-    );
-  }
-
-  ClassifyTransactionEntry _buildClassifyTransaction({
-    required int sourceChatId,
-    required List<int> sourceMessageIds,
-    required int targetChatId,
-    required bool asCopy,
-  }) {
-    final nowMs = _nowMs();
-    return ClassifyTransactionEntry(
-      id: _buildClassifyTransactionId(
-        sourceChatId: sourceChatId,
-        sourceMessageIds: sourceMessageIds,
-      ),
-      sourceChatId: sourceChatId,
-      sourceMessageIds: sourceMessageIds,
-      targetChatId: targetChatId,
-      asCopy: asCopy,
-      targetMessageIds: const <int>[],
-      stage: ClassifyTransactionStage.created,
-      createdAtMs: nowMs,
-      updatedAtMs: nowMs,
-      lastError: null,
-    );
-  }
-
-  Future<void> _recordClassifyTransactionError(
-    ClassifyTransactionEntry transaction,
-    Object error,
-  ) async {
-    if (transaction.stage == ClassifyTransactionStage.sourceDeleteConfirmed) {
-      await _removeClassifyTransaction(transaction.id);
-      return;
-    }
-    if (transaction.stage == ClassifyTransactionStage.created) {
-      await _upsertClassifyTransaction(
-        transaction.copyWith(
-          stage: ClassifyTransactionStage.needsManualReview,
-          updatedAtMs: _nowMs(),
-          lastError: '$error',
-        ),
-      );
-      return;
-    }
-    await _upsertClassifyTransaction(
-      transaction.copyWith(updatedAtMs: _nowMs(), lastError: '$error'),
-    );
-  }
-
-  Future<void> _upsertClassifyTransaction(
-    ClassifyTransactionEntry transaction,
-  ) {
-    final repository = _journalRepository;
-    if (repository == null) {
-      return Future<void>.value();
-    }
-    return repository.upsertClassifyTransaction(transaction);
-  }
-
-  Future<void> _removeClassifyTransaction(String id) {
-    final repository = _journalRepository;
-    if (repository == null) {
-      return Future<void>.value();
-    }
-    return repository.removeClassifyTransaction(id);
+    return _classifyCoordinator.recoverPendingTransactions();
   }
 
   Future<bool> _anySourceMessageExists(
@@ -463,6 +333,20 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
       }
     }
     return false;
+  }
+
+  Future<void> _deleteSourceMessagesForRecovery(
+    ClassifyTransactionEntry transaction,
+  ) async {
+    await _sendExpectOk(
+      DeleteMessages(
+        chatId: transaction.sourceChatId,
+        messageIds: transaction.sourceMessageIds,
+        revoke: true,
+      ),
+      request: 'deleteMessages(recover)',
+      phase: TdlibPhase.business,
+    );
   }
 
   bool _isMessageMissingFailure(TdlibFailure error) {
