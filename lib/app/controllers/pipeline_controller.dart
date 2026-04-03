@@ -5,6 +5,8 @@ import 'dart:math' as math;
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/controllers/pipeline_settings_provider.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_service.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
@@ -37,17 +39,22 @@ class PipelineController extends GetxController {
   final OperationJournalRepository _journalRepository;
   final AppErrorController _errorController;
 
-  final currentMessage = Rxn<PipelineMessage>();
-  final loading = false.obs;
-  final processing = false.obs;
-  final videoPreparing = false.obs;
-  final isOnline = false.obs;
+  final PipelineRuntimeState _runtimeState = PipelineRuntimeState();
+  late final PipelineNavigationService _navigation = PipelineNavigationService(
+    state: _runtimeState,
+  );
+
+  Rxn<PipelineMessage> get currentMessage => _runtimeState.currentMessage;
+  RxBool get loading => _runtimeState.loading;
+  RxBool get processing => _runtimeState.processing;
+  RxBool get videoPreparing => _runtimeState.videoPreparing;
+  RxBool get isOnline => _runtimeState.isOnline;
   final logs = <ClassifyOperationLog>[].obs;
   final retryQueue = <RetryQueueItem>[].obs;
-  final canShowPrevious = false.obs;
-  final canShowNext = false.obs;
-  final remainingCount = RxnInt();
-  final remainingCountLoading = false.obs;
+  RxBool get canShowPrevious => _runtimeState.canShowPrevious;
+  RxBool get canShowNext => _runtimeState.canShowNext;
+  RxnInt get remainingCount => _runtimeState.remainingCount;
+  RxBool get remainingCountLoading => _runtimeState.remainingCountLoading;
 
   StreamSubscription<TdConnectionState>? _connectionSub;
   StreamSubscription<TdAuthState>? _authSub;
@@ -55,8 +62,6 @@ class PipelineController extends GetxController {
   Timer? _videoRefreshTimer;
   ClassifyReceipt? _lastSuccessReceipt;
   bool _isAuthorized = false;
-  final List<PipelineMessage> _messageCache = <PipelineMessage>[];
-  int _currentIndex = -1;
   int? _tailMessageId;
   int? _refreshTargetMessageId;
   MessageFetchDirection? _lastFetchDirection;
@@ -65,6 +70,13 @@ class PipelineController extends GetxController {
   final Set<int> _previewPreparedMessageIds = <int>{};
   bool _recoveryCompleted = false;
   bool _recoveringTransactions = false;
+
+  List<PipelineMessage> get _messageCache => _runtimeState.cache;
+  int get _currentIndex => _runtimeState.currentIndex;
+
+  set _currentIndex(int value) {
+    _runtimeState.currentIndex = value;
+  }
 
   @override
   void onInit() {
@@ -229,8 +241,7 @@ class PipelineController extends GetxController {
       return;
     }
     _stopVideoRefresh();
-    _currentIndex--;
-    _syncCurrentMessage();
+    await _navigation.showPrevious();
     await _refreshCurrentMediaIfNeeded();
     await _prefetchIfNeeded();
   }
@@ -241,16 +252,14 @@ class PipelineController extends GetxController {
     }
     _stopVideoRefresh();
     if (_currentIndex + 1 < _messageCache.length) {
-      _currentIndex++;
-      _syncCurrentMessage();
+      await _navigation.showNext();
       await _refreshCurrentMediaIfNeeded();
       await _prefetchIfNeeded();
       return;
     }
     await _appendMoreMessages();
     if (_currentIndex + 1 < _messageCache.length) {
-      _currentIndex++;
-      _syncCurrentMessage();
+      await _navigation.showNext();
       await _refreshCurrentMediaIfNeeded();
       await _prefetchIfNeeded();
     }
@@ -499,14 +508,11 @@ class PipelineController extends GetxController {
   void _resetPipelineState() {
     _stopVideoRefresh();
     _remainingCountRequestId++;
-    _messageCache.clear();
+    _navigation.replaceMessages(const <PipelineMessage>[]);
     _previewPreparedMessageIds.clear();
-    _currentIndex = -1;
     _tailMessageId = null;
-    currentMessage.value = null;
     remainingCount.value = null;
     remainingCountLoading.value = false;
-    _syncNavigationState();
   }
 
   Future<void> _refreshCurrentMediaIfNeeded() async {
@@ -592,9 +598,8 @@ class PipelineController extends GetxController {
 
   Future<void> _loadInitialMessages() async {
     unawaited(_refreshRemainingCount());
-    _messageCache.clear();
+    _navigation.replaceMessages(const <PipelineMessage>[]);
     _previewPreparedMessageIds.clear();
-    _currentIndex = -1;
     _tailMessageId = null;
     final page = await _service.fetchMessagePage(
       direction: _settingsProvider.currentSettings.fetchDirection,
@@ -602,15 +607,11 @@ class PipelineController extends GetxController {
       fromMessageId: null,
       limit: _messagePageSize,
     );
-    _messageCache.addAll(page);
+    _navigation.replaceMessages(page);
     _tailMessageId = page.isEmpty ? null : page.last.id;
-    if (_messageCache.isEmpty) {
-      currentMessage.value = null;
-      _syncNavigationState();
+    if (page.isEmpty) {
       return;
     }
-    _currentIndex = 0;
-    _syncCurrentMessage();
     await _prepareUpcomingPreviews();
   }
 
@@ -659,7 +660,6 @@ class PipelineController extends GetxController {
       await _appendMoreMessages();
     }
     if (_messageCache.isEmpty) {
-      currentMessage.value = null;
       _currentIndex = -1;
       _syncNavigationState();
       return;
@@ -673,19 +673,11 @@ class PipelineController extends GetxController {
   }
 
   void _syncCurrentMessage() {
-    if (_currentIndex < 0 || _currentIndex >= _messageCache.length) {
-      currentMessage.value = null;
-      _syncNavigationState();
-      return;
-    }
-    currentMessage.value = _messageCache[_currentIndex];
-    _syncNavigationState();
+    _navigation.syncCurrentMessage();
   }
 
   void _syncNavigationState() {
-    canShowPrevious.value = _currentIndex > 0;
-    canShowNext.value =
-        _currentIndex >= 0 && _currentIndex < _messageCache.length - 1;
+    _navigation.syncNavigationState();
   }
 
   PipelineMessage _mergePreparedMessage(
