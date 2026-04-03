@@ -14,6 +14,8 @@ import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
 import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
+import 'package:tgsorter/app/services/telegram_media_service.dart';
+import 'package:tgsorter/app/services/telegram_message_reader.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
 
 void main() {
@@ -656,6 +658,41 @@ void main() {
     );
 
     test(
+      'countRemainingMessages skips duplicate cursor message between pages',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _textMessageJson(10, 'm10'),
+                  _textMessageJson(9, 'm9'),
+                ],
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _textMessageJson(9, 'm9'),
+                  _textMessageJson(8, 'm8'),
+                ],
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [],
+              }),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        final count = await service.countRemainingMessages(sourceChatId: 777);
+
+        expect(count, 3);
+      },
+    );
+
+    test(
       'fetchMessagePage groups document-video album messages into one pipeline item',
       () async {
         final adapter = _FakeTdlibAdapter(
@@ -788,6 +825,67 @@ void main() {
       await service.prepareMediaPreview(sourceChatId: 777, messageId: 10);
 
       expect(adapter.downloadedFileIds, [31]);
+    });
+  });
+
+  group('TelegramMediaService', () {
+    test('prepareMediaPlayback 下载音频后刷新消息', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<TdWireEnvelope>>{
+          'getMessage': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'message',
+              'id': 10,
+              'chat_id': 777,
+              'content': {
+                '@type': 'messageAudio',
+                'caption': {'text': '', 'entities': []},
+                'audio': {
+                  'duration': 12,
+                  'title': 'track',
+                  'performer': 'artist',
+                  'audio': {
+                    'id': 55,
+                    'local': {'path': ''},
+                  },
+                },
+              },
+            }),
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'message',
+              'id': 10,
+              'chat_id': 777,
+              'content': {
+                '@type': 'messageAudio',
+                'caption': {'text': '', 'entities': []},
+                'audio': {
+                  'duration': 12,
+                  'title': 'track',
+                  'performer': 'artist',
+                  'audio': {
+                    'id': 55,
+                    'local': {'path': '/tmp/track.mp3'},
+                  },
+                },
+              },
+            }),
+          ],
+          'downloadFile': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+          ],
+        },
+      );
+      final reader = TelegramMessageReader(adapter: adapter);
+      final service = TelegramMediaService(adapter: adapter, reader: reader);
+
+      final prepared = await service.prepareMediaPlayback(
+        sourceChatId: 777,
+        messageId: 10,
+      );
+
+      expect(adapter.downloadedFileIds, <int>[55]);
+      expect(adapter.getMessageCalls, 2);
+      expect(prepared.preview.localAudioPath, '/tmp/track.mp3');
     });
   });
 }
