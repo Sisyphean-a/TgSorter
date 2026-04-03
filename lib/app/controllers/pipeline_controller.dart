@@ -7,6 +7,7 @@ import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/controllers/pipeline_settings_provider.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
+import 'package:tgsorter/app/features/pipeline/application/remaining_count_service.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/domain/td_error_classifier.dart';
@@ -66,7 +67,7 @@ class PipelineController extends GetxController {
   int? _refreshTargetMessageId;
   MessageFetchDirection? _lastFetchDirection;
   int? _lastSourceChatId;
-  int _remainingCountRequestId = 0;
+  final RemainingCountService _remainingCountRequest = RemainingCountService();
   final Set<int> _previewPreparedMessageIds = <int>{};
   bool _recoveryCompleted = false;
   bool _recoveringTransactions = false;
@@ -503,7 +504,7 @@ class PipelineController extends GetxController {
 
   void _resetPipelineState() {
     _stopVideoRefresh();
-    _remainingCountRequestId++;
+    _remainingCountRequest.beginRequest();
     _navigation.replaceMessages(const <PipelineMessage>[]);
     _previewPreparedMessageIds.clear();
     _tailMessageId = null;
@@ -713,24 +714,24 @@ class PipelineController extends GetxController {
   }
 
   Future<void> _refreshRemainingCount() async {
-    final requestId = ++_remainingCountRequestId;
+    final requestId = _remainingCountRequest.beginRequest();
     remainingCountLoading.value = true;
     try {
       final nextCount = await _service.countRemainingMessages(
         sourceChatId: _settingsProvider.currentSettings.sourceChatId,
       );
-      if (requestId != _remainingCountRequestId) {
+      if (!_remainingCountRequest.shouldApply(requestId)) {
         return;
       }
       remainingCount.value = nextCount;
     } catch (error) {
-      if (requestId != _remainingCountRequestId) {
+      if (!_remainingCountRequest.shouldApply(requestId)) {
         return;
       }
       remainingCount.value = null;
       _showGeneralError('剩余统计失败：$error');
     } finally {
-      if (requestId == _remainingCountRequestId) {
+      if (_remainingCountRequest.shouldApply(requestId)) {
         remainingCountLoading.value = false;
       }
     }
