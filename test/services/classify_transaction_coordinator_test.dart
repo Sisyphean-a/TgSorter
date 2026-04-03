@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/services/classify_transaction_coordinator.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void main() {
   group('ClassifyTransactionCoordinator', () {

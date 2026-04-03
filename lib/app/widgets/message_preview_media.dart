@@ -443,13 +443,12 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
                                   try {
                                     await _seekTo(controller, target);
                                   } finally {
-                                    if (!mounted) {
-                                      return;
+                                    if (mounted) {
+                                      setState(() {
+                                        _scrubbing = false;
+                                        _scrubMilliseconds = null;
+                                      });
                                     }
-                                    setState(() {
-                                      _scrubbing = false;
-                                      _scrubMilliseconds = null;
-                                    });
                                   }
                                 }());
                               }

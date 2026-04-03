@@ -3,7 +3,6 @@ import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/media_download_coordinator.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
-import 'package:tgsorter/app/services/td_raw_transport.dart';
 import 'package:tgsorter/app/services/td_message_dto.dart';
 import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';

@@ -4,8 +4,6 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/message_history_paginator.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
-import 'package:tgsorter/app/services/td_message_dto.dart';
-import 'package:tgsorter/app/services/td_raw_transport.dart';
 import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
