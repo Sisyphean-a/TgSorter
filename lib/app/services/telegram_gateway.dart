@@ -48,6 +48,7 @@ abstract class RecoverableClassifyGateway {
   Future<ClassifyRecoverySummary> recoverPendingClassifyOperations();
 }
 
+/// 过渡期保留的聚合网关，后续将逐步由 capability interface 替代。
 abstract class TelegramGateway {
   Stream<TdAuthState> get authStates;
   Stream<TdConnectionState> get connectionStates;

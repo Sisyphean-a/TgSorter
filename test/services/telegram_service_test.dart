@@ -3,6 +3,12 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tdlib/td_api.dart';
+import 'package:tgsorter/app/features/auth/application/auth_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/classify_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
+import 'package:tgsorter/app/features/settings/application/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
@@ -20,6 +26,28 @@ import 'package:tgsorter/app/services/telegram_service.dart';
 
 void main() {
   group('TelegramService', () {
+    test('TelegramService can be viewed as split capability interfaces', () {
+      final service = TelegramService(
+        adapter: _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{},
+        ),
+      );
+
+      final auth = service as AuthGateway;
+      final messages = service as MessageReadGateway;
+      final media = service as MediaGateway;
+      final classify = service as ClassifyGateway;
+      final recovery = service as RecoveryGateway;
+      final sessions = service as SessionQueryGateway;
+
+      expect(auth, isNotNull);
+      expect(messages, isNotNull);
+      expect(media, isNotNull);
+      expect(classify, isNotNull);
+      expect(recovery, isNotNull);
+      expect(sessions, isNotNull);
+    });
+
     test('fetchNextMessage for video downloads thumbnail only', () async {
       final adapter = _FakeTdlibAdapter(
         wireResponses: <String, List<TdWireEnvelope>>{

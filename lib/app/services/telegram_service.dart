@@ -1,6 +1,12 @@
 import 'dart:async';
 
 import 'package:tdlib/td_api.dart';
+import 'package:tgsorter/app/features/auth/application/auth_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/classify_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
+import 'package:tgsorter/app/features/settings/application/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -17,7 +23,16 @@ import 'package:tgsorter/app/services/telegram_message_forwarder.dart';
 import 'package:tgsorter/app/services/telegram_message_reader.dart';
 import 'package:tgsorter/app/services/telegram_session_resolver.dart';
 
-class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
+class TelegramService
+    implements
+        AuthGateway,
+        SessionQueryGateway,
+        MessageReadGateway,
+        MediaGateway,
+        ClassifyGateway,
+        RecoveryGateway,
+        TelegramGateway,
+        RecoverableClassifyGateway {
   static const Duration _authorizationReadyTimeout = Duration(seconds: 20);
   static const Duration _defaultTimeout = Duration(seconds: 20);
   static const Duration _forwardDeliveryConfirmTimeoutDefault = Duration(
