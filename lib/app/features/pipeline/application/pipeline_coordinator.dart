@@ -32,4 +32,12 @@ class PipelineCoordinator extends GetxController {
   final PipelineSettingsReader _settings;
   final OperationJournalRepository _journalRepository;
   final AppErrorController _errorController;
+
+  MessageReadGateway get messages => _messages;
+  MediaGateway get media => _media;
+  ClassifyGateway get classify => _classify;
+  RecoveryGateway get recovery => _recovery;
+  PipelineSettingsReader get settings => _settings;
+  OperationJournalRepository get journalRepository => _journalRepository;
+  AppErrorController get errorController => _errorController;
 }

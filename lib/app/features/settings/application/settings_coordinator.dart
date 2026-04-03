@@ -13,6 +13,9 @@ class SettingsCoordinator extends GetxController
   final SettingsRepository _repository;
   final SessionQueryGateway _sessions;
 
+  SettingsRepository get repository => _repository;
+  SessionQueryGateway get sessions => _sessions;
+
   @override
   Rx<AppSettings> get settingsStream => throw UnimplementedError();
 

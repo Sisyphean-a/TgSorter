@@ -10,4 +10,8 @@ class AuthCoordinator extends GetxController {
   final AuthGateway _auth;
   final AppErrorController _errors;
   final SettingsCoordinator _settings;
+
+  AuthGateway get auth => _auth;
+  AppErrorController get errors => _errors;
+  SettingsCoordinator get settings => _settings;
 }
