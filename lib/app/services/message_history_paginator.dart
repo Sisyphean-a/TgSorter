@@ -85,6 +85,38 @@ class MessageHistoryPaginator {
     }
   }
 
+  Future<int> countHistoryMessages(int chatId) async {
+    final seenMessageIds = <int>{};
+    var count = 0;
+    var cursor = 0;
+    while (true) {
+      final page = await _fetchHistoryPage(
+        chatId: chatId,
+        fromMessageId: cursor,
+        limit: _historyBatchSize,
+      );
+      if (page.isEmpty) {
+        return count;
+      }
+      final nextCursor = page.last.id;
+      var appended = 0;
+      for (final item in page) {
+        if (item.id == cursor) {
+          continue;
+        }
+        if (!seenMessageIds.add(item.id)) {
+          continue;
+        }
+        count++;
+        appended++;
+      }
+      if (nextCursor == cursor || (cursor != 0 && appended == 0)) {
+        throw StateError('统计剩余消息时游标未推进，history_id=$cursor');
+      }
+      cursor = nextCursor;
+    }
+  }
+
   Future<List<TdMessageDto>> _fetchLatestSavedMessagePage({
     required int chatId,
     required int? fromMessageId,
