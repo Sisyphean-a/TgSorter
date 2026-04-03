@@ -54,6 +54,11 @@ class PipelineNavigationService {
     syncNavigationState();
   }
 
+  void removeCurrentAndSync() {
+    removeCurrent();
+    ensureCurrentAndSync();
+  }
+
   void ensureCurrentIndex() {
     if (_state.cache.isEmpty) {
       _state.currentIndex = -1;
@@ -66,6 +71,11 @@ class PipelineNavigationService {
     if (_state.currentIndex >= _state.cache.length) {
       _state.currentIndex = _state.cache.length - 1;
     }
+  }
+
+  void ensureCurrentAndSync() {
+    ensureCurrentIndex();
+    syncCurrentMessage();
   }
 
   void syncCurrentMessage() {

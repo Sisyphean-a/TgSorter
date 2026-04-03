@@ -74,10 +74,6 @@ class PipelineController extends GetxController {
   List<PipelineMessage> get _messageCache => _runtimeState.cache;
   int get _currentIndex => _runtimeState.currentIndex;
 
-  set _currentIndex(int value) {
-    _runtimeState.currentIndex = value;
-  }
-
   @override
   void onInit() {
     super.onInit();
@@ -640,19 +636,17 @@ class PipelineController extends GetxController {
   }
 
   void _removeCurrentMessage() {
-    _navigation.removeCurrent();
+    _navigation.removeCurrentAndSync();
   }
 
   Future<void> _ensureVisibleMessage() async {
     if (_navigation.isEmpty) {
       await _appendMoreMessages();
     }
-    _navigation.ensureCurrentIndex();
+    _navigation.ensureCurrentAndSync();
     if (_navigation.isEmpty) {
-      _navigation.syncCurrentMessage();
       return;
     }
-    _navigation.syncCurrentMessage();
     await _refreshCurrentMediaIfNeeded();
     await _prefetchIfNeeded();
   }

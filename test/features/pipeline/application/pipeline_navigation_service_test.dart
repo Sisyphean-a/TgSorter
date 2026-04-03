@@ -41,7 +41,7 @@ void main() {
   );
 
   test(
-    'removeCurrent with ensureCurrentIndex keeps current index valid',
+    'removeCurrentAndSync keeps current index valid and updates current',
     () async {
       final state = PipelineRuntimeState();
       final service = PipelineNavigationService(state: state);
@@ -50,9 +50,7 @@ void main() {
 
       service.replaceMessages(<PipelineMessage>[first, second]);
       await service.showNext();
-      service.removeCurrent();
-      service.ensureCurrentIndex();
-      service.syncCurrentMessage();
+      service.removeCurrentAndSync();
 
       expect(state.cache.map((item) => item.id), <int>[101]);
       expect(state.currentMessage.value?.id, 101);
