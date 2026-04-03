@@ -7,6 +7,22 @@ import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/widgets/message_preview_helpers.dart';
 import 'package:video_player/video_player.dart';
 
+Duration clampVideoSeekTarget({
+  required Duration target,
+  required Duration duration,
+}) {
+  if (duration <= Duration.zero) {
+    return Duration.zero;
+  }
+  if (target <= Duration.zero) {
+    return Duration.zero;
+  }
+  if (target >= duration) {
+    return duration;
+  }
+  return target;
+}
+
 class MessagePreviewMedia extends StatelessWidget {
   const MessagePreviewMedia({
     super.key,
@@ -135,6 +151,8 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   Timer? _retryTimer;
   bool _playbackRequested = false;
   String? _errorText;
+  bool _scrubbing = false;
+  double? _scrubMilliseconds;
 
   @override
   void initState() {
@@ -153,7 +171,10 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   @override
   void dispose() {
     _retryTimer?.cancel();
-    _controller?.dispose();
+    final current = _controller;
+    _controller = null;
+    current?.removeListener(_handleControllerTick);
+    current?.dispose();
     super.dispose();
   }
 
@@ -200,7 +221,9 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
           (VideoPlayerController c) => c.initialize();
       await initialize(next).timeout(initializeTimeout);
       next.setLooping(true);
+      next.addListener(_handleControllerTick);
       if (!mounted) {
+        next.removeListener(_handleControllerTick);
         await next.dispose();
         return;
       }
@@ -251,8 +274,31 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
     final current = _controller;
     _controller = null;
     if (current != null) {
+      current.removeListener(_handleControllerTick);
       await current.dispose();
     }
+  }
+
+  void _handleControllerTick() {
+    if (!mounted || _scrubbing) {
+      return;
+    }
+    setState(() {});
+  }
+
+  Future<void> _seekTo(
+    VideoPlayerController controller,
+    Duration target,
+  ) async {
+    final duration = controller.value.duration;
+    final clamped = clampVideoSeekTarget(target: target, duration: duration);
+    await controller.seekTo(clamped);
+  }
+
+  Future<void> _seekBy(VideoPlayerController controller, int seconds) async {
+    final value = controller.value;
+    final target = value.position + Duration(seconds: seconds);
+    await _seekTo(controller, target);
   }
 
   void _ensureRetryTimer(String? path) {
@@ -289,6 +335,27 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
       }
       return _buildPendingPreview();
     }
+    final value = controller.value;
+    final duration = value.duration;
+    final hasDuration = duration > Duration.zero;
+    final livePosition = hasDuration
+        ? clampVideoSeekTarget(target: value.position, duration: duration)
+        : Duration.zero;
+    final effectivePosition = hasDuration && _scrubMilliseconds != null
+        ? clampVideoSeekTarget(
+            target: Duration(milliseconds: _scrubMilliseconds!.round()),
+            duration: duration,
+          )
+        : livePosition;
+    final maxMilliseconds = hasDuration
+        ? duration.inMilliseconds.toDouble()
+        : 1.0;
+    final sliderValue = hasDuration
+        ? effectivePosition.inMilliseconds.toDouble().clamp(
+            0.0,
+            maxMilliseconds,
+          )
+        : 0.0;
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -310,16 +377,109 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
         IconButton.filled(
           onPressed: () {
             if (controller.value.isPlaying) {
-              controller.pause();
+              unawaited(controller.pause());
             } else {
-              controller.play();
+              unawaited(controller.play());
             }
-            setState(() {});
           },
           icon: Icon(
             controller.value.isPlaying
                 ? Icons.pause_rounded
                 : Icons.play_arrow_rounded,
+          ),
+        ),
+        Positioned(
+          left: 12,
+          right: 12,
+          bottom: 12,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: hasDuration
+                          ? () {
+                              unawaited(_seekBy(controller, -10));
+                            }
+                          : null,
+                      icon: const Icon(Icons.replay_10_rounded),
+                      color: Colors.white,
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: sliderValue,
+                        min: 0,
+                        max: maxMilliseconds,
+                        allowedInteraction: SliderInteraction.tapAndSlide,
+                        onChangeStart: hasDuration
+                            ? (nextValue) {
+                                setState(() {
+                                  _scrubbing = true;
+                                  _scrubMilliseconds = nextValue;
+                                });
+                              }
+                            : null,
+                        onChanged: hasDuration
+                            ? (nextValue) {
+                                setState(() {
+                                  _scrubMilliseconds = nextValue;
+                                });
+                              }
+                            : null,
+                        onChangeEnd: hasDuration
+                            ? (nextValue) {
+                                final target = Duration(
+                                  milliseconds: nextValue.round(),
+                                );
+                                unawaited(() async {
+                                  try {
+                                    await _seekTo(controller, target);
+                                  } finally {
+                                    if (!mounted) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _scrubbing = false;
+                                      _scrubMilliseconds = null;
+                                    });
+                                  }
+                                }());
+                              }
+                            : null,
+                      ),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: hasDuration
+                          ? () {
+                              unawaited(_seekBy(controller, 10));
+                            }
+                          : null,
+                      icon: const Icon(Icons.forward_10_rounded),
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '${formatPreviewDuration(effectivePosition.inSeconds)} / '
+                    '${formatPreviewDuration(duration.inSeconds)}',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: Colors.white70),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
