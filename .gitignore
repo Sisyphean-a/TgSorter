@@ -46,3 +46,6 @@ app.*.map.json
 
 # Local secrets (never commit)
 .env.local.json
+
+# Local git worktrees
+.worktrees/
