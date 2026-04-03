@@ -21,6 +21,45 @@ void main() {
       expect(state.canShowPrevious.value, isTrue);
     },
   );
+
+  test(
+    'appendUniqueMessages appends only unknown ids and updates nav state',
+    () {
+      final state = PipelineRuntimeState();
+      final service = PipelineNavigationService(state: state);
+      final first = fakePipelineMessage(id: 101);
+      final duplicate = fakePipelineMessage(id: 101);
+      final second = fakePipelineMessage(id: 102);
+
+      service.replaceMessages(<PipelineMessage>[first]);
+      service.appendUniqueMessages(<PipelineMessage>[duplicate, second]);
+
+      expect(state.cache.map((item) => item.id), <int>[101, 102]);
+      expect(state.currentMessage.value?.id, 101);
+      expect(state.canShowNext.value, isTrue);
+    },
+  );
+
+  test(
+    'removeCurrent with ensureCurrentIndex keeps current index valid',
+    () async {
+      final state = PipelineRuntimeState();
+      final service = PipelineNavigationService(state: state);
+      final first = fakePipelineMessage(id: 101);
+      final second = fakePipelineMessage(id: 102);
+
+      service.replaceMessages(<PipelineMessage>[first, second]);
+      await service.showNext();
+      service.removeCurrent();
+      service.ensureCurrentIndex();
+      service.syncCurrentMessage();
+
+      expect(state.cache.map((item) => item.id), <int>[101]);
+      expect(state.currentMessage.value?.id, 101);
+      expect(state.canShowPrevious.value, isFalse);
+      expect(state.canShowNext.value, isFalse);
+    },
+  );
 }
 
 PipelineMessage fakePipelineMessage({required int id}) {

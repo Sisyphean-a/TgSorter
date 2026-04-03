@@ -628,14 +628,8 @@ class PipelineController extends GetxController {
     if (page.isEmpty) {
       return;
     }
-    final knownIds = _messageCache.map((item) => item.id).toSet();
-    for (final item in page) {
-      if (knownIds.add(item.id)) {
-        _messageCache.add(item);
-      }
-    }
+    _navigation.appendUniqueMessages(page);
     _tailMessageId = _messageCache.last.id;
-    _syncNavigationState();
   }
 
   Future<void> _prefetchIfNeeded() async {
@@ -646,38 +640,21 @@ class PipelineController extends GetxController {
   }
 
   void _removeCurrentMessage() {
-    if (_currentIndex < 0 || _currentIndex >= _messageCache.length) {
-      return;
-    }
-    _messageCache.removeAt(_currentIndex);
-    if (_currentIndex >= _messageCache.length) {
-      _currentIndex = _messageCache.length - 1;
-    }
+    _navigation.removeCurrent();
   }
 
   Future<void> _ensureVisibleMessage() async {
-    if (_messageCache.isEmpty) {
+    if (_navigation.isEmpty) {
       await _appendMoreMessages();
     }
-    if (_messageCache.isEmpty) {
-      _currentIndex = -1;
-      _syncNavigationState();
+    _navigation.ensureCurrentIndex();
+    if (_navigation.isEmpty) {
+      _navigation.syncCurrentMessage();
       return;
     }
-    if (_currentIndex < 0) {
-      _currentIndex = 0;
-    }
-    _syncCurrentMessage();
+    _navigation.syncCurrentMessage();
     await _refreshCurrentMediaIfNeeded();
     await _prefetchIfNeeded();
-  }
-
-  void _syncCurrentMessage() {
-    _navigation.syncCurrentMessage();
-  }
-
-  void _syncNavigationState() {
-    _navigation.syncNavigationState();
   }
 
   PipelineMessage _mergePreparedMessage(

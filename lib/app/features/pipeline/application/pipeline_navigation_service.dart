@@ -7,12 +7,27 @@ class PipelineNavigationService {
 
   final PipelineRuntimeState _state;
 
+  bool get isEmpty => _state.cache.isEmpty;
+
   void replaceMessages(List<PipelineMessage> messages) {
     _state.cache
       ..clear()
       ..addAll(messages);
     _state.currentIndex = messages.isEmpty ? -1 : 0;
     syncCurrentMessage();
+  }
+
+  void appendUniqueMessages(List<PipelineMessage> messages) {
+    if (messages.isEmpty) {
+      return;
+    }
+    final knownIds = _state.cache.map((item) => item.id).toSet();
+    for (final item in messages) {
+      if (knownIds.add(item.id)) {
+        _state.cache.add(item);
+      }
+    }
+    syncNavigationState();
   }
 
   Future<void> showNext() async {
@@ -29,6 +44,28 @@ class PipelineNavigationService {
     }
     _state.currentIndex--;
     syncCurrentMessage();
+  }
+
+  void removeCurrent() {
+    if (_state.currentIndex < 0 || _state.currentIndex >= _state.cache.length) {
+      return;
+    }
+    _state.cache.removeAt(_state.currentIndex);
+    syncNavigationState();
+  }
+
+  void ensureCurrentIndex() {
+    if (_state.cache.isEmpty) {
+      _state.currentIndex = -1;
+      return;
+    }
+    if (_state.currentIndex < 0) {
+      _state.currentIndex = 0;
+      return;
+    }
+    if (_state.currentIndex >= _state.cache.length) {
+      _state.currentIndex = _state.cache.length - 1;
+    }
   }
 
   void syncCurrentMessage() {
