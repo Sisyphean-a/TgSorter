@@ -14,6 +14,15 @@ void main() {
 
     expect(harness.recoverCalls, 1);
   });
+
+  test('recoverPendingTransactions reports failure summary to error controller', () async {
+    final harness = _PipelineRecoveryHarness.failure();
+    final service = harness.build();
+
+    await service.recoverPendingTransactionsIfNeeded();
+
+    expect(harness.errorMessages.single, contains('恢复失败'));
+  });
 }
 
 class _PipelineRecoveryHarness {
@@ -29,10 +38,24 @@ class _PipelineRecoveryHarness {
     );
   }
 
+  factory _PipelineRecoveryHarness.failure() {
+    return _PipelineRecoveryHarness._(
+      recoveryGateway: _FakeRecoveryGateway(
+        summary: const ClassifyRecoverySummary(
+          recoveredCount: 1,
+          manualReviewCount: 0,
+          failedCount: 2,
+        ),
+      ),
+      errorController: _RecordingErrorController(),
+    );
+  }
+
   final _FakeRecoveryGateway recoveryGateway;
   final _RecordingErrorController errorController;
 
   int get recoverCalls => recoveryGateway.recoverCalls;
+  List<String> get errorMessages => errorController.messages;
 
   PipelineRecoveryService build() {
     return PipelineRecoveryService(
@@ -43,12 +66,15 @@ class _PipelineRecoveryHarness {
 }
 
 class _FakeRecoveryGateway implements RecoveryGateway {
+  _FakeRecoveryGateway({this.summary = ClassifyRecoverySummary.empty});
+
+  final ClassifyRecoverySummary summary;
   int recoverCalls = 0;
 
   @override
   Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
     recoverCalls++;
-    return ClassifyRecoverySummary.empty;
+    return summary;
   }
 }
 

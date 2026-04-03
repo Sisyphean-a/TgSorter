@@ -1,3 +1,6 @@
+import 'package:tgsorter/app/features/settings/domain/connection_settings.dart';
+import 'package:tgsorter/app/features/settings/domain/shortcut_settings.dart';
+import 'package:tgsorter/app/features/settings/domain/workflow_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
@@ -28,6 +31,20 @@ class AppSettings {
   final ProxySettings proxy;
   final int previewPrefetchCount;
   final Map<ShortcutAction, ShortcutBinding> shortcutBindings;
+
+  WorkflowSettings get workflow => WorkflowSettings(
+    sourceChatId: sourceChatId,
+    fetchDirection: fetchDirection,
+    forwardAsCopy: forwardAsCopy,
+    batchSize: batchSize,
+    throttleMs: throttleMs,
+    previewPrefetchCount: previewPrefetchCount,
+    categories: categories,
+  );
+
+  ConnectionSettings get connection => ConnectionSettings(proxy: proxy);
+
+  ShortcutSettings get shortcuts => ShortcutSettings(bindings: shortcutBindings);
 
   static AppSettings defaults() {
     return const AppSettings(

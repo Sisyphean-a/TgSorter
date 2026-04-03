@@ -1,6 +1,9 @@
-import 'package:tgsorter/app/models/app_settings.dart';
-import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/services/td_auth_state.dart';
+import 'package:tgsorter/app/features/auth/application/auth_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/classify_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
+import 'package:tgsorter/app/features/settings/application/session_query_gateway.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 
 class SelectableChat {
@@ -44,61 +47,19 @@ class ClassifyRecoverySummary {
   final int failedCount;
 }
 
-abstract class RecoverableClassifyGateway {
+abstract class RecoverableClassifyGateway implements RecoveryGateway {
+  @override
   Future<ClassifyRecoverySummary> recoverPendingClassifyOperations();
 }
 
 /// 过渡期保留的聚合网关，后续将逐步由 capability interface 替代。
-abstract class TelegramGateway {
-  Stream<TdAuthState> get authStates;
+abstract class TelegramGateway
+    implements
+        AuthGateway,
+        SessionQueryGateway,
+        MessageReadGateway,
+        MediaGateway,
+        ClassifyGateway,
+        RecoveryGateway {
   Stream<TdConnectionState> get connectionStates;
-
-  Future<void> start();
-  Future<void> restart();
-  Future<void> submitPhoneNumber(String phoneNumber);
-  Future<void> submitCode(String code);
-  Future<void> submitPassword(String password);
-
-  Future<List<SelectableChat>> listSelectableChats();
-  Future<int> countRemainingMessages({required int? sourceChatId});
-
-  Future<List<PipelineMessage>> fetchMessagePage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-    required int? fromMessageId,
-    required int limit,
-  });
-
-  Future<PipelineMessage?> fetchNextMessage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-  });
-
-  Future<PipelineMessage> prepareMediaPlayback({
-    required int sourceChatId,
-    required int messageId,
-  });
-
-  Future<void> prepareMediaPreview({
-    required int sourceChatId,
-    required int messageId,
-  });
-
-  Future<PipelineMessage> refreshMessage({
-    required int sourceChatId,
-    required int messageId,
-  });
-
-  Future<ClassifyReceipt> classifyMessage({
-    required int? sourceChatId,
-    required List<int> messageIds,
-    required int targetChatId,
-    required bool asCopy,
-  });
-
-  Future<void> undoClassify({
-    required int sourceChatId,
-    required int targetChatId,
-    required List<int> targetMessageIds,
-  });
 }

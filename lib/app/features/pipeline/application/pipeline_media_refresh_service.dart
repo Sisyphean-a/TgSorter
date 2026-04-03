@@ -26,4 +26,14 @@ class PipelineMediaRefreshService {
       messageId: prepared.id,
     );
   }
+
+  Future<PipelineMessage> refreshCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) {
+    return _messageGateway.refreshMessage(
+      sourceChatId: sourceChatId,
+      messageId: messageId,
+    );
+  }
 }

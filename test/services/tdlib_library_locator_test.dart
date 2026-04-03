@@ -65,7 +65,7 @@ void main() {
           isWindows: true,
           isMacOS: false,
           isIOS: false,
-          executablePath: '${tempDir.path}\\runner.exe',
+          executablePath: '${tempDir.path}/runner.exe',
           environment: const {},
         );
 
@@ -84,7 +84,7 @@ void main() {
           isWindows: true,
           isMacOS: false,
           isIOS: false,
-          executablePath: '${tempDir.path}\\runner.exe',
+          executablePath: '${tempDir.path}/runner.exe',
           environment: const {},
         );
 

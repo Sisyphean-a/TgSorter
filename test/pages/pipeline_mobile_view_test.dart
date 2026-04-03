@@ -417,4 +417,9 @@ class _FakeTelegramService implements TelegramGateway {
     required int targetChatId,
     required List<int> targetMessageIds,
   }) async {}
+
+  @override
+  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
+    return ClassifyRecoverySummary.empty;
+  }
 }

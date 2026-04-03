@@ -22,6 +22,19 @@ void main() {
       expect(harness.prepareCalls, 1);
     },
   );
+
+  test('refreshCurrentMedia delegates refresh to message gateway', () async {
+    final harness = _PipelineMediaRefreshHarness.videoReady();
+    final service = harness.build();
+
+    final refreshed = await service.refreshCurrentMedia(
+      sourceChatId: 777,
+      messageId: 21,
+    );
+
+    expect(refreshed.id, 21);
+    expect(harness.refreshCalls, 1);
+  });
 }
 
 class _PipelineMediaRefreshHarness {
@@ -41,6 +54,7 @@ class _PipelineMediaRefreshHarness {
   final _FakeMessageReadGateway messageGateway;
 
   int get prepareCalls => mediaGateway.prepareCalls;
+  int get refreshCalls => messageGateway.refreshCalls;
 
   PipelineMediaRefreshService build() {
     return PipelineMediaRefreshService(
@@ -81,6 +95,8 @@ class _FakeMediaGateway implements MediaGateway {
 }
 
 class _FakeMessageReadGateway implements MessageReadGateway {
+  int refreshCalls = 0;
+
   @override
   Future<int> countRemainingMessages({required int? sourceChatId}) {
     throw UnimplementedError();
@@ -109,6 +125,7 @@ class _FakeMessageReadGateway implements MessageReadGateway {
     required int sourceChatId,
     required int messageId,
   }) async {
+    refreshCalls++;
     return PipelineMessage(
       id: messageId,
       messageIds: <int>[messageId],

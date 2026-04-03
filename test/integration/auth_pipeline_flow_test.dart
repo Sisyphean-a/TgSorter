@@ -250,4 +250,9 @@ class _IntegrationFakeGateway implements TelegramGateway {
   }) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
+    return ClassifyRecoverySummary.empty;
+  }
 }
