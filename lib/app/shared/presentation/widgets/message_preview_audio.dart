@@ -4,7 +4,7 @@ import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
-import 'package:tgsorter/app/widgets/message_preview_helpers.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
 
 class MessagePreviewAudio extends StatefulWidget {
   const MessagePreviewAudio({

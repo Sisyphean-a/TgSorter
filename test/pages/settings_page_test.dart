@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tgsorter/app/controllers/settings_controller.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
-import 'package:tgsorter/app/pages/settings_page.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
-import 'package:tgsorter/app/widgets/sticky_action_bar.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/sticky_action_bar.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -210,16 +210,18 @@ void main() {
   });
 }
 
-Future<SettingsController> _pumpSettingsPage(
+Future<SettingsCoordinator> _pumpSettingsPage(
   WidgetTester tester, {
   required List<SelectableChat> chats,
   AppSettings? initialSettings,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
-  final controller = SettingsController(
+  final gateway = _SettingsPageFakeGateway(chats);
+  final controller = SettingsCoordinator(
     SettingsRepository(prefs),
-    _SettingsPageFakeGateway(chats),
+    gateway,
+    auth: gateway,
   );
   controller.onInit();
   if (initialSettings != null) {
@@ -227,7 +229,7 @@ Future<SettingsController> _pumpSettingsPage(
     controller.draftSettings.value = initialSettings;
     controller.isDirty.value = false;
   }
-  Get.put<SettingsController>(controller);
+  Get.put<SettingsCoordinator>(controller);
 
   await tester.pumpWidget(
     GetMaterialApp(home: SettingsPage(controller: controller)),

@@ -5,13 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/controllers/auth_controller.dart';
-import 'package:tgsorter/app/controllers/pipeline_controller.dart';
-import 'package:tgsorter/app/controllers/settings_controller.dart';
+import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
+import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/pages/auth_page.dart';
-import 'package:tgsorter/app/pages/pipeline_page.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -28,19 +28,23 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final service = _IntegrationFakeGateway();
     final errors = AppErrorController();
-    final settings = SettingsController(SettingsRepository(prefs), service);
-    final pipeline = PipelineController(
+    final settings = SettingsCoordinator(
+      SettingsRepository(prefs),
+      service,
+      auth: service,
+    );
+    final pipeline = PipelineCoordinator(
       service: service,
-      settingsProvider: settings,
+      settingsReader: settings,
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
-    final auth = AuthController(service, errors, settings);
+    final auth = AuthCoordinator(service, errors, settings);
 
     Get.put<AppErrorController>(errors);
-    Get.put<SettingsController>(settings);
-    Get.put<PipelineController>(pipeline);
-    Get.put<AuthController>(auth);
+    Get.put<SettingsCoordinator>(settings);
+    Get.put<PipelineCoordinator>(pipeline);
+    Get.put<AuthCoordinator>(auth);
     settings.onInit();
     pipeline.onInit();
     auth.onInit();
@@ -93,19 +97,23 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final service = _IntegrationFakeGateway();
     final errors = AppErrorController();
-    final settings = SettingsController(SettingsRepository(prefs), service);
-    final pipeline = PipelineController(
+    final settings = SettingsCoordinator(
+      SettingsRepository(prefs),
+      service,
+      auth: service,
+    );
+    final pipeline = PipelineCoordinator(
       service: service,
-      settingsProvider: settings,
+      settingsReader: settings,
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
-    final auth = AuthController(service, errors, settings);
+    final auth = AuthCoordinator(service, errors, settings);
 
     Get.put<AppErrorController>(errors);
-    Get.put<SettingsController>(settings);
-    Get.put<PipelineController>(pipeline);
-    Get.put<AuthController>(auth);
+    Get.put<SettingsCoordinator>(settings);
+    Get.put<PipelineCoordinator>(pipeline);
+    Get.put<AuthCoordinator>(auth);
     settings.onInit();
     pipeline.onInit();
     auth.onInit();

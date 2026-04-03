@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/widgets/message_viewer_card.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_viewer_card.dart';
 
 void main() {
   testWidgets('video preview shows play action before local file is ready', (

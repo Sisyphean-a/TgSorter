@@ -1,29 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tgsorter/app/features/pipeline/application/pipeline_controller_legacy.dart';
-import 'package:tgsorter/app/features/settings/application/settings_controller_legacy.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_category_dialog.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_sections.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
-import 'package:tgsorter/app/widgets/app_shell.dart';
-import 'package:tgsorter/app/widgets/status_badge.dart';
-import 'package:tgsorter/app/widgets/sticky_action_bar.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/sticky_action_bar.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({required this.controller, this.pipeline, super.key});
 
-  final SettingsController controller;
-  final PipelineController? pipeline;
+  final SettingsCoordinator controller;
+  final PipelineCoordinator? pipeline;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  SettingsController get controller => widget.controller;
-  PipelineController? get pipeline => widget.pipeline;
+  SettingsCoordinator get controller => widget.controller;
+  PipelineCoordinator? get pipeline => widget.pipeline;
 
   @override
   void initState() {

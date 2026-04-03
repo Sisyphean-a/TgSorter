@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
-import 'package:tgsorter/app/widgets/message_preview_content.dart';
-import 'package:tgsorter/app/widgets/message_preview_helpers.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_content.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
 
 class MessageViewerCard extends StatelessWidget {
   const MessageViewerCard({

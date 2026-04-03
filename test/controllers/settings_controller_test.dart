@@ -1,25 +1,26 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/controllers/settings_controller.dart';
+import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
-import 'package:tgsorter/app/models/app_settings.dart';
-import 'package:tgsorter/app/models/pipeline_message.dart';
 
 void main() {
-  group('SettingsController', () {
+  group('SettingsCoordinator', () {
     test(
       'saveProxySettings persists values and restarts when requested',
       () async {
         SharedPreferences.setMockInitialValues({});
         final prefs = await SharedPreferences.getInstance();
         final gateway = _SettingsFakeGateway();
-        final controller = SettingsController(
+        final controller = SettingsCoordinator(
           SettingsRepository(prefs),
           gateway,
+          auth: gateway,
         );
         controller.onInit();
 
@@ -43,7 +44,11 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final gateway = _SettingsFakeGateway();
-      final controller = SettingsController(SettingsRepository(prefs), gateway);
+      final controller = SettingsCoordinator(
+        SettingsRepository(prefs),
+        gateway,
+        auth: gateway,
+      );
       controller.onInit();
 
       await controller.addCategory(
@@ -67,7 +72,11 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final gateway = _SettingsFakeGateway();
-      final controller = SettingsController(SettingsRepository(prefs), gateway);
+      final controller = SettingsCoordinator(
+        SettingsRepository(prefs),
+        gateway,
+        auth: gateway,
+      );
       controller.onInit();
 
       await controller.saveForwardAsCopy(true);
@@ -80,7 +89,11 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final gateway = _SettingsFakeGateway();
-      final controller = SettingsController(SettingsRepository(prefs), gateway);
+      final controller = SettingsCoordinator(
+        SettingsRepository(prefs),
+        gateway,
+        auth: gateway,
+      );
       controller.onInit();
 
       controller.updateSourceChatDraft(-10001);
@@ -109,7 +122,11 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final gateway = _SettingsFakeGateway();
-      final controller = SettingsController(SettingsRepository(prefs), gateway);
+      final controller = SettingsCoordinator(
+        SettingsRepository(prefs),
+        gateway,
+        auth: gateway,
+      );
       controller.onInit();
       await controller.saveDraft();
 
@@ -138,7 +155,11 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final gateway = _SettingsFakeGateway();
-      final controller = SettingsController(SettingsRepository(prefs), gateway);
+      final controller = SettingsCoordinator(
+        SettingsRepository(prefs),
+        gateway,
+        auth: gateway,
+      );
       controller.onInit();
 
       controller.addCategoryDraft(

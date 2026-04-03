@@ -4,17 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/controllers/pipeline_controller.dart';
-import 'package:tgsorter/app/controllers/pipeline_settings_provider.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/pipeline/application/classify_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_action_service.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_media_refresh_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_recovery_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/remaining_count_service.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
@@ -29,12 +29,12 @@ import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void main() {
-  group('PipelineController', () {
+  group('PipelineCoordinator', () {
     late _FakeTelegramService service;
     late _TestPipelineSettingsProvider settingsProvider;
     late OperationJournalRepository journalRepository;
     late AppErrorController errorController;
-    late PipelineController controller;
+    late PipelineCoordinator controller;
 
     setUp(() async {
       Get.testMode = true;
@@ -70,9 +70,9 @@ void main() {
       );
       journalRepository = OperationJournalRepository(prefs);
       errorController = AppErrorController();
-      controller = PipelineController(
+      controller = PipelineCoordinator(
         service: service,
-        settingsProvider: settingsProvider,
+        settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
       );
@@ -180,9 +180,9 @@ void main() {
 
     test('does not auto fetch before authorization is ready', () async {
       controller.onClose();
-      controller = PipelineController(
+      controller = PipelineCoordinator(
         service: service,
-        settingsProvider: settingsProvider,
+        settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
       );
@@ -200,9 +200,9 @@ void main() {
 
     test('auto fetch waits transaction recovery before first fetch', () async {
       controller.onClose();
-      controller = PipelineController(
+      controller = PipelineCoordinator(
         service: service,
-        settingsProvider: settingsProvider,
+        settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
       );
@@ -301,9 +301,9 @@ void main() {
         journalRepository: journalRepository,
       );
       controller.onClose();
-      controller = PipelineController(
+      controller = PipelineCoordinator(
         service: service,
-        settingsProvider: settingsProvider,
+        settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
         runtimeState: runtimeState,
@@ -329,9 +329,9 @@ void main() {
         errorController: errorController,
       );
       controller.onClose();
-      controller = PipelineController(
+      controller = PipelineCoordinator(
         service: service,
-        settingsProvider: settingsProvider,
+        settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
         recovery: recovery,
@@ -349,9 +349,9 @@ void main() {
     test('prepareCurrentMedia delegates to injected media refresh service', () async {
       final mediaRefresh = _RecordingPipelineMediaRefreshService();
       controller.onClose();
-      controller = PipelineController(
+      controller = PipelineCoordinator(
         service: service,
-        settingsProvider: settingsProvider,
+        settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
         mediaRefresh: mediaRefresh,
@@ -373,9 +373,9 @@ void main() {
     test('fetchNext delegates remaining count refresh to injected service', () async {
       final remainingCountService = _RecordingRemainingCountService();
       controller.onClose();
-      controller = PipelineController(
+      controller = PipelineCoordinator(
         service: service,
-        settingsProvider: settingsProvider,
+        settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
         remainingCountService: remainingCountService,
@@ -417,7 +417,7 @@ void main() {
   });
 }
 
-class _TestPipelineSettingsProvider implements PipelineSettingsProvider {
+class _TestPipelineSettingsProvider implements PipelineSettingsReader {
   _TestPipelineSettingsProvider(AppSettings initialSettings)
     : settingsStream = initialSettings.obs;
 
@@ -605,12 +605,9 @@ class _RecordingPipelineActionService extends PipelineActionService {
   _RecordingPipelineActionService({
     required super.state,
     required super.navigation,
-    required PipelineSettingsProvider settings,
+    required super.settings,
     required super.journalRepository,
-  }) : super(
-         classifyGateway: _NoopClassifyGateway(),
-         settings: settings,
-       );
+  }) : super(classifyGateway: _NoopClassifyGateway());
 
   int classifyCalls = 0;
   String? lastCategoryKey;

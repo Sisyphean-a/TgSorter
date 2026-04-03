@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
-import 'package:tgsorter/app/features/pipeline/application/pipeline_controller_legacy.dart';
-import 'package:tgsorter/app/widgets/status_badge.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 
 class DesktopStatusBar extends StatelessWidget {
   const DesktopStatusBar({
@@ -71,7 +71,7 @@ class DesktopActionButtons extends StatelessWidget {
     required this.canClick,
   });
 
-  final PipelineController pipeline;
+  final PipelineCoordinator pipeline;
   final bool canClick;
 
   @override

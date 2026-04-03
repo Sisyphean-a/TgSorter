@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
-import 'package:tgsorter/app/features/settings/application/settings_controller_legacy.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_common_editors.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
@@ -15,7 +15,7 @@ class SettingsWorkflowSection extends StatelessWidget {
     required this.saved,
   });
 
-  final SettingsController controller;
+  final SettingsCoordinator controller;
   final AppSettings draft;
   final AppSettings saved;
 
@@ -82,7 +82,7 @@ class SettingsConnectionSection extends StatelessWidget {
     required this.saved,
   });
 
-  final SettingsController controller;
+  final SettingsCoordinator controller;
   final AppSettings draft;
   final AppSettings saved;
 
@@ -120,7 +120,7 @@ class SettingsToolsSection extends StatelessWidget {
     required this.onReloadChats,
   });
 
-  final SettingsController controller;
+  final SettingsCoordinator controller;
   final AppSettings draft;
   final AppSettings saved;
   final List<ClassifyOperationLog> recentLogs;

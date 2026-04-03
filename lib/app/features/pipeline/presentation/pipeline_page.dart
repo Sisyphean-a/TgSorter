@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/core/routing/app_routes.dart';
-import 'package:tgsorter/app/features/pipeline/application/pipeline_controller_legacy.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_desktop_view.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_mobile_view.dart';
-import 'package:tgsorter/app/features/settings/application/settings_controller_legacy.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
-import 'package:tgsorter/app/widgets/app_error_panel.dart';
-import 'package:tgsorter/app/widgets/app_shell.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/app_error_panel.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 import 'package:tgsorter/app/widgets/pipeline_layout_switch.dart';
-import 'package:tgsorter/app/widgets/status_badge.dart';
 
 class PipelinePage extends StatelessWidget {
   const PipelinePage({
@@ -20,8 +20,8 @@ class PipelinePage extends StatelessWidget {
     super.key,
   });
 
-  final PipelineController pipeline;
-  final SettingsController settings;
+  final PipelineCoordinator pipeline;
+  final SettingsCoordinator settings;
   final AppErrorController errors;
 
   @override

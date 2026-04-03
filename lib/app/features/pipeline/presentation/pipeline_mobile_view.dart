@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tgsorter/app/features/pipeline/application/pipeline_controller_legacy.dart';
-import 'package:tgsorter/app/features/settings/application/settings_controller_legacy.dart';
-import 'package:tgsorter/app/widgets/message_viewer_card.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_viewer_card.dart';
 import 'package:tgsorter/app/widgets/mobile_action_tray.dart';
 
 class PipelineMobileView extends StatelessWidget {
@@ -12,8 +12,8 @@ class PipelineMobileView extends StatelessWidget {
     required this.settings,
   });
 
-  final PipelineController pipeline;
-  final SettingsController settings;
+  final PipelineCoordinator pipeline;
+  final SettingsCoordinator settings;
 
   @override
   Widget build(BuildContext context) {

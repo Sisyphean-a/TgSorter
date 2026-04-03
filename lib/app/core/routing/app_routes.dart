@@ -1,10 +1,10 @@
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/features/auth/application/auth_controller_legacy.dart';
+import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
-import 'package:tgsorter/app/features/pipeline/application/pipeline_controller_legacy.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
-import 'package:tgsorter/app/features/settings/application/settings_controller_legacy.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
 
 abstract final class AppRoutes {
@@ -18,25 +18,25 @@ List<GetPage<dynamic>> buildAppPages() {
     GetPage(
       name: AppRoutes.auth,
       page: () => AuthPage(
-        auth: Get.find<AuthController>(),
+        auth: Get.find<AuthCoordinator>(),
         errors: Get.find<AppErrorController>(),
-        settings: Get.find<SettingsController>(),
+        settings: Get.find<SettingsCoordinator>(),
       ),
     ),
     GetPage(
       name: AppRoutes.pipeline,
       page: () => PipelinePage(
-        pipeline: Get.find<PipelineController>(),
-        settings: Get.find<SettingsController>(),
+        pipeline: Get.find<PipelineCoordinator>(),
+        settings: Get.find<SettingsCoordinator>(),
         errors: Get.find<AppErrorController>(),
       ),
     ),
     GetPage(
       name: AppRoutes.settings,
       page: () => SettingsPage(
-        controller: Get.find<SettingsController>(),
-        pipeline: Get.isRegistered<PipelineController>()
-            ? Get.find<PipelineController>()
+        controller: Get.find<SettingsCoordinator>(),
+        pipeline: Get.isRegistered<PipelineCoordinator>()
+            ? Get.find<PipelineCoordinator>()
             : null,
       ),
     ),

@@ -5,15 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/controllers/pipeline_controller.dart';
-import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/presentation/pipeline_mobile_view.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
-import 'package:tgsorter/app/pages/pipeline_mobile_view.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -28,9 +28,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final service = _FakeTelegramService();
-    final settingsController = SettingsController(
+    final settingsController = SettingsCoordinator(
       SettingsRepository(prefs),
       service,
+      auth: service,
     );
     settingsController.onInit();
     settingsController.settings.value = const AppSettings(
@@ -44,9 +45,9 @@ void main() {
       throttleMs: 0,
       proxy: ProxySettings.empty,
     );
-    final controller = PipelineController(
+    final controller = PipelineCoordinator(
       service: service,
-      settingsProvider: settingsController,
+      settingsReader: settingsController,
       journalRepository: OperationJournalRepository(prefs),
       errorController: AppErrorController(),
     );
@@ -101,9 +102,10 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final service = _FakeTelegramService();
-      final settingsController = SettingsController(
+      final settingsController = SettingsCoordinator(
         SettingsRepository(prefs),
         service,
+        auth: service,
       );
       settingsController.onInit();
       settingsController.settings.value = const AppSettings(
@@ -123,9 +125,9 @@ void main() {
         throttleMs: 0,
         proxy: ProxySettings.empty,
       );
-      final controller = PipelineController(
+      final controller = PipelineCoordinator(
         service: service,
-        settingsProvider: settingsController,
+        settingsReader: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: AppErrorController(),
       );
@@ -207,9 +209,10 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final service = _FakeTelegramService();
-      final settingsController = SettingsController(
+      final settingsController = SettingsCoordinator(
         SettingsRepository(prefs),
         service,
+        auth: service,
       );
       settingsController.onInit();
       settingsController.settings.value = const AppSettings(
@@ -225,9 +228,9 @@ void main() {
         throttleMs: 0,
         proxy: ProxySettings.empty,
       );
-      final controller = PipelineController(
+      final controller = PipelineCoordinator(
         service: service,
-        settingsProvider: settingsController,
+        settingsReader: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: AppErrorController(),
       );
@@ -274,14 +277,15 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final service = _FakeTelegramService();
-      final settingsController = SettingsController(
+      final settingsController = SettingsCoordinator(
         SettingsRepository(prefs),
         service,
+        auth: service,
       );
       settingsController.onInit();
-      final controller = PipelineController(
+      final controller = PipelineCoordinator(
         service: service,
-        settingsProvider: settingsController,
+        settingsReader: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: AppErrorController(),
       );

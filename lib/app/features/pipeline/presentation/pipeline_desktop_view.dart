@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:tgsorter/app/features/pipeline/application/pipeline_controller_legacy.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_desktop_panels.dart';
-import 'package:tgsorter/app/features/settings/application/settings_controller_legacy.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/widgets/classification_action_group.dart';
-import 'package:tgsorter/app/widgets/message_viewer_card.dart';
-import 'package:tgsorter/app/widgets/workspace_panel.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_viewer_card.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/workspace_panel.dart';
 
 class PipelineDesktopView extends StatelessWidget {
   const PipelineDesktopView({
@@ -18,8 +18,8 @@ class PipelineDesktopView extends StatelessWidget {
     required this.settings,
   });
 
-  final PipelineController pipeline;
-  final SettingsController settings;
+  final PipelineCoordinator pipeline;
+  final SettingsCoordinator settings;
 
   @override
   Widget build(BuildContext context) {

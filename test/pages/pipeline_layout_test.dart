@@ -3,14 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/controllers/pipeline_controller.dart';
-import 'package:tgsorter/app/controllers/settings_controller.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
-import 'package:tgsorter/app/pages/pipeline_page.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -18,7 +18,7 @@ import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 import 'package:tgsorter/app/widgets/pipeline_layout_switch.dart';
-import 'package:tgsorter/app/widgets/status_badge.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 
 void main() {
   group('PipelineLayoutSwitch', () {
@@ -60,8 +60,8 @@ void main() {
   });
 
   group('PipelinePage desktop layout', () {
-    late SettingsController settingsController;
-    late PipelineController pipelineController;
+    late SettingsCoordinator settingsController;
+    late PipelineCoordinator pipelineController;
     late AppErrorController errorController;
 
     setUp(() async {
@@ -70,9 +70,10 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final gateway = _PipelineLayoutFakeGateway();
-      settingsController = SettingsController(
+      settingsController = SettingsCoordinator(
         SettingsRepository(prefs),
         gateway,
+        auth: gateway,
       );
       settingsController.onInit();
       settingsController.settings.value = const AppSettings(
@@ -88,9 +89,9 @@ void main() {
         proxy: ProxySettings.empty,
       );
       errorController = AppErrorController();
-      pipelineController = PipelineController(
+      pipelineController = PipelineCoordinator(
         service: gateway,
-        settingsProvider: settingsController,
+        settingsReader: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: errorController,
       );
@@ -150,9 +151,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final gateway = _PipelineLayoutFakeGateway();
-    final settingsController = SettingsController(
+    final settingsController = SettingsCoordinator(
       SettingsRepository(prefs),
       gateway,
+      auth: gateway,
     );
     settingsController.onInit();
     settingsController.settings.value = const AppSettings(
@@ -165,9 +167,9 @@ void main() {
       proxy: ProxySettings.empty,
     );
     final errorController = AppErrorController();
-    final pipelineController = PipelineController(
+    final pipelineController = PipelineCoordinator(
       service: gateway,
-      settingsProvider: settingsController,
+      settingsReader: settingsController,
       journalRepository: OperationJournalRepository(prefs),
       errorController: errorController,
     );

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/widgets/message_preview_audio.dart';
-import 'package:tgsorter/app/widgets/message_preview_helpers.dart';
-import 'package:tgsorter/app/widgets/message_preview_link.dart';
-import 'package:tgsorter/app/widgets/message_preview_media.dart';
-import 'package:tgsorter/app/widgets/message_preview_text.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_audio.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_link.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_media.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_text.dart';
 
 class MessagePreviewContent extends StatelessWidget {
   const MessagePreviewContent({

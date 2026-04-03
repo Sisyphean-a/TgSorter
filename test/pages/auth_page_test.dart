@@ -5,18 +5,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/controllers/auth_controller.dart';
-import 'package:tgsorter/app/controllers/settings_controller.dart';
+import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
+import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/pages/auth_page.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
-import 'package:tgsorter/app/widgets/app_shell.dart';
-import 'package:tgsorter/app/widgets/brand_app_bar.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/brand_app_bar.dart';
 
 void main() {
   setUp(() {
@@ -74,12 +74,16 @@ Future<void> _pumpAuthPage(
   final prefs = await SharedPreferences.getInstance();
   final service = gateway ?? _FakeAuthGateway();
   final errors = AppErrorController();
-  final settings = SettingsController(SettingsRepository(prefs), service);
-  final auth = AuthController(service, errors, settings);
+  final settings = SettingsCoordinator(
+    SettingsRepository(prefs),
+    service,
+    auth: service,
+  );
+  final auth = AuthCoordinator(service, errors, settings);
 
   Get.put<AppErrorController>(errors);
-  Get.put<SettingsController>(settings);
-  Get.put<AuthController>(auth);
+  Get.put<SettingsCoordinator>(settings);
+  Get.put<AuthCoordinator>(auth);
   settings.onInit();
   auth.onInit();
 

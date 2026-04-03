@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/features/auth/application/auth_controller_legacy.dart';
-import 'package:tgsorter/app/features/settings/application/settings_controller_legacy.dart';
+import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
-import 'package:tgsorter/app/widgets/app_error_panel.dart';
-import 'package:tgsorter/app/widgets/app_shell.dart';
-import 'package:tgsorter/app/widgets/brand_app_bar.dart';
-import 'package:tgsorter/app/widgets/status_badge.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/app_error_panel.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/brand_app_bar.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({
@@ -17,18 +17,18 @@ class AuthPage extends StatefulWidget {
     super.key,
   });
 
-  final AuthController auth;
+  final AuthCoordinator auth;
   final AppErrorController errors;
-  final SettingsController settings;
+  final SettingsCoordinator settings;
 
   @override
   State<AuthPage> createState() => _AuthPageState();
 }
 
 class _AuthPageState extends State<AuthPage> {
-  AuthController get _auth => widget.auth;
+  AuthCoordinator get _auth => widget.auth;
   AppErrorController get _errors => widget.errors;
-  SettingsController get _settings => widget.settings;
+  SettingsCoordinator get _settings => widget.settings;
 
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _codeCtrl;
@@ -268,7 +268,7 @@ class _AuthStageCard extends StatelessWidget {
   final TextEditingController phoneCtrl;
   final TextEditingController codeCtrl;
   final TextEditingController passwordCtrl;
-  final AuthController auth;
+  final AuthCoordinator auth;
 
   @override
   Widget build(BuildContext context) {

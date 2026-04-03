@@ -4,7 +4,7 @@ import 'dart:io' as io;
 
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
-import 'package:tgsorter/app/widgets/message_preview_helpers.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
 import 'package:video_player/video_player.dart';
 
 Duration clampVideoSeekTarget({
