@@ -3,7 +3,6 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_rea
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 import 'session_query_gateway.dart';
 
@@ -13,26 +12,13 @@ class SettingsCoordinator extends GetxController
 
   final SettingsRepository _repository;
   final SessionQueryGateway _sessions;
-  final Rx<AppSettings> _settings = AppSettings.defaults().obs;
 
   @override
-  Rx<AppSettings> get settingsStream => _settings;
+  Rx<AppSettings> get settingsStream => throw UnimplementedError();
 
   @override
-  AppSettings get currentSettings => _settings.value;
+  AppSettings get currentSettings => throw UnimplementedError();
 
   @override
-  void onInit() {
-    super.onInit();
-    _settings.value = _repository.load();
-  }
-
-  @override
-  CategoryConfig getCategory(String key) {
-    return _settings.value.categories.firstWhere((item) => item.key == key);
-  }
-
-  Future<List<SelectableChat>> listSelectableChats() {
-    return _sessions.listSelectableChats();
-  }
+  CategoryConfig getCategory(String key) => throw UnimplementedError();
 }
