@@ -690,6 +690,67 @@ void main() {
       },
     );
 
+    test(
+      'prepareMediaPlayback downloads audio file and refreshes message',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getMessage': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'message',
+                'id': 10,
+                'chat_id': 777,
+                'content': {
+                  '@type': 'messageAudio',
+                  'caption': {'text': '', 'entities': []},
+                  'audio': {
+                    'duration': 12,
+                    'title': 'track',
+                    'performer': 'artist',
+                    'audio': {
+                      'id': 55,
+                      'local': {'path': ''},
+                    },
+                  },
+                },
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'message',
+                'id': 10,
+                'chat_id': 777,
+                'content': {
+                  '@type': 'messageAudio',
+                  'caption': {'text': '', 'entities': []},
+                  'audio': {
+                    'duration': 12,
+                    'title': 'track',
+                    'performer': 'artist',
+                    'audio': {
+                      'id': 55,
+                      'local': {'path': '/tmp/track.mp3'},
+                    },
+                  },
+                },
+              }),
+            ],
+            'downloadFile': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        final prepared = await service.prepareMediaPlayback(
+          sourceChatId: 777,
+          messageId: 10,
+        );
+
+        expect(adapter.downloadedFileIds, <int>[55]);
+        expect(adapter.getMessageCalls, 2);
+        expect(prepared.preview.localAudioPath, '/tmp/track.mp3');
+      },
+    );
+
     test('prepareMediaPreview downloads thumbnail for video only', () async {
       final adapter = _FakeTdlibAdapter(
         wireResponses: <String, List<TdWireEnvelope>>{

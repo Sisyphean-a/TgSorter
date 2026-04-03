@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:tdlib/td_api.dart';
-import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/domain/message_preview_builder.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/classify_transaction_coordinator.dart';
+import 'package:tgsorter/app/services/media_download_coordinator.dart';
+import 'package:tgsorter/app/services/message_history_paginator.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_chat_dto.dart';
@@ -18,12 +20,6 @@ import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
-  static const int _downloadPriorityPhotoPreview = 16;
-  static const int _downloadPriorityVideoPreview = 17;
-  static const int _downloadPriorityVideoFile = 20;
-  static const int _downloadPriorityAudioFile = 19;
-  static const int _downloadOffsetStart = 0;
-  static const int _downloadLimitUnlimited = 0;
   static const int _historyBatchSize = 100;
   static const int _chatListLimit = 200;
   static const int _maxSelectableChats = 120;
@@ -54,6 +50,18 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   final Duration _forwardDeliveryPollInterval;
 
   int? _selfChatId;
+
+  late final MessageHistoryPaginator _historyPaginator =
+      MessageHistoryPaginator(
+        adapter: _adapter,
+        defaultTimeout: _defaultTimeout,
+        historyBatchSize: _historyBatchSize,
+      );
+
+  late final MediaDownloadCoordinator _mediaDownloadCoordinator =
+      MediaDownloadCoordinator(adapter: _adapter);
+
+  static const MessagePreviewBuilder _previewBuilder = MessagePreviewBuilder();
 
   late final ClassifyTransactionCoordinator _classifyCoordinator =
       ClassifyTransactionCoordinator(
@@ -127,7 +135,7 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   Future<int> countRemainingMessages({required int? sourceChatId}) async {
     await _requireAuthorizationReady();
     final chatId = await _resolveSourceChatId(sourceChatId);
-    final messages = await _fetchAllHistoryMessages(chatId);
+    final messages = await _historyPaginator.fetchAllHistoryMessages(chatId);
     return messages.length;
   }
 
@@ -157,16 +165,20 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   }) async {
     await _requireAuthorizationReady();
     final chatId = await _resolveSourceChatId(sourceChatId);
-    final messages = await _fetchSavedMessagePage(
+    final messages = await _historyPaginator.fetchSavedMessagePage(
       chatId: chatId,
       direction: direction,
       fromMessageId: fromMessageId,
       limit: limit,
     );
     for (final item in messages) {
-      await _ensureMediaDownloadsStarted(item.content);
+      await _mediaDownloadCoordinator.warmUpPreview(item.content);
     }
-    return _groupPipelineMessages(messages, chatId, direction);
+    return _previewBuilder.groupPipelineMessages(
+      messages: messages,
+      sourceChatId: chatId,
+      direction: direction,
+    );
   }
 
   @override
@@ -176,15 +188,18 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   }) async {
     await _requireAuthorizationReady();
     final chatId = await _resolveSourceChatId(sourceChatId);
-    final message = await _fetchSavedMessage(
+    final message = await _historyPaginator.fetchSavedMessage(
       chatId: chatId,
       direction: direction,
     );
     if (message == null) {
       return null;
     }
-    await _ensureMediaDownloadsStarted(message.content);
-    return _toPipelineMessage([message], chatId);
+    await _mediaDownloadCoordinator.warmUpPreview(message.content);
+    return _previewBuilder.toPipelineMessage(
+      messages: <TdMessageDto>[message],
+      sourceChatId: chatId,
+    );
   }
 
   @override
@@ -195,22 +210,14 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
     await _requireAuthorizationReady();
     final message = await _loadMessage(sourceChatId, messageId);
     final content = message.content;
-    if (content.kind == TdMessageContentKind.audio) {
-      await _ensureFileDownloadStarted(
-        fileId: content.remoteAudioFileId,
-        localPath: content.localAudioPath,
-        priority: _downloadPriorityAudioFile,
+    await _mediaDownloadCoordinator.preparePlayback(content);
+    if (content.kind != TdMessageContentKind.audio &&
+        content.kind != TdMessageContentKind.video) {
+      return _previewBuilder.toPipelineMessage(
+        messages: <TdMessageDto>[message],
+        sourceChatId: sourceChatId,
       );
-      return refreshMessage(sourceChatId: sourceChatId, messageId: messageId);
     }
-    if (content.kind != TdMessageContentKind.video) {
-      return _toPipelineMessage([message], sourceChatId);
-    }
-    await _ensureFileDownloadStarted(
-      fileId: content.remoteVideoFileId,
-      localPath: content.localVideoPath,
-      priority: _downloadPriorityVideoFile,
-    );
     return refreshMessage(sourceChatId: sourceChatId, messageId: messageId);
   }
 
@@ -221,7 +228,7 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   }) async {
     await _requireAuthorizationReady();
     final message = await _loadMessage(sourceChatId, messageId);
-    await _ensureMediaDownloadsStarted(message.content);
+    await _mediaDownloadCoordinator.warmUpPreview(message.content);
   }
 
   @override
@@ -231,7 +238,10 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   }) async {
     await _requireAuthorizationReady();
     final message = await _loadMessage(sourceChatId, messageId);
-    return _toPipelineMessage([message], sourceChatId);
+    return _previewBuilder.toPipelineMessage(
+      messages: <TdMessageDto>[message],
+      sourceChatId: sourceChatId,
+    );
   }
 
   @override
@@ -561,308 +571,6 @@ class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
       return sourceChatId;
     }
     return _requireSelfChatId();
-  }
-
-  Future<void> _ensureMediaDownloadsStarted(TdMessageContentDto content) async {
-    if (content.kind == TdMessageContentKind.photo) {
-      await _ensureFileDownloadStarted(
-        fileId: content.remoteImageFileId,
-        localPath: content.localImagePath,
-        priority: _downloadPriorityPhotoPreview,
-      );
-      return;
-    }
-    if (content.kind == TdMessageContentKind.video) {
-      await _ensureFileDownloadStarted(
-        fileId: content.remoteVideoThumbnailFileId,
-        localPath: content.localVideoThumbnailPath,
-        priority: _downloadPriorityVideoPreview,
-      );
-      return;
-    }
-    if (content.kind == TdMessageContentKind.audio) {
-      return;
-    }
-    final linkPreview = content.linkPreview;
-    if (linkPreview != null) {
-      await _ensureFileDownloadStarted(
-        fileId: linkPreview.remoteImageFileId,
-        localPath: linkPreview.localImagePath,
-        priority: _downloadPriorityPhotoPreview,
-      );
-    }
-  }
-
-  Future<void> _ensureFileDownloadStarted({
-    required int? fileId,
-    required String? localPath,
-    required int priority,
-  }) async {
-    if (fileId == null || (localPath != null && localPath.isNotEmpty)) {
-      return;
-    }
-    await _adapter.sendWire(
-      DownloadFile(
-        fileId: fileId,
-        priority: priority,
-        offset: _downloadOffsetStart,
-        limit: _downloadLimitUnlimited,
-        synchronous: false,
-      ),
-      request: 'downloadFile',
-      phase: TdlibPhase.business,
-    );
-  }
-
-  Future<TdMessageDto?> _fetchSavedMessage({
-    required int chatId,
-    required MessageFetchDirection direction,
-  }) async {
-    final page = await _fetchSavedMessagePage(
-      chatId: chatId,
-      direction: direction,
-      fromMessageId: null,
-      limit: 1,
-    );
-    if (page.isEmpty) {
-      return null;
-    }
-    return page.first;
-  }
-
-  Future<List<TdMessageDto>> _fetchSavedMessagePage({
-    required int chatId,
-    required MessageFetchDirection direction,
-    required int? fromMessageId,
-    required int limit,
-  }) async {
-    if (direction == MessageFetchDirection.oldestFirst) {
-      return _fetchOldestSavedMessagePage(
-        chatId: chatId,
-        fromMessageId: fromMessageId,
-        limit: limit,
-      );
-    }
-    return _fetchLatestSavedMessagePage(
-      chatId: chatId,
-      fromMessageId: fromMessageId,
-      limit: limit,
-    );
-  }
-
-  Future<List<TdMessageDto>> _fetchAllHistoryMessages(int chatId) async {
-    final all = <TdMessageDto>[];
-    final seenMessageIds = <int>{};
-    var cursor = 0;
-    while (true) {
-      final page = await _fetchHistoryPage(
-        chatId: chatId,
-        fromMessageId: cursor,
-        limit: _historyBatchSize,
-      );
-      if (page.isEmpty) {
-        return all;
-      }
-      final nextCursor = page.last.id;
-      var appended = 0;
-      for (final item in page) {
-        if (item.id == cursor) {
-          continue;
-        }
-        if (!seenMessageIds.add(item.id)) {
-          continue;
-        }
-        all.add(item);
-        appended++;
-      }
-      if (nextCursor == cursor || (cursor != 0 && appended == 0)) {
-        throw StateError('统计剩余消息时游标未推进，history_id=$cursor');
-      }
-      cursor = nextCursor;
-    }
-  }
-
-  Future<List<TdMessageDto>> _fetchLatestSavedMessagePage({
-    required int chatId,
-    required int? fromMessageId,
-    required int limit,
-  }) async {
-    final messages = await _fetchHistoryPage(
-      chatId: chatId,
-      fromMessageId: fromMessageId ?? 0,
-      limit: fromMessageId == null ? limit : limit + 1,
-    );
-    if (fromMessageId == null) {
-      return messages;
-    }
-    return messages
-        .where((item) => item.id != fromMessageId)
-        .take(limit)
-        .toList(growable: false);
-  }
-
-  Future<List<TdMessageDto>> _fetchOldestSavedMessagePage({
-    required int chatId,
-    required int? fromMessageId,
-    required int limit,
-  }) async {
-    final all = await _fetchAllHistoryMessages(chatId);
-    final ordered = all.reversed.toList(growable: false);
-    if (fromMessageId == null) {
-      return ordered.take(limit).toList(growable: false);
-    }
-    final start = ordered.indexWhere((item) => item.id == fromMessageId);
-    if (start < 0) {
-      return const [];
-    }
-    return ordered.skip(start + 1).take(limit).toList(growable: false);
-  }
-
-  Future<List<TdMessageDto>> _fetchHistoryPage({
-    required int chatId,
-    required int fromMessageId,
-    required int limit,
-  }) async {
-    final envelope = await _adapter.sendWire(
-      GetChatHistory(
-        chatId: chatId,
-        fromMessageId: fromMessageId,
-        offset: 0,
-        limit: limit,
-        onlyLocal: false,
-      ),
-      request: 'getChatHistory',
-      phase: TdlibPhase.business,
-    );
-    return TdMessagesDto.fromEnvelope(envelope).messages;
-  }
-
-  List<PipelineMessage> _groupPipelineMessages(
-    List<TdMessageDto> messages,
-    int sourceChatId,
-    MessageFetchDirection direction,
-  ) {
-    final result = <PipelineMessage>[];
-    final shouldReverseGroup = direction == MessageFetchDirection.latestFirst;
-    var index = 0;
-    while (index < messages.length) {
-      final current = messages[index];
-      if (!_isGroupedMediaMessage(current)) {
-        result.add(_toPipelineMessage([current], sourceChatId));
-        index++;
-        continue;
-      }
-      final group = <TdMessageDto>[current];
-      final albumId = current.mediaAlbumId;
-      var next = index + 1;
-      while (next < messages.length) {
-        final candidate = messages[next];
-        if (candidate.mediaAlbumId != albumId ||
-            !_isGroupedMediaMessage(candidate)) {
-          break;
-        }
-        group.add(candidate);
-        next++;
-      }
-      final orderedGroup = shouldReverseGroup
-          ? group.reversed.toList(growable: false)
-          : group;
-      result.add(_toPipelineMessage(orderedGroup, sourceChatId));
-      index = next;
-    }
-    return result;
-  }
-
-  bool _isGroupedMediaMessage(TdMessageDto message) {
-    final kind = message.content.kind;
-    return message.mediaAlbumId != null &&
-        (kind == TdMessageContentKind.audio ||
-            kind == TdMessageContentKind.photo ||
-            kind == TdMessageContentKind.video);
-  }
-
-  PipelineMessage _toPipelineMessage(
-    List<TdMessageDto> messages,
-    int sourceChatId,
-  ) {
-    final first = messages.first;
-    final preview = _buildPreview(messages);
-    return PipelineMessage(
-      id: first.id,
-      messageIds: messages.map((item) => item.id).toList(growable: false),
-      sourceChatId: sourceChatId,
-      preview: preview,
-    );
-  }
-
-  MessagePreview _buildPreview(List<TdMessageDto> messages) {
-    final first = messages.first;
-    final primary = mapMessagePreview(first.content);
-    if (messages.length == 1) {
-      return primary;
-    }
-    final allAudio = messages.every(
-      (item) => item.content.kind == TdMessageContentKind.audio,
-    );
-    if (!allAudio) {
-      return _buildMediaGalleryPreview(messages, primary);
-    }
-    final tracks = messages
-        .map((item) => mapAudioTrackPreview(item.content, messageId: item.id))
-        .toList(growable: false);
-    return primary.copyWith(
-      title: '音频组 (${tracks.length} 条)',
-      text: _firstNonEmptyText(messages) ?? primary.text,
-      localAudioPath: null,
-      audioDurationSeconds: null,
-      audioTracks: tracks,
-    );
-  }
-
-  MessagePreview _buildMediaGalleryPreview(
-    List<TdMessageDto> messages,
-    MessagePreview primary,
-  ) {
-    final items = messages
-        .map((item) => mapMessagePreview(item.content))
-        .expand((preview) => preview.mediaItems)
-        .toList(growable: false);
-    final containsVideo = items.any((item) => item.kind == MediaItemKind.video);
-    final caption = _firstNonEmptyText(messages) ?? primary.text;
-    MediaItemPreview? firstVideo;
-    for (final item in items) {
-      if (item.kind == MediaItemKind.video) {
-        firstVideo = item;
-        break;
-      }
-    }
-    final firstItem = items.first;
-    return primary.copyWith(
-      kind: containsVideo ? MessagePreviewKind.video : MessagePreviewKind.photo,
-      title: containsVideo
-          ? '媒体组 (${items.length} 项)'
-          : '图片组 (${items.length} 张)',
-      text: caption,
-      mediaItems: items,
-      localImagePath: firstItem.kind == MediaItemKind.photo
-          ? firstItem.previewPath ?? firstItem.fullPath
-          : primary.localImagePath,
-      localVideoThumbnailPath:
-          firstVideo?.previewPath ?? primary.localVideoThumbnailPath,
-      localVideoPath: firstVideo?.fullPath ?? primary.localVideoPath,
-      videoDurationSeconds:
-          firstVideo?.durationSeconds ?? primary.videoDurationSeconds,
-    );
-  }
-
-  TdFormattedTextDto? _firstNonEmptyText(List<TdMessageDto> messages) {
-    for (final item in messages) {
-      final text = item.content.text;
-      if (text != null && text.text.trim().isNotEmpty) {
-        return text;
-      }
-    }
-    return null;
   }
 
   Future<TdChatDto> _loadChat(int chatId) async {
