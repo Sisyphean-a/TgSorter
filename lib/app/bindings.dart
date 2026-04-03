@@ -48,7 +48,10 @@ Future<void> initDependencies() async {
     },
     initializeTdlib: defaultTdlibInitializer,
   );
-  final telegram = TelegramService(adapter: adapter);
+  final telegram = TelegramService(
+    adapter: adapter,
+    journalRepository: journalRepo,
+  );
 
   Get.put(settingsRepo, permanent: true);
   Get.put(journalRepo, permanent: true);

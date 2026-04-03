@@ -3,16 +3,20 @@ import 'dart:developer' as developer;
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_chat_dto.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/td_message_dto.dart';
+import 'package:tgsorter/app/services/td_response_reader.dart';
+import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
-class TelegramService implements TelegramGateway {
+class TelegramService implements TelegramGateway, RecoverableClassifyGateway {
   static const int _downloadPriorityPhotoPreview = 16;
   static const int _downloadPriorityVideoPreview = 17;
   static const int _downloadPriorityVideoFile = 20;
@@ -26,10 +30,30 @@ class TelegramService implements TelegramGateway {
   static const Duration _getMeTimeout = Duration(seconds: 60);
   static const Duration _getChatTimeout = Duration(seconds: 8);
   static const Duration _defaultTimeout = Duration(seconds: 20);
+  static const Duration _forwardDeliveryConfirmTimeoutDefault = Duration(
+    seconds: 25,
+  );
+  static const Duration _forwardDeliveryPollIntervalDefault = Duration(
+    milliseconds: 350,
+  );
+  static const String _manualReviewReason =
+      '应用在转发确认前中断，无法自动判断是否已转发，请人工核查目标会话后再处理';
 
-  TelegramService({required TdlibAdapter adapter}) : _adapter = adapter;
+  TelegramService({
+    required TdlibAdapter adapter,
+    OperationJournalRepository? journalRepository,
+    Duration forwardDeliveryConfirmTimeout =
+        _forwardDeliveryConfirmTimeoutDefault,
+    Duration forwardDeliveryPollInterval = _forwardDeliveryPollIntervalDefault,
+  }) : _adapter = adapter,
+       _journalRepository = journalRepository,
+       _forwardDeliveryConfirmTimeout = forwardDeliveryConfirmTimeout,
+       _forwardDeliveryPollInterval = forwardDeliveryPollInterval;
 
   final TdlibAdapter _adapter;
+  final OperationJournalRepository? _journalRepository;
+  final Duration _forwardDeliveryConfirmTimeout;
+  final Duration _forwardDeliveryPollInterval;
 
   int? _selfChatId;
 
@@ -212,44 +236,58 @@ class TelegramService implements TelegramGateway {
   }) async {
     await _requireAuthorizationReady();
     final actualSourceChatId = await _resolveSourceChatId(sourceChatId);
-    final envelope = await _adapter.sendWire(
-      ForwardMessages(
-        chatId: targetChatId,
-        messageThreadId: 0,
-        fromChatId: actualSourceChatId,
-        messageIds: messageIds,
-        options: null,
-        sendCopy: asCopy,
-        removeCaption: false,
-        onlyPreview: false,
-      ),
-      request: 'forwardMessages',
-      phase: TdlibPhase.business,
-    );
-    final forwarded = TdMessagesDto.fromEnvelope(envelope);
-    if (forwarded.messages.isEmpty) {
-      throw StateError('forwardMessages 返回异常，无法提取目标消息 ID');
-    }
-    final targetMessageIds = forwarded.messages
-        .map((item) => item.id)
-        .toList(growable: false);
-
-    await _sendExpectOk(
-      DeleteMessages(
-        chatId: actualSourceChatId,
-        messageIds: messageIds,
-        revoke: true,
-      ),
-      request: 'deleteMessages',
-      phase: TdlibPhase.business,
-    );
-
-    return ClassifyReceipt(
+    final startedTransaction = _buildClassifyTransaction(
       sourceChatId: actualSourceChatId,
       sourceMessageIds: messageIds,
       targetChatId: targetChatId,
-      targetMessageIds: targetMessageIds,
+      asCopy: asCopy,
     );
+    await _upsertClassifyTransaction(startedTransaction);
+    var transaction = startedTransaction;
+    try {
+      final targetMessageIds = await _forwardMessagesAndConfirmDelivery(
+        targetChatId: targetChatId,
+        sourceChatId: actualSourceChatId,
+        sourceMessageIds: messageIds,
+        sendCopy: asCopy,
+        requestLabel: 'forwardMessages',
+      );
+      transaction = transaction.copyWith(
+        targetMessageIds: targetMessageIds,
+        stage: ClassifyTransactionStage.forwardConfirmed,
+        updatedAtMs: _nowMs(),
+        lastError: null,
+      );
+      await _upsertClassifyTransaction(transaction);
+
+      await _sendExpectOk(
+        DeleteMessages(
+          chatId: actualSourceChatId,
+          messageIds: messageIds,
+          revoke: true,
+        ),
+        request: 'deleteMessages',
+        phase: TdlibPhase.business,
+      );
+
+      transaction = transaction.copyWith(
+        stage: ClassifyTransactionStage.sourceDeleteConfirmed,
+        updatedAtMs: _nowMs(),
+        lastError: null,
+      );
+      await _upsertClassifyTransaction(transaction);
+      await _removeClassifyTransaction(transaction.id);
+
+      return ClassifyReceipt(
+        sourceChatId: actualSourceChatId,
+        sourceMessageIds: messageIds,
+        targetChatId: targetChatId,
+        targetMessageIds: targetMessageIds,
+      );
+    } catch (error) {
+      await _recordClassifyTransactionError(transaction, error);
+      rethrow;
+    }
   }
 
   @override
@@ -259,24 +297,13 @@ class TelegramService implements TelegramGateway {
     required List<int> targetMessageIds,
   }) async {
     await _requireAuthorizationReady();
-    final envelope = await _adapter.sendWire(
-      ForwardMessages(
-        chatId: sourceChatId,
-        messageThreadId: 0,
-        fromChatId: targetChatId,
-        messageIds: targetMessageIds,
-        options: null,
-        sendCopy: true,
-        removeCaption: false,
-        onlyPreview: false,
-      ),
-      request: 'forwardMessages',
-      phase: TdlibPhase.business,
+    await _forwardMessagesAndConfirmDelivery(
+      targetChatId: sourceChatId,
+      sourceChatId: targetChatId,
+      sourceMessageIds: targetMessageIds,
+      sendCopy: true,
+      requestLabel: 'undo forward',
     );
-    final forwarded = TdMessagesDto.fromEnvelope(envelope);
-    if (forwarded.messages.isEmpty) {
-      throw StateError('undo forward 返回空消息列表');
-    }
     await _sendExpectOk(
       DeleteMessages(
         chatId: targetChatId,
@@ -286,6 +313,318 @@ class TelegramService implements TelegramGateway {
       request: 'deleteMessages',
       phase: TdlibPhase.business,
     );
+  }
+
+  @override
+  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
+    await _requireAuthorizationReady();
+    final repository = _journalRepository;
+    if (repository == null) {
+      return ClassifyRecoverySummary.empty;
+    }
+    final pending = repository.loadClassifyTransactions();
+    if (pending.isEmpty) {
+      return ClassifyRecoverySummary.empty;
+    }
+    var recoveredCount = 0;
+    var manualReviewCount = 0;
+    var failedCount = 0;
+    for (final transaction in pending) {
+      switch (transaction.stage) {
+        case ClassifyTransactionStage.created:
+          await _upsertClassifyTransaction(
+            transaction.copyWith(
+              stage: ClassifyTransactionStage.needsManualReview,
+              updatedAtMs: _nowMs(),
+              lastError: _manualReviewReason,
+            ),
+          );
+          manualReviewCount++;
+          break;
+        case ClassifyTransactionStage.forwardConfirmed:
+          try {
+            final sourceExists = await _anySourceMessageExists(transaction);
+            if (sourceExists) {
+              await _sendExpectOk(
+                DeleteMessages(
+                  chatId: transaction.sourceChatId,
+                  messageIds: transaction.sourceMessageIds,
+                  revoke: true,
+                ),
+                request: 'deleteMessages(recover)',
+                phase: TdlibPhase.business,
+              );
+            }
+            await _removeClassifyTransaction(transaction.id);
+            recoveredCount++;
+          } catch (error) {
+            await _upsertClassifyTransaction(
+              transaction.copyWith(
+                updatedAtMs: _nowMs(),
+                lastError: error.toString(),
+              ),
+            );
+            failedCount++;
+          }
+          break;
+        case ClassifyTransactionStage.sourceDeleteConfirmed:
+          await _removeClassifyTransaction(transaction.id);
+          recoveredCount++;
+          break;
+        case ClassifyTransactionStage.needsManualReview:
+          manualReviewCount++;
+          break;
+      }
+    }
+    return ClassifyRecoverySummary(
+      recoveredCount: recoveredCount,
+      manualReviewCount: manualReviewCount,
+      failedCount: failedCount,
+    );
+  }
+
+  ClassifyTransactionEntry _buildClassifyTransaction({
+    required int sourceChatId,
+    required List<int> sourceMessageIds,
+    required int targetChatId,
+    required bool asCopy,
+  }) {
+    final nowMs = _nowMs();
+    return ClassifyTransactionEntry(
+      id: _buildClassifyTransactionId(
+        sourceChatId: sourceChatId,
+        sourceMessageIds: sourceMessageIds,
+      ),
+      sourceChatId: sourceChatId,
+      sourceMessageIds: sourceMessageIds,
+      targetChatId: targetChatId,
+      asCopy: asCopy,
+      targetMessageIds: const <int>[],
+      stage: ClassifyTransactionStage.created,
+      createdAtMs: nowMs,
+      updatedAtMs: nowMs,
+      lastError: null,
+    );
+  }
+
+  Future<void> _recordClassifyTransactionError(
+    ClassifyTransactionEntry transaction,
+    Object error,
+  ) async {
+    if (transaction.stage == ClassifyTransactionStage.sourceDeleteConfirmed) {
+      await _removeClassifyTransaction(transaction.id);
+      return;
+    }
+    if (transaction.stage == ClassifyTransactionStage.created) {
+      await _upsertClassifyTransaction(
+        transaction.copyWith(
+          stage: ClassifyTransactionStage.needsManualReview,
+          updatedAtMs: _nowMs(),
+          lastError: '$error',
+        ),
+      );
+      return;
+    }
+    await _upsertClassifyTransaction(
+      transaction.copyWith(updatedAtMs: _nowMs(), lastError: '$error'),
+    );
+  }
+
+  Future<void> _upsertClassifyTransaction(
+    ClassifyTransactionEntry transaction,
+  ) {
+    final repository = _journalRepository;
+    if (repository == null) {
+      return Future<void>.value();
+    }
+    return repository.upsertClassifyTransaction(transaction);
+  }
+
+  Future<void> _removeClassifyTransaction(String id) {
+    final repository = _journalRepository;
+    if (repository == null) {
+      return Future<void>.value();
+    }
+    return repository.removeClassifyTransaction(id);
+  }
+
+  Future<bool> _anySourceMessageExists(
+    ClassifyTransactionEntry transaction,
+  ) async {
+    for (final messageId in transaction.sourceMessageIds) {
+      try {
+        await _loadMessage(transaction.sourceChatId, messageId);
+        return true;
+      } on TdlibFailure catch (error) {
+        if (_isMessageMissingFailure(error)) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+    return false;
+  }
+
+  bool _isMessageMissingFailure(TdlibFailure error) {
+    if (error.code == 404) {
+      return true;
+    }
+    final message = error.message.toLowerCase();
+    return error.code == 400 && message.contains('not found');
+  }
+
+  String _buildClassifyTransactionId({
+    required int sourceChatId,
+    required List<int> sourceMessageIds,
+  }) {
+    final first = sourceMessageIds.isEmpty ? 0 : sourceMessageIds.first;
+    final now = DateTime.now().microsecondsSinceEpoch;
+    return 'tx-$sourceChatId-$first-$now';
+  }
+
+  int _nowMs() => DateTime.now().millisecondsSinceEpoch;
+
+  Future<List<int>> _forwardMessagesAndConfirmDelivery({
+    required int targetChatId,
+    required int sourceChatId,
+    required List<int> sourceMessageIds,
+    required bool sendCopy,
+    required String requestLabel,
+  }) async {
+    final envelope = await _adapter.sendWire(
+      ForwardMessages(
+        chatId: targetChatId,
+        messageThreadId: 0,
+        fromChatId: sourceChatId,
+        messageIds: sourceMessageIds,
+        options: null,
+        sendCopy: sendCopy,
+        removeCaption: false,
+        onlyPreview: false,
+      ),
+      request: 'forwardMessages',
+      phase: TdlibPhase.business,
+    );
+    final forwarded = _parseForwardedMessageDeliveries(envelope);
+    if (forwarded.isEmpty) {
+      throw StateError('$requestLabel 返回异常，无法提取目标消息 ID');
+    }
+    if (forwarded.length != sourceMessageIds.length) {
+      throw StateError(
+        '$requestLabel 返回数量异常，source=${sourceMessageIds.length},target=${forwarded.length}',
+      );
+    }
+    for (final item in forwarded) {
+      if (!item.delivery.isFailed) {
+        continue;
+      }
+      throw StateError(
+        '$requestLabel 目标消息发送失败: message_id=${item.messageId},reason=${item.delivery.failureReason}',
+      );
+    }
+    await _waitPendingForwardedMessages(
+      targetChatId: targetChatId,
+      requestLabel: requestLabel,
+      forwarded: forwarded,
+    );
+    return forwarded.map((item) => item.messageId).toList(growable: false);
+  }
+
+  List<_ForwardedMessageDelivery> _parseForwardedMessageDeliveries(
+    TdWireEnvelope envelope,
+  ) {
+    final rawMessages = TdResponseReader.readList(envelope.payload, 'messages');
+    return rawMessages
+        .map((item) {
+          final payload = TdResponseReader.readMap(<String, dynamic>{
+            'item': item,
+          }, 'item');
+          return _ForwardedMessageDelivery(
+            messageId: TdResponseReader.readInt(payload, 'id'),
+            delivery: _readMessageDeliveryState(payload),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  Future<void> _waitPendingForwardedMessages({
+    required int targetChatId,
+    required String requestLabel,
+    required List<_ForwardedMessageDelivery> forwarded,
+  }) async {
+    final pendingIds = forwarded
+        .where((item) => item.delivery.isPending)
+        .map((item) => item.messageId)
+        .toSet();
+    if (pendingIds.isEmpty) {
+      return;
+    }
+    final deadline = DateTime.now().add(_forwardDeliveryConfirmTimeout);
+    while (pendingIds.isNotEmpty) {
+      final snapshot = pendingIds.toList(growable: false);
+      for (final messageId in snapshot) {
+        if (messageId <= 0) {
+          throw StateError(
+            '$requestLabel 返回临时消息 ID($messageId)，发送状态未确认，已中止删除源消息',
+          );
+        }
+        final envelope = await _adapter.sendWire(
+          GetMessage(chatId: targetChatId, messageId: messageId),
+          request: 'getMessage($targetChatId,$messageId)',
+          phase: TdlibPhase.business,
+        );
+        final delivery = _readMessageDeliveryState(envelope.payload);
+        if (delivery.isSent) {
+          pendingIds.remove(messageId);
+          continue;
+        }
+        if (delivery.isFailed) {
+          throw StateError(
+            '$requestLabel 目标消息发送失败: message_id=$messageId,reason=${delivery.failureReason}',
+          );
+        }
+      }
+      if (pendingIds.isEmpty) {
+        return;
+      }
+      if (DateTime.now().isAfter(deadline)) {
+        throw StateError(
+          '$requestLabel 发送状态确认超时，pending=${pendingIds.join(",")}，已中止删除源消息',
+        );
+      }
+      await Future<void>.delayed(_forwardDeliveryPollInterval);
+    }
+  }
+
+  _MessageDeliveryState _readMessageDeliveryState(
+    Map<String, dynamic> messagePayload,
+  ) {
+    final sendingState = _readDynamicMap(messagePayload['sending_state']);
+    if (sendingState == null) {
+      return const _MessageDeliveryState.sent();
+    }
+    final type = sendingState['@type']?.toString() ?? '';
+    if (type != 'messageSendingStateFailed') {
+      return const _MessageDeliveryState.pending();
+    }
+    final error = _readDynamicMap(sendingState['error']);
+    final code = error?['code']?.toString();
+    final message = error?['message']?.toString();
+    final reason = <String>[
+      if (code != null && code.isNotEmpty) 'code=$code',
+      if (message != null && message.isNotEmpty) 'message=$message',
+    ].join(',');
+    return _MessageDeliveryState.failed(reason.isEmpty ? 'unknown' : reason);
+  }
+
+  Map<String, dynamic>? _readDynamicMap(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      return raw;
+    }
+    if (raw is! Map) {
+      return null;
+    }
+    return raw.map((key, value) => MapEntry(key.toString(), value));
   }
 
   Future<void> _loadSelfChatId() async {
@@ -534,7 +873,8 @@ class TelegramService implements TelegramGateway {
       var next = index + 1;
       while (next < messages.length) {
         final candidate = messages[next];
-        if (candidate.mediaAlbumId != albumId || !_isGroupedMediaMessage(candidate)) {
+        if (candidate.mediaAlbumId != albumId ||
+            !_isGroupedMediaMessage(candidate)) {
           break;
         }
         group.add(candidate);
@@ -623,9 +963,11 @@ class TelegramService implements TelegramGateway {
       localImagePath: firstItem.kind == MediaItemKind.photo
           ? firstItem.previewPath ?? firstItem.fullPath
           : primary.localImagePath,
-      localVideoThumbnailPath: firstVideo?.previewPath ?? primary.localVideoThumbnailPath,
+      localVideoThumbnailPath:
+          firstVideo?.previewPath ?? primary.localVideoThumbnailPath,
       localVideoPath: firstVideo?.fullPath ?? primary.localVideoPath,
-      videoDurationSeconds: firstVideo?.durationSeconds ?? primary.videoDurationSeconds,
+      videoDurationSeconds:
+          firstVideo?.durationSeconds ?? primary.videoDurationSeconds,
     );
   }
 
@@ -699,7 +1041,6 @@ class TelegramService implements TelegramGateway {
     );
   }
 
-
   Future<void> _requireAuthorizationReady() {
     return _adapter.waitUntilReady().timeout(
       _authorizationReadyTimeout,
@@ -708,4 +1049,37 @@ class TelegramService implements TelegramGateway {
       },
     );
   }
+}
+
+class _ForwardedMessageDelivery {
+  const _ForwardedMessageDelivery({
+    required this.messageId,
+    required this.delivery,
+  });
+
+  final int messageId;
+  final _MessageDeliveryState delivery;
+}
+
+class _MessageDeliveryState {
+  const _MessageDeliveryState._({
+    required this.isSent,
+    required this.isPending,
+    required this.failureReason,
+  });
+
+  const _MessageDeliveryState.sent()
+    : this._(isSent: true, isPending: false, failureReason: null);
+
+  const _MessageDeliveryState.pending()
+    : this._(isSent: false, isPending: true, failureReason: null);
+
+  const _MessageDeliveryState.failed(String reason)
+    : this._(isSent: false, isPending: false, failureReason: reason);
+
+  final bool isSent;
+  final bool isPending;
+  final String? failureReason;
+
+  bool get isFailed => failureReason != null;
 }

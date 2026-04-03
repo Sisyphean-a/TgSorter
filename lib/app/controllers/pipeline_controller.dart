@@ -63,6 +63,8 @@ class PipelineController extends GetxController {
   int? _lastSourceChatId;
   int _remainingCountRequestId = 0;
   final Set<int> _previewPreparedMessageIds = <int>{};
+  bool _recoveryCompleted = false;
+  bool _recoveringTransactions = false;
 
   @override
   void onInit() {
@@ -432,13 +434,55 @@ class PipelineController extends GetxController {
   }
 
   void _tryAutoFetchNext() {
-    if (!_isAuthorized ||
-        !isOnline.value ||
-        currentMessage.value != null ||
-        loading.value) {
+    if (!_isAuthorized || !isOnline.value || loading.value) {
+      return;
+    }
+    if (!_recoveryCompleted) {
+      _triggerTransactionRecoveryIfNeeded();
+      return;
+    }
+    if (currentMessage.value != null) {
       return;
     }
     unawaited(fetchNext());
+  }
+
+  void _triggerTransactionRecoveryIfNeeded() {
+    if (_recoveringTransactions || _recoveryCompleted) {
+      return;
+    }
+    final recoverable = _service;
+    if (recoverable is! RecoverableClassifyGateway) {
+      _recoveryCompleted = true;
+      _tryAutoFetchNext();
+      return;
+    }
+    _recoveringTransactions = true;
+    unawaited(
+      _recoverPendingTransactions(recoverable as RecoverableClassifyGateway),
+    );
+  }
+
+  Future<void> _recoverPendingTransactions(
+    RecoverableClassifyGateway recoverable,
+  ) async {
+    try {
+      final summary = await recoverable.recoverPendingClassifyOperations();
+      if (summary.failedCount > 0 || summary.manualReviewCount > 0) {
+        _reportError(
+          '分类事务恢复提醒',
+          '自动恢复 ${summary.recoveredCount} 条，'
+              '仍有 ${summary.manualReviewCount} 条需要人工核查，'
+              '${summary.failedCount} 条恢复失败',
+        );
+      }
+    } catch (error) {
+      _reportError('分类事务恢复失败', '$error');
+    } finally {
+      _recoveringTransactions = false;
+      _recoveryCompleted = true;
+      _tryAutoFetchNext();
+    }
   }
 
   void _handleSettingsChanged(AppSettings settings) {

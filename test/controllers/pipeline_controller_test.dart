@@ -93,26 +93,29 @@ void main() {
       expect(controller.remainingCount.value, 42);
     });
 
-    test('fetchNext shows first message before remaining count finishes', () async {
-      service.remainingCountCompleter = Completer<int>();
-      service.pages.add([_message(10, 'first')]);
+    test(
+      'fetchNext shows first message before remaining count finishes',
+      () async {
+        service.remainingCountCompleter = Completer<int>();
+        service.pages.add([_message(10, 'first')]);
 
-      final fetchFuture = controller.fetchNext();
+        final fetchFuture = controller.fetchNext();
 
-      await _waitFor(() => controller.currentMessage.value?.id == 10);
+        await _waitFor(() => controller.currentMessage.value?.id == 10);
 
-      expect(controller.currentMessage.value?.id, 10);
-      expect(controller.loading.value, isFalse);
-      expect(controller.remainingCountLoading.value, isTrue);
-      expect(controller.remainingCount.value, isNull);
+        expect(controller.currentMessage.value?.id, 10);
+        expect(controller.loading.value, isFalse);
+        expect(controller.remainingCountLoading.value, isTrue);
+        expect(controller.remainingCount.value, isNull);
 
-      service.remainingCountCompleter!.complete(1250);
-      await fetchFuture;
-      await _waitFor(() => controller.remainingCount.value == 1250);
+        service.remainingCountCompleter!.complete(1250);
+        await fetchFuture;
+        await _waitFor(() => controller.remainingCount.value == 1250);
 
-      expect(controller.remainingCount.value, 1250);
-      expect(controller.remainingCountLoading.value, isFalse);
-    });
+        expect(controller.remainingCount.value, 1250);
+        expect(controller.remainingCountLoading.value, isFalse);
+      },
+    );
 
     test('showPreviousMessage returns to prior cached message', () async {
       service.pages.add([_message(31, 'a'), _message(32, 'b')]);
@@ -126,32 +129,31 @@ void main() {
       expect(controller.currentMessage.value?.id, 31);
     });
 
-    test('changing fetch direction invalidates cache and reloads pipeline', () async {
-      service.pages.add([
-        _message(31, 'latest'),
-        _message(30, 'older'),
-      ]);
-      service.pages.add([
-        _message(1, 'oldest'),
-        _message(2, 'next oldest'),
-      ]);
-      await controller.fetchNext();
+    test(
+      'changing fetch direction invalidates cache and reloads pipeline',
+      () async {
+        service.pages.add([_message(31, 'latest'), _message(30, 'older')]);
+        service.pages.add([_message(1, 'oldest'), _message(2, 'next oldest')]);
+        await controller.fetchNext();
 
-      expect(controller.currentMessage.value?.id, 31);
+        expect(controller.currentMessage.value?.id, 31);
 
-      settingsController.settings.value = settingsController.settings.value
-          .updateFetchDirection(MessageFetchDirection.oldestFirst);
-      await _waitFor(() => controller.currentMessage.value?.id == 1);
+        settingsController.settings.value = settingsController.settings.value
+            .updateFetchDirection(MessageFetchDirection.oldestFirst);
+        await _waitFor(() => controller.currentMessage.value?.id == 1);
 
-      expect(controller.currentMessage.value?.id, 1);
-      expect(controller.canShowPrevious.value, isFalse);
-      expect(controller.canShowNext.value, isTrue);
-      expect(service.fetchDirections.last, MessageFetchDirection.oldestFirst);
-      expect(
-        service.fetchDirections.where((item) => item == MessageFetchDirection.oldestFirst),
-        isNotEmpty,
-      );
-    });
+        expect(controller.currentMessage.value?.id, 1);
+        expect(controller.canShowPrevious.value, isFalse);
+        expect(controller.canShowNext.value, isTrue);
+        expect(service.fetchDirections.last, MessageFetchDirection.oldestFirst);
+        expect(
+          service.fetchDirections.where(
+            (item) => item == MessageFetchDirection.oldestFirst,
+          ),
+          isNotEmpty,
+        );
+      },
+    );
 
     test('does not auto fetch before authorization is ready', () async {
       controller.onClose();
@@ -168,6 +170,30 @@ void main() {
       expect(service.fetchNextCalls, 0);
 
       service.emitAuthReady();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.fetchNextCalls, 1);
+    });
+
+    test('auto fetch waits transaction recovery before first fetch', () async {
+      controller.onClose();
+      controller = PipelineController(
+        service: service,
+        settingsController: settingsController,
+        journalRepository: journalRepository,
+        errorController: errorController,
+      );
+      controller.onInit();
+      service.recoveryCompleter = Completer<ClassifyRecoverySummary>();
+
+      service.emitConnectionReady();
+      service.emitAuthReady();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.recoveryCalls, 1);
+      expect(service.fetchNextCalls, 0);
+
+      service.recoveryCompleter!.complete(ClassifyRecoverySummary.empty);
       await Future<void>.delayed(Duration.zero);
 
       expect(service.fetchNextCalls, 1);
@@ -242,29 +268,32 @@ void main() {
       expect(controller.remainingCount.value, 2);
     });
 
-    test('showNextMessage prefetches previews for next configured items', () async {
-      settingsController.settings.value = settingsController.settings.value.copyWith(
-        previewPrefetchCount: 3,
-      );
-      service.pages.add([
-        _videoMessage(id: 1, title: '1'),
-        _videoMessage(id: 2, title: '2'),
-        _videoMessage(id: 3, title: '3'),
-        _videoMessage(id: 4, title: '4'),
-      ]);
+    test(
+      'showNextMessage prefetches previews for next configured items',
+      () async {
+        settingsController.settings.value = settingsController.settings.value
+            .copyWith(previewPrefetchCount: 3);
+        service.pages.add([
+          _videoMessage(id: 1, title: '1'),
+          _videoMessage(id: 2, title: '2'),
+          _videoMessage(id: 3, title: '3'),
+          _videoMessage(id: 4, title: '4'),
+        ]);
 
-      await controller.fetchNext();
+        await controller.fetchNext();
 
-      expect(service.previewPreparedMessageIds, [2, 3, 4]);
+        expect(service.previewPreparedMessageIds, [2, 3, 4]);
 
-      await controller.showNextMessage();
+        await controller.showNextMessage();
 
-      expect(service.previewPreparedMessageIds, [2, 3, 4]);
-    });
+        expect(service.previewPreparedMessageIds, [2, 3, 4]);
+      },
+    );
   });
 }
 
-class _FakeTelegramService implements TelegramGateway {
+class _FakeTelegramService
+    implements TelegramGateway, RecoverableClassifyGateway {
   final _authController = StreamController<TdAuthState>.broadcast();
   final _connectionController = StreamController<TdConnectionState>.broadcast();
 
@@ -280,6 +309,8 @@ class _FakeTelegramService implements TelegramGateway {
   final Map<int, PipelineMessage> refreshedMessages = <int, PipelineMessage>{};
   int remainingCount = 0;
   Completer<int>? remainingCountCompleter;
+  int recoveryCalls = 0;
+  Completer<ClassifyRecoverySummary>? recoveryCompleter;
 
   @override
   Stream<TdAuthState> get authStates => _authController.stream;
@@ -411,6 +442,16 @@ class _FakeTelegramService implements TelegramGateway {
     required int targetChatId,
     required List<int> targetMessageIds,
   }) async {}
+
+  @override
+  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
+    recoveryCalls++;
+    final completer = recoveryCompleter;
+    if (completer != null) {
+      return completer.future;
+    }
+    return ClassifyRecoverySummary.empty;
+  }
 }
 
 PipelineMessage _message(int id, String title) {

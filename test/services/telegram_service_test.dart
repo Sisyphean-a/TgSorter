@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
+import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
@@ -144,20 +147,63 @@ void main() {
       },
     );
 
+    test('classifyMessage deletes with revoke true', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<TdWireEnvelope>>{
+          'forwardMessages': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'messages',
+              'messages': [_textMessageJson(88, 'copied')],
+            }),
+          ],
+        },
+      );
+      final service = TelegramService(adapter: adapter);
+
+      await service.classifyMessage(
+        sourceChatId: 777,
+        messageIds: const [10],
+        targetChatId: 999,
+        asCopy: false,
+      );
+
+      expect(adapter.deleteMessageRevokes, <bool>[true]);
+    });
+
     test(
-      'classifyMessage deletes with revoke true',
+      'classifyMessage waits pending target message to be sent before deleting source',
       () async {
         final adapter = _FakeTdlibAdapter(
           wireResponses: <String, List<TdWireEnvelope>>{
             'forwardMessages': <TdWireEnvelope>[
               TdWireEnvelope.fromJson(<String, dynamic>{
                 '@type': 'messages',
-                'messages': [_textMessageJson(88, 'copied')],
+                'messages': [
+                  _forwardedTextMessageJson(
+                    88,
+                    'copied',
+                    sendingStateType: 'messageSendingStatePending',
+                  ),
+                ],
               }),
+            ],
+            'getMessage': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(
+                _forwardedTextMessageJson(
+                  88,
+                  'copied',
+                  sendingStateType: 'messageSendingStatePending',
+                ),
+              ),
+              TdWireEnvelope.fromJson(_forwardedTextMessageJson(88, 'copied')),
             ],
           },
         );
-        final service = TelegramService(adapter: adapter);
+        final service = TelegramService(
+          adapter: adapter,
+          forwardDeliveryConfirmTimeout: const Duration(milliseconds: 30),
+          forwardDeliveryPollInterval: const Duration(milliseconds: 1),
+        );
 
         await service.classifyMessage(
           sourceChatId: 777,
@@ -166,7 +212,166 @@ void main() {
           asCopy: false,
         );
 
+        expect(adapter.getMessageCalls, greaterThan(0));
         expect(adapter.deleteMessageRevokes, <bool>[true]);
+      },
+    );
+
+    test(
+      'classifyMessage does not delete when pending target message confirmation times out',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'forwardMessages': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _forwardedTextMessageJson(
+                    88,
+                    'copied',
+                    sendingStateType: 'messageSendingStatePending',
+                  ),
+                ],
+              }),
+            ],
+            'getMessage': List<TdWireEnvelope>.generate(
+              12,
+              (_) => TdWireEnvelope.fromJson(
+                _forwardedTextMessageJson(
+                  88,
+                  'copied',
+                  sendingStateType: 'messageSendingStatePending',
+                ),
+              ),
+            ),
+          },
+        );
+        final service = TelegramService(
+          adapter: adapter,
+          forwardDeliveryConfirmTimeout: const Duration(milliseconds: 5),
+          forwardDeliveryPollInterval: const Duration(milliseconds: 1),
+        );
+
+        await expectLater(
+          () => service.classifyMessage(
+            sourceChatId: 777,
+            messageIds: const [10],
+            targetChatId: 999,
+            asCopy: false,
+          ),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(adapter.deleteMessageCalls, 0);
+      },
+    );
+
+    test(
+      'classifyMessage does not delete when forward returns fewer target messages than source',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'forwardMessages': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [_forwardedTextMessageJson(88, 'copied')],
+              }),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        await expectLater(
+          () => service.classifyMessage(
+            sourceChatId: 777,
+            messageIds: const [10, 11],
+            targetChatId: 999,
+            asCopy: false,
+          ),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(adapter.deleteMessageCalls, 0);
+      },
+    );
+
+    test(
+      'recoverPendingClassifyOperations retries delete for forwardConfirmed transaction',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final journalRepo = OperationJournalRepository(prefs);
+        await journalRepo.saveClassifyTransactions([
+          ClassifyTransactionEntry(
+            id: 'tx-1',
+            sourceChatId: 777,
+            sourceMessageIds: const [10],
+            targetChatId: 999,
+            asCopy: false,
+            targetMessageIds: const [88],
+            stage: ClassifyTransactionStage.forwardConfirmed,
+            createdAtMs: 1730000000000,
+            updatedAtMs: 1730000000000,
+            lastError: null,
+          ),
+        ]);
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getMessage': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(_textMessageJson(10, 'source')),
+            ],
+          },
+        );
+        final service = TelegramService(
+          adapter: adapter,
+          journalRepository: journalRepo,
+        );
+
+        final result = await service.recoverPendingClassifyOperations();
+
+        expect(result.recoveredCount, 1);
+        expect(result.manualReviewCount, 0);
+        expect(result.failedCount, 0);
+        expect(adapter.deleteMessageRevokes, <bool>[true]);
+        expect(journalRepo.loadClassifyTransactions(), isEmpty);
+      },
+    );
+
+    test(
+      'recoverPendingClassifyOperations marks created transaction as manual review',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final journalRepo = OperationJournalRepository(prefs);
+        await journalRepo.saveClassifyTransactions([
+          ClassifyTransactionEntry(
+            id: 'tx-1',
+            sourceChatId: 777,
+            sourceMessageIds: const [10],
+            targetChatId: 999,
+            asCopy: false,
+            targetMessageIds: const [],
+            stage: ClassifyTransactionStage.created,
+            createdAtMs: 1730000000000,
+            updatedAtMs: 1730000000000,
+            lastError: null,
+          ),
+        ]);
+        final adapter = _FakeTdlibAdapter(wireResponses: const {});
+        final service = TelegramService(
+          adapter: adapter,
+          journalRepository: journalRepo,
+        );
+
+        final result = await service.recoverPendingClassifyOperations();
+        final entries = journalRepo.loadClassifyTransactions();
+
+        expect(result.recoveredCount, 0);
+        expect(result.manualReviewCount, 1);
+        expect(result.failedCount, 0);
+        expect(entries.length, 1);
+        expect(entries.first.stage, ClassifyTransactionStage.needsManualReview);
+        expect(adapter.deleteMessageCalls, 0);
       },
     );
 
@@ -408,7 +613,10 @@ void main() {
           limit: 20,
         );
 
-        expect(page.map((item) => item.id), List.generate(20, (index) => index + 1));
+        expect(
+          page.map((item) => item.id),
+          List.generate(20, (index) => index + 1),
+        );
       },
     );
 
@@ -556,6 +764,7 @@ class _FakeTdlibAdapter extends TdlibAdapter {
   final List<int> downloadedFileIds = <int>[];
   final List<bool> deleteMessageRevokes = <bool>[];
   int deleteMessageCalls = 0;
+  int getMessageCalls = 0;
   bool? lastForwardSendCopy;
   int? lastHistoryChatId;
 
@@ -581,6 +790,9 @@ class _FakeTdlibAdapter extends TdlibAdapter {
     }
     if (function is GetChatHistory) {
       lastHistoryChatId = function.chatId;
+    }
+    if (function is GetMessage) {
+      getMessageCalls++;
     }
     final queue = wireResponses[constructor];
     if (queue == null || queue.isEmpty) {
@@ -613,6 +825,19 @@ Map<String, dynamic> _textMessageJson(int id, String text) {
       'text': {'text': text, 'entities': []},
     },
   };
+}
+
+Map<String, dynamic> _forwardedTextMessageJson(
+  int id,
+  String text, {
+  String? sendingStateType,
+}) {
+  final message = Map<String, dynamic>.from(_textMessageJson(id, text));
+  if (sendingStateType == null) {
+    return message;
+  }
+  message['sending_state'] = <String, dynamic>{'@type': sendingStateType};
+  return message;
 }
 
 Map<String, dynamic> _audioMessageJson(
@@ -695,7 +920,10 @@ Map<String, dynamic> _videoMessageJson(int id, {required String albumId}) {
   };
 }
 
-Map<String, dynamic> _documentVideoMessageJson(int id, {required String albumId}) {
+Map<String, dynamic> _documentVideoMessageJson(
+  int id, {
+  required String albumId,
+}) {
   return <String, dynamic>{
     'id': id,
     'media_album_id': albumId,

@@ -26,6 +26,28 @@ class ClassifyReceipt {
   int get primarySourceMessageId => sourceMessageIds.first;
 }
 
+class ClassifyRecoverySummary {
+  const ClassifyRecoverySummary({
+    required this.recoveredCount,
+    required this.manualReviewCount,
+    required this.failedCount,
+  });
+
+  static const empty = ClassifyRecoverySummary(
+    recoveredCount: 0,
+    manualReviewCount: 0,
+    failedCount: 0,
+  );
+
+  final int recoveredCount;
+  final int manualReviewCount;
+  final int failedCount;
+}
+
+abstract class RecoverableClassifyGateway {
+  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations();
+}
+
 abstract class TelegramGateway {
   Stream<TdAuthState> get authStates;
   Stream<TdConnectionState> get connectionStates;
