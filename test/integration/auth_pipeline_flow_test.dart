@@ -12,16 +12,20 @@ import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void main() {
   testWidgets('Auth ready navigates to pipeline page', (tester) async {
@@ -31,25 +35,27 @@ void main() {
     Get.testMode = true;
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    final service = _IntegrationFakeGateway();
+    final authGateway = _IntegrationAuthGateway();
+    final settingsGateway = _IntegrationSettingsGateway();
+    final pipelineGateway = _IntegrationPipelineGateway();
     final errors = AppErrorController();
     final settings = SettingsCoordinator(
       SettingsRepository(prefs),
-      service,
-      auth: service,
+      settingsGateway,
+      auth: authGateway,
     );
     final pipeline = PipelineCoordinator(
-      authStateGateway: service,
-      connectionStateGateway: service,
-      messageReadGateway: service,
-      mediaGateway: service,
-      classifyGateway: service,
-      recoveryGateway: service,
+      authStateGateway: authGateway,
+      connectionStateGateway: pipelineGateway,
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      classifyGateway: pipelineGateway,
+      recoveryGateway: pipelineGateway,
       settingsReader: settings,
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
-    final auth = AuthCoordinator(service, errors, settings);
+    final auth = AuthCoordinator(authGateway, errors, settings);
 
     Get.put<AppErrorController>(errors);
     Get.put<SettingsCoordinator>(settings);
@@ -58,7 +64,7 @@ void main() {
     settings.onInit();
     pipeline.onInit();
     auth.onInit();
-    service.emitConnectionReady();
+    pipelineGateway.emitConnectionReady();
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -81,7 +87,7 @@ void main() {
       ),
     );
     await tester.pump();
-    service.emitAuthState(
+    authGateway.emitAuthState(
       const TdAuthState(
         kind: TdAuthStateKind.ready,
         rawType: 'authorizationStateReady',
@@ -105,25 +111,27 @@ void main() {
     Get.testMode = true;
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    final service = _IntegrationFakeGateway();
+    final authGateway = _IntegrationAuthGateway();
+    final settingsGateway = _IntegrationSettingsGateway();
+    final pipelineGateway = _IntegrationPipelineGateway();
     final errors = AppErrorController();
     final settings = SettingsCoordinator(
       SettingsRepository(prefs),
-      service,
-      auth: service,
+      settingsGateway,
+      auth: authGateway,
     );
     final pipeline = PipelineCoordinator(
-      authStateGateway: service,
-      connectionStateGateway: service,
-      messageReadGateway: service,
-      mediaGateway: service,
-      classifyGateway: service,
-      recoveryGateway: service,
+      authStateGateway: authGateway,
+      connectionStateGateway: pipelineGateway,
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      classifyGateway: pipelineGateway,
+      recoveryGateway: pipelineGateway,
       settingsReader: settings,
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
-    final auth = AuthCoordinator(service, errors, settings);
+    final auth = AuthCoordinator(authGateway, errors, settings);
 
     Get.put<AppErrorController>(errors);
     Get.put<SettingsCoordinator>(settings);
@@ -157,7 +165,7 @@ void main() {
 
     expect(prefs.getString('tdlib_proxy_server'), '127.0.0.1');
     expect(prefs.getInt('tdlib_proxy_port'), 7897);
-    expect(service.restartCalls, 1);
+    expect(authGateway.restartCalls, 1);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -169,60 +177,40 @@ void main() {
     Get.testMode = true;
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    final service = _IntegrationFakeGateway();
+    final authGateway = _IntegrationAuthGateway();
+    final settingsGateway = _IntegrationSettingsGateway();
+    final pipelineGateway = _IntegrationPipelineGateway();
 
     Get.put<SettingsRepository>(SettingsRepository(prefs));
-    Get.put<AuthGateway>(service);
-    Get.put<SessionQueryGateway>(service);
+    Get.put<AuthGateway>(authGateway);
+    Get.put<SessionQueryGateway>(settingsGateway);
 
     expect(registerSettingsModule, returnsNormally);
     expect(Get.isRegistered<SettingsCoordinator>(), isTrue);
 
     Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
     Get.put<AppErrorController>(AppErrorController());
-    Get.put<AuthStateGateway>(service);
-    Get.put<ConnectionStateGateway>(service);
-    Get.put<MessageReadGateway>(service);
-    Get.put<MediaGateway>(service);
-    Get.put<ClassifyGateway>(service);
-    Get.put<RecoveryGateway>(service);
+    Get.put<AuthStateGateway>(authGateway);
+    Get.put<ConnectionStateGateway>(pipelineGateway);
+    Get.put<MessageReadGateway>(pipelineGateway);
+    Get.put<MediaGateway>(pipelineGateway);
+    Get.put<ClassifyGateway>(pipelineGateway);
+    Get.put<RecoveryGateway>(pipelineGateway);
 
     expect(registerPipelineModule, returnsNormally);
     expect(Get.isRegistered<PipelineCoordinator>(), isTrue);
   });
 }
 
-class _IntegrationFakeGateway
-    implements
-        AuthGateway,
-        SessionQueryGateway,
-        AuthStateGateway,
-        ConnectionStateGateway,
-        MessageReadGateway,
-        MediaGateway,
-        ClassifyGateway,
-        RecoveryGateway {
+class _IntegrationAuthGateway implements AuthGateway, AuthStateGateway {
   final _authController = StreamController<TdAuthState>.broadcast();
-  final _connectionController = StreamController<TdConnectionState>.broadcast();
   int restartCalls = 0;
 
   @override
   Stream<TdAuthState> get authStates => _authController.stream;
 
-  @override
-  Stream<TdConnectionState> get connectionStates => _connectionController.stream;
-
   void emitAuthState(TdAuthState state) {
     _authController.add(state);
-  }
-
-  void emitConnectionReady() {
-    _connectionController.add(
-      const TdConnectionState(
-        kind: TdConnectionStateKind.ready,
-        rawType: 'connectionStateReady',
-      ),
-    );
   }
 
   @override
@@ -241,9 +229,34 @@ class _IntegrationFakeGateway
 
   @override
   Future<void> submitPhoneNumber(String phoneNumber) async {}
+}
+
+class _IntegrationSettingsGateway implements SessionQueryGateway {
 
   @override
   Future<List<SelectableChat>> listSelectableChats() async => const [];
+}
+
+class _IntegrationPipelineGateway
+    implements
+        ConnectionStateGateway,
+        MessageReadGateway,
+        MediaGateway,
+        ClassifyGateway,
+        RecoveryGateway {
+  final _connectionController = StreamController<TdConnectionState>.broadcast();
+
+  @override
+  Stream<TdConnectionState> get connectionStates => _connectionController.stream;
+
+  void emitConnectionReady() {
+    _connectionController.add(
+      const TdConnectionState(
+        kind: TdConnectionStateKind.ready,
+        rawType: 'connectionStateReady',
+      ),
+    );
+  }
 
   @override
   Future<int> countRemainingMessages({required int? sourceChatId}) async => 0;

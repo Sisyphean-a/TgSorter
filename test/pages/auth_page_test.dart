@@ -13,7 +13,6 @@ import 'package:tgsorter/app/features/settings/application/settings_coordinator.
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/brand_app_bar.dart';

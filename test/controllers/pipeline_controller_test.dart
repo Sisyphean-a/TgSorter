@@ -14,7 +14,11 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_stat
 import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/application/remaining_count_service.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -24,11 +28,10 @@ import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void main() {
   group('PipelineCoordinator', () {
-    late _FakeTelegramService service;
+    late _FakePipelineGateway service;
     late _TestPipelineSettingsProvider settingsProvider;
     late OperationJournalRepository journalRepository;
     late AppErrorController errorController;
@@ -38,7 +41,7 @@ void main() {
       Get.testMode = true;
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
-      service = _FakeTelegramService();
+      service = _FakePipelineGateway();
       settingsProvider = _TestPipelineSettingsProvider(
         const AppSettings(
           categories: [
@@ -470,12 +473,14 @@ class _TestPipelineSettingsProvider implements PipelineSettingsReader {
   }
 }
 
-class _FakeTelegramService
+class _FakePipelineGateway
     implements
-        TelegramGateway,
-        RecoverableClassifyGateway,
         AuthStateGateway,
-        ConnectionStateGateway {
+        ConnectionStateGateway,
+        MessageReadGateway,
+        MediaGateway,
+        ClassifyGateway,
+        RecoveryGateway {
   final _authController = StreamController<TdAuthState>.broadcast();
   final _connectionController = StreamController<TdConnectionState>.broadcast();
 
@@ -518,26 +523,6 @@ class _FakeTelegramService
         rawType: 'authorizationStateReady',
       ),
     );
-  }
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> restart() async {}
-
-  @override
-  Future<void> submitCode(String code) async {}
-
-  @override
-  Future<void> submitPassword(String password) async {}
-
-  @override
-  Future<void> submitPhoneNumber(String phoneNumber) async {}
-
-  @override
-  Future<List<SelectableChat>> listSelectableChats() async {
-    return const [];
   }
 
   @override
