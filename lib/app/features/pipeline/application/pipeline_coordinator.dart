@@ -3,9 +3,7 @@ import 'dart:math' as math;
 
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/domain/flood_wait.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
-import 'package:tgsorter/app/domain/td_error_classifier.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -16,16 +14,16 @@ import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 
-import 'classify_gateway.dart';
 import 'media_gateway.dart';
 import 'message_read_gateway.dart';
 import 'pipeline_action_service.dart';
+import 'pipeline_error_mapper.dart';
+import 'pipeline_gateway_adapters.dart';
 import 'pipeline_media_refresh_service.dart';
 import 'pipeline_navigation_service.dart';
 import 'pipeline_recovery_service.dart';
 import 'pipeline_runtime_state.dart';
 import 'pipeline_settings_reader.dart';
-import 'recovery_gateway.dart';
 import 'remaining_count_service.dart';
 
 class PipelineCoordinator extends GetxController {
@@ -47,7 +45,10 @@ class PipelineCoordinator extends GetxController {
        _settingsReader = settingsReader,
        _journalRepository = journalRepository,
        _errorController = errorController,
+       _errorMapper = const PipelineErrorMapper(),
        runtimeState = runtimeState ?? PipelineRuntimeState() {
+    _messageReadGateway = TelegramMessageReadGatewayAdapter(service);
+    _mediaGateway = TelegramMediaGatewayAdapter(service);
     final resolvedNavigation =
         navigation ?? PipelineNavigationService(state: this.runtimeState);
     final resolvedActions =
@@ -55,7 +56,7 @@ class PipelineCoordinator extends GetxController {
         PipelineActionService(
           state: this.runtimeState,
           navigation: resolvedNavigation,
-          classifyGateway: _TelegramClassifyGateway(service),
+          classifyGateway: TelegramClassifyGatewayAdapter(service),
           settings: settingsReader,
           journalRepository: journalRepository,
           logs: logs,
@@ -65,15 +66,17 @@ class PipelineCoordinator extends GetxController {
         recovery ??
         PipelineRecoveryService(
           recoveryGateway: service is RecoverableClassifyGateway
-              ? _TelegramRecoveryGateway(service as RecoverableClassifyGateway)
+              ? TelegramRecoveryGatewayAdapter(
+                  service as RecoverableClassifyGateway,
+                )
               : null,
           errors: errorController,
         );
     final resolvedMediaRefresh =
         mediaRefresh ??
         PipelineMediaRefreshService(
-          mediaGateway: _TelegramMediaGateway(service),
-          messageGateway: _TelegramMessageReadGateway(service),
+          mediaGateway: _mediaGateway,
+          messageGateway: _messageReadGateway,
         );
     this.navigation = resolvedNavigation;
     this.actions = resolvedActions;
@@ -86,7 +89,10 @@ class PipelineCoordinator extends GetxController {
   final PipelineSettingsReader _settingsReader;
   final OperationJournalRepository _journalRepository;
   final AppErrorController _errorController;
+  final PipelineErrorMapper _errorMapper;
   final PipelineRuntimeState runtimeState;
+  late final MessageReadGateway _messageReadGateway;
+  late final MediaGateway _mediaGateway;
   late final PipelineNavigationService navigation;
   late final PipelineActionService actions;
   late final PipelineRecoveryService recovery;
@@ -156,7 +162,7 @@ class PipelineCoordinator extends GetxController {
     } on TdlibFailure catch (error) {
       _showTdlibError(error);
     } catch (error) {
-      _showGeneralError(error.toString());
+      _showGeneralError(error);
     } finally {
       loading.value = false;
     }
@@ -181,7 +187,7 @@ class PipelineCoordinator extends GetxController {
       currentMessage.value = _mergePreparedMessage(message, prepared);
       await _refreshCurrentMediaIfNeeded();
     } catch (error) {
-      _showGeneralError(error.toString());
+      _showGeneralError(error);
       videoPreparing.value = false;
     }
   }
@@ -327,30 +333,13 @@ class PipelineCoordinator extends GetxController {
   int _nowMs() => DateTime.now().millisecondsSinceEpoch;
 
   void _showTdlibError(TdlibFailure error) {
-    final kind = classifyTdlibError(error);
-    if (kind == TdErrorKind.rateLimit) {
-      final waitSeconds = parseFloodWaitSeconds(error.message);
-      final suffix = waitSeconds == null ? '' : '，需等待 $waitSeconds 秒';
-      _reportError('操作过快', '触发 FloodWait$suffix');
-      return;
-    }
-    if (kind == TdErrorKind.network) {
-      _reportError('网络异常', '请检查网络连接后重试');
-      return;
-    }
-    if (kind == TdErrorKind.auth) {
-      _reportError('鉴权异常', '登录态可能失效，请重新登录');
-      return;
-    }
-    if (kind == TdErrorKind.permission) {
-      _reportError('权限异常', '目标会话可能无发送权限');
-      return;
-    }
-    _reportError('TDLib 错误', error.toString());
+    final resolved = _errorMapper.mapTdlibFailure(error);
+    _reportError(resolved.title, resolved.message);
   }
 
-  void _showGeneralError(String message) {
-    _reportError('运行异常', message);
+  void _showGeneralError(Object error) {
+    final resolved = _errorMapper.mapGeneralError(error);
+    _reportError(resolved.title, resolved.message);
   }
 
   void _tryAutoFetchNext() {
@@ -489,7 +478,7 @@ class PipelineCoordinator extends GetxController {
     navigation.replaceMessages(const <PipelineMessage>[]);
     _previewPreparedMessageIds.clear();
     _tailMessageId = null;
-    final page = await _service.fetchMessagePage(
+    final page = await _messageReadGateway.fetchMessagePage(
       direction: _settingsReader.currentSettings.fetchDirection,
       sourceChatId: _settingsReader.currentSettings.sourceChatId,
       fromMessageId: null,
@@ -507,7 +496,7 @@ class PipelineCoordinator extends GetxController {
     if (!isOnline.value || _tailMessageId == null) {
       return;
     }
-    final page = await _service.fetchMessagePage(
+    final page = await _messageReadGateway.fetchMessagePage(
       direction: _settingsReader.currentSettings.fetchDirection,
       sourceChatId: _settingsReader.currentSettings.sourceChatId,
       fromMessageId: _tailMessageId,
@@ -602,7 +591,7 @@ class PipelineCoordinator extends GetxController {
 
   Future<void> _refreshRemainingCount() async {
     await _remainingCountService.refreshRemainingCount(
-      loadCount: () => _service.countRemainingMessages(
+      loadCount: () => _messageReadGateway.countRemainingMessages(
         sourceChatId: _settingsReader.currentSettings.sourceChatId,
       ),
       onStart: () {
@@ -639,7 +628,7 @@ class PipelineCoordinator extends GetxController {
         if (!_previewPreparedMessageIds.add(messageId)) {
           continue;
         }
-        await _service.prepareMediaPreview(
+        await _mediaGateway.prepareMediaPreview(
           sourceChatId: item.sourceChatId,
           messageId: messageId,
         );
@@ -674,126 +663,5 @@ class PipelineCoordinator extends GetxController {
     _authSub?.cancel();
     _settingsWorker?.dispose();
     super.onClose();
-  }
-}
-
-class _TelegramClassifyGateway implements ClassifyGateway {
-  const _TelegramClassifyGateway(this._service);
-
-  final TelegramGateway _service;
-
-  @override
-  Future<ClassifyReceipt> classifyMessage({
-    required int? sourceChatId,
-    required List<int> messageIds,
-    required int targetChatId,
-    required bool asCopy,
-  }) {
-    return _service.classifyMessage(
-      sourceChatId: sourceChatId,
-      messageIds: messageIds,
-      targetChatId: targetChatId,
-      asCopy: asCopy,
-    );
-  }
-
-  @override
-  Future<void> undoClassify({
-    required int sourceChatId,
-    required int targetChatId,
-    required List<int> targetMessageIds,
-  }) {
-    return _service.undoClassify(
-      sourceChatId: sourceChatId,
-      targetChatId: targetChatId,
-      targetMessageIds: targetMessageIds,
-    );
-  }
-}
-
-class _TelegramMediaGateway implements MediaGateway {
-  const _TelegramMediaGateway(this._service);
-
-  final TelegramGateway _service;
-
-  @override
-  Future<void> prepareMediaPreview({
-    required int sourceChatId,
-    required int messageId,
-  }) {
-    return _service.prepareMediaPreview(
-      sourceChatId: sourceChatId,
-      messageId: messageId,
-    );
-  }
-
-  @override
-  Future<PipelineMessage> prepareMediaPlayback({
-    required int sourceChatId,
-    required int messageId,
-  }) {
-    return _service.prepareMediaPlayback(
-      sourceChatId: sourceChatId,
-      messageId: messageId,
-    );
-  }
-}
-
-class _TelegramMessageReadGateway implements MessageReadGateway {
-  const _TelegramMessageReadGateway(this._service);
-
-  final TelegramGateway _service;
-
-  @override
-  Future<int> countRemainingMessages({required int? sourceChatId}) {
-    return _service.countRemainingMessages(sourceChatId: sourceChatId);
-  }
-
-  @override
-  Future<List<PipelineMessage>> fetchMessagePage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-    required int? fromMessageId,
-    required int limit,
-  }) {
-    return _service.fetchMessagePage(
-      direction: direction,
-      sourceChatId: sourceChatId,
-      fromMessageId: fromMessageId,
-      limit: limit,
-    );
-  }
-
-  @override
-  Future<PipelineMessage?> fetchNextMessage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-  }) {
-    return _service.fetchNextMessage(
-      direction: direction,
-      sourceChatId: sourceChatId,
-    );
-  }
-
-  @override
-  Future<PipelineMessage> refreshMessage({
-    required int sourceChatId,
-    required int messageId,
-  }) {
-    return _service.refreshMessage(
-      sourceChatId: sourceChatId,
-      messageId: messageId,
-    );
-  }
-}
-
-class _TelegramRecoveryGateway implements RecoveryGateway {
-  const _TelegramRecoveryGateway(this._service);
-
-  final RecoverableClassifyGateway _service;
-
-  @override
-  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() {
-    return _service.recoverPendingClassifyOperations();
   }
 }
