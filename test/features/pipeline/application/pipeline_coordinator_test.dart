@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
@@ -7,6 +9,8 @@ import 'package:tgsorter/app/features/pipeline/application/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_action_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_feed_controller.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_media_refresh_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_recovery_service.dart';
@@ -68,6 +72,44 @@ void main() {
     expect(harness.runtimeState.currentMessage.value?.id, 2);
   });
 
+  test('coordinator fetchNext delegates feed loading to feed controller', () async {
+    final feed = _RecordingPipelineFeedController();
+    final harness = _PipelineCoordinatorHarness(feed: feed);
+
+    await harness.coordinator.fetchNext();
+
+    expect(feed.loadInitialCalls, 1);
+  });
+
+  test('coordinator classify delegates visibility maintenance to feed controller', () async {
+    final feed = _RecordingPipelineFeedController();
+    final harness = _PipelineCoordinatorHarness(feed: feed);
+    harness.runtimeState.isOnline.value = true;
+    harness.runtimeState.currentMessage.value = _textMessage(21, 'current');
+
+    await harness.coordinator.classify('work');
+
+    expect(feed.decrementCalls, [1]);
+    expect(feed.ensureVisibleCalls, 1);
+  });
+
+  test('coordinator onInit wires auth and connection events through lifecycle', () async {
+    final service = _RecordingTelegramGateway();
+    final lifecycle = _RecordingPipelineLifecycleCoordinator();
+    final harness = _PipelineCoordinatorHarness(
+      service: service,
+      lifecycle: lifecycle,
+    );
+
+    harness.coordinator.onInit();
+    service.emitConnectionReady();
+    service.emitAuthReady();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(lifecycle.connectionUpdates, 1);
+    expect(lifecycle.authorizationUpdates, 1);
+  });
+
   test('coordinator recoverPendingTransactions delegates to recovery service', () async {
     final harness = _PipelineCoordinatorHarness();
 
@@ -78,7 +120,11 @@ void main() {
 }
 
 class _PipelineCoordinatorHarness {
-  factory _PipelineCoordinatorHarness() {
+  factory _PipelineCoordinatorHarness({
+    TelegramGateway? service,
+    PipelineFeedController? feed,
+    PipelineLifecycleCoordinator? lifecycle,
+  }) {
     final runtimeState = PipelineRuntimeState();
     final navigation = PipelineNavigationService(state: runtimeState);
     final actions = _RecordingPipelineActionService(
@@ -89,24 +135,30 @@ class _PipelineCoordinatorHarness {
     final mediaRefresh = _RecordingPipelineMediaRefreshService();
     return _PipelineCoordinatorHarness._(
       runtimeState: runtimeState,
+      service: service ?? _NoopTelegramGateway(),
       navigation: navigation,
       actions: actions,
       recovery: recovery,
       mediaRefresh: mediaRefresh,
       remainingCount: RemainingCountService(),
+      feed: feed,
+      lifecycle: lifecycle,
     );
   }
 
   _PipelineCoordinatorHarness._({
     required this.runtimeState,
+    required this.service,
     required this.navigation,
     required this.actions,
     required this.recovery,
     required this.mediaRefresh,
     required this.remainingCount,
+    this.feed,
+    this.lifecycle,
   }) {
     coordinator = PipelineCoordinator(
-      service: _NoopTelegramGateway(),
+      service: service,
       settingsReader: _FakeSettingsReader(),
       journalRepository: _FakeOperationJournalRepository(),
       errorController: AppErrorController(),
@@ -116,16 +168,78 @@ class _PipelineCoordinatorHarness {
       recovery: recovery,
       mediaRefresh: mediaRefresh,
       remainingCountService: remainingCount,
+      feedController: feed,
+      lifecycle: lifecycle,
     );
   }
 
   final PipelineRuntimeState runtimeState;
+  final TelegramGateway service;
   final PipelineNavigationService navigation;
   final RemainingCountService remainingCount;
   final _RecordingPipelineActionService actions;
   final _RecordingPipelineRecoveryService recovery;
   final _RecordingPipelineMediaRefreshService mediaRefresh;
+  final PipelineFeedController? feed;
+  final PipelineLifecycleCoordinator? lifecycle;
   late final PipelineCoordinator coordinator;
+}
+
+class _RecordingPipelineFeedController extends PipelineFeedController {
+  _RecordingPipelineFeedController()
+    : super(
+        state: PipelineRuntimeState(),
+        navigation: PipelineNavigationService(state: PipelineRuntimeState()),
+        messages: _NoopMessageReadGateway(),
+        media: _NoopMediaGateway(),
+        settings: _FakeSettingsReader(),
+        remainingCount: RemainingCountService(),
+        reportGeneralError: (_) {},
+      );
+
+  int loadInitialCalls = 0;
+  int ensureVisibleCalls = 0;
+  final List<int> decrementCalls = <int>[];
+
+  @override
+  Future<void> loadInitialMessages() async {
+    loadInitialCalls++;
+  }
+
+  @override
+  Future<void> ensureVisibleMessage() async {
+    ensureVisibleCalls++;
+  }
+
+  @override
+  void decrementRemainingCount(int delta) {
+    decrementCalls.add(delta);
+  }
+}
+
+class _RecordingPipelineLifecycleCoordinator
+    extends PipelineLifecycleCoordinator {
+  _RecordingPipelineLifecycleCoordinator()
+    : super(
+        state: PipelineRuntimeState(),
+        settings: _FakeSettingsReader(),
+        recovery: _RecordingPipelineRecoveryService(),
+        onFetchNext: () async {},
+        onResetPipeline: () {},
+      );
+
+  int connectionUpdates = 0;
+  int authorizationUpdates = 0;
+
+  @override
+  void updateConnection(bool isReady) {
+    connectionUpdates++;
+  }
+
+  @override
+  void updateAuthorization(bool isReady) {
+    authorizationUpdates++;
+  }
 }
 
 class _RecordingPipelineActionService extends PipelineActionService {
@@ -427,6 +541,38 @@ class _NoopTelegramGateway implements TelegramGateway {
     required int targetChatId,
     required List<int> targetMessageIds,
   }) async {}
+}
+
+class _RecordingTelegramGateway extends _NoopTelegramGateway {
+  final StreamController<TdAuthState> _authController =
+      StreamController<TdAuthState>.broadcast();
+  final StreamController<TdConnectionState> _connectionController =
+      StreamController<TdConnectionState>.broadcast();
+
+  @override
+  Stream<TdAuthState> get authStates => _authController.stream;
+
+  @override
+  Stream<TdConnectionState> get connectionStates =>
+      _connectionController.stream;
+
+  void emitConnectionReady() {
+    _connectionController.add(
+      const TdConnectionState(
+        kind: TdConnectionStateKind.ready,
+        rawType: 'connectionStateReady',
+      ),
+    );
+  }
+
+  void emitAuthReady() {
+    _authController.add(
+      const TdAuthState(
+        kind: TdAuthStateKind.ready,
+        rawType: 'authorizationStateReady',
+      ),
+    );
+  }
 }
 
 PipelineMessage _textMessage(int id, String title) {

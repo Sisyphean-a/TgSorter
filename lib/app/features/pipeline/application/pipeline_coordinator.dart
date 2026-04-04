@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
@@ -17,7 +16,9 @@ import 'media_gateway.dart';
 import 'message_read_gateway.dart';
 import 'pipeline_action_service.dart';
 import 'pipeline_error_mapper.dart';
+import 'pipeline_feed_controller.dart';
 import 'pipeline_gateway_adapters.dart';
+import 'pipeline_lifecycle_coordinator.dart';
 import 'pipeline_media_controller.dart';
 import 'pipeline_media_refresh_service.dart';
 import 'pipeline_navigation_service.dart';
@@ -28,7 +29,6 @@ import 'remaining_count_service.dart';
 
 class PipelineCoordinator extends GetxController {
   static const Duration _videoRefreshInterval = Duration(seconds: 1);
-  static const int _messagePageSize = 20;
 
   PipelineCoordinator({
     required TelegramGateway service,
@@ -40,6 +40,8 @@ class PipelineCoordinator extends GetxController {
     PipelineActionService? actions,
     PipelineRecoveryService? recovery,
     PipelineMediaRefreshService? mediaRefresh,
+    PipelineFeedController? feedController,
+    PipelineLifecycleCoordinator? lifecycle,
     RemainingCountService? remainingCountService,
   }) : _service = service,
        _settingsReader = settingsReader,
@@ -88,7 +90,29 @@ class PipelineCoordinator extends GetxController {
       reportGeneralError: _showGeneralError,
       videoRefreshInterval: _videoRefreshInterval,
     );
-    _remainingCountService = remainingCountService ?? RemainingCountService();
+    final resolvedRemainingCountService =
+        remainingCountService ?? RemainingCountService();
+    this.feedController =
+        feedController ??
+        PipelineFeedController(
+          state: this.runtimeState,
+          navigation: resolvedNavigation,
+          messages: _messageReadGateway,
+          media: _mediaGateway,
+          settings: settingsReader,
+          remainingCount: resolvedRemainingCountService,
+          reportGeneralError: _showGeneralError,
+          refreshCurrentMediaIfNeeded: _refreshCurrentMediaIfNeeded,
+        );
+    this.lifecycle =
+        lifecycle ??
+        PipelineLifecycleCoordinator(
+          state: this.runtimeState,
+          settings: settingsReader,
+          recovery: resolvedRecovery,
+          onFetchNext: fetchNext,
+          onResetPipeline: _resetPipelineState,
+        );
   }
 
   final TelegramGateway _service;
@@ -104,7 +128,8 @@ class PipelineCoordinator extends GetxController {
   late final PipelineRecoveryService recovery;
   late final PipelineMediaRefreshService mediaRefresh;
   late final PipelineMediaController mediaController;
-  late final RemainingCountService _remainingCountService;
+  late final PipelineFeedController feedController;
+  late final PipelineLifecycleCoordinator lifecycle;
 
   Rxn<PipelineMessage> get currentMessage => runtimeState.currentMessage;
   RxBool get loading => runtimeState.loading;
@@ -122,11 +147,6 @@ class PipelineCoordinator extends GetxController {
   StreamSubscription<TdAuthState>? _authSub;
   Worker? _settingsWorker;
   ClassifyReceipt? _lastSuccessReceipt;
-  bool _isAuthorized = false;
-  int? _tailMessageId;
-  MessageFetchDirection? _lastFetchDirection;
-  int? _lastSourceChatId;
-  final Set<int> _previewPreparedMessageIds = <int>{};
 
   List<PipelineMessage> get _messageCache => runtimeState.cache;
   int get _currentIndex => runtimeState.currentIndex;
@@ -136,33 +156,29 @@ class PipelineCoordinator extends GetxController {
     super.onInit();
     logs.assignAll(_journalRepository.loadLogs());
     retryQueue.assignAll(_journalRepository.loadRetryQueue());
-    _lastFetchDirection = _settingsReader.currentSettings.fetchDirection;
-    _lastSourceChatId = _settingsReader.currentSettings.sourceChatId;
     _connectionSub = _service.connectionStates.listen((state) {
-      isOnline.value = state.isReady;
-      _tryAutoFetchNext();
+      lifecycle.updateConnection(state.isReady);
     });
     _authSub = _service.authStates.listen((state) {
-      _isAuthorized = state.isReady;
-      _tryAutoFetchNext();
+      lifecycle.updateAuthorization(state.isReady);
     });
     _settingsWorker = ever<AppSettings>(
       _settingsReader.settingsStream,
-      _handleSettingsChanged,
+      lifecycle.handleSettingsChanged,
     );
   }
 
   @override
   void onReady() {
     super.onReady();
-    _tryAutoFetchNext();
+    lifecycle.tryAutoFetchNext();
   }
 
   Future<void> fetchNext() async {
     _stopVideoRefresh();
     loading.value = true;
     try {
-      await _loadInitialMessages();
+      await feedController.loadInitialMessages();
       await _refreshCurrentMediaIfNeeded();
     } on TdlibFailure catch (error) {
       _showTdlibError(error);
@@ -186,7 +202,7 @@ class PipelineCoordinator extends GetxController {
     if (!skipped) {
       return;
     }
-    await _ensureVisibleMessage();
+    await feedController.ensureVisibleMessage();
   }
 
   Future<void> runBatch(String key) async {
@@ -222,8 +238,8 @@ class PipelineCoordinator extends GetxController {
         return false;
       }
       _lastSuccessReceipt = receipt;
-      _decrementRemainingCount(receipt.sourceMessageIds.length);
-      await _ensureVisibleMessage();
+      feedController.decrementRemainingCount(receipt.sourceMessageIds.length);
+      await feedController.ensureVisibleMessage();
       return true;
     } on TdlibFailure catch (error) {
       _showTdlibError(error);
@@ -238,7 +254,7 @@ class PipelineCoordinator extends GetxController {
     _stopVideoRefresh();
     await navigation.showPrevious();
     await _refreshCurrentMediaIfNeeded();
-    await _prefetchIfNeeded();
+    await feedController.prefetchIfNeeded();
   }
 
   Future<void> showNextMessage() async {
@@ -249,14 +265,14 @@ class PipelineCoordinator extends GetxController {
     if (_currentIndex + 1 < _messageCache.length) {
       await navigation.showNext();
       await _refreshCurrentMediaIfNeeded();
-      await _prefetchIfNeeded();
+      await feedController.prefetchIfNeeded();
       return;
     }
-    await _appendMoreMessages();
+    await feedController.appendMoreMessages();
     if (_currentIndex + 1 < _messageCache.length) {
       await navigation.showNext();
       await _refreshCurrentMediaIfNeeded();
-      await _prefetchIfNeeded();
+      await feedController.prefetchIfNeeded();
     }
   }
 
@@ -279,7 +295,7 @@ class PipelineCoordinator extends GetxController {
         return;
       }
       _lastSuccessReceipt = null;
-      _incrementRemainingCount(receipt.sourceMessageIds.length);
+      feedController.incrementRemainingCount(receipt.sourceMessageIds.length);
       await fetchNext();
     } on TdlibFailure catch (error) {
       _showTdlibError(error);
@@ -327,180 +343,17 @@ class PipelineCoordinator extends GetxController {
     _reportError(resolved.title, resolved.message);
   }
 
-  void _tryAutoFetchNext() {
-    if (!_isAuthorized || !isOnline.value || loading.value) {
-      return;
-    }
-    if (!recovery.isCompleted) {
-      _triggerTransactionRecoveryIfNeeded();
-      return;
-    }
-    if (currentMessage.value != null) {
-      return;
-    }
-    unawaited(fetchNext());
-  }
-
-  void _triggerTransactionRecoveryIfNeeded() {
-    if (recovery.isRunning || recovery.isCompleted) {
-      return;
-    }
-    unawaited(_recoverPendingTransactions());
-  }
-
-  Future<void> _recoverPendingTransactions() async {
-    await recovery.recoverPendingTransactionsIfNeeded();
-    if (recovery.isCompleted) {
-      _tryAutoFetchNext();
-    }
-  }
-
-  void _handleSettingsChanged(AppSettings settings) {
-    final directionChanged = settings.fetchDirection != _lastFetchDirection;
-    final sourceChanged = settings.sourceChatId != _lastSourceChatId;
-    _lastFetchDirection = settings.fetchDirection;
-    _lastSourceChatId = settings.sourceChatId;
-    if (!directionChanged && !sourceChanged) {
-      return;
-    }
-    _resetPipelineState();
-    _tryAutoFetchNext();
-  }
-
   void _resetPipelineState() {
     _stopVideoRefresh();
-    _remainingCountService.beginRequest();
-    navigation.replaceMessages(const <PipelineMessage>[]);
-    _previewPreparedMessageIds.clear();
-    _tailMessageId = null;
-    remainingCount.value = null;
-    remainingCountLoading.value = false;
+    feedController.reset();
   }
 
   Future<void> _refreshCurrentMediaIfNeeded() async {
     await mediaController.refreshCurrentMediaIfNeeded();
   }
 
-  Future<void> _loadInitialMessages() async {
-    unawaited(_refreshRemainingCount());
-    navigation.replaceMessages(const <PipelineMessage>[]);
-    _previewPreparedMessageIds.clear();
-    _tailMessageId = null;
-    final page = await _messageReadGateway.fetchMessagePage(
-      direction: _settingsReader.currentSettings.fetchDirection,
-      sourceChatId: _settingsReader.currentSettings.sourceChatId,
-      fromMessageId: null,
-      limit: _messagePageSize,
-    );
-    navigation.replaceMessages(page);
-    _tailMessageId = page.isEmpty ? null : page.last.id;
-    if (page.isEmpty) {
-      return;
-    }
-    await _prepareUpcomingPreviews();
-  }
-
-  Future<void> _appendMoreMessages() async {
-    if (!isOnline.value || _tailMessageId == null) {
-      return;
-    }
-    final page = await _messageReadGateway.fetchMessagePage(
-      direction: _settingsReader.currentSettings.fetchDirection,
-      sourceChatId: _settingsReader.currentSettings.sourceChatId,
-      fromMessageId: _tailMessageId,
-      limit: _messagePageSize,
-    );
-    if (page.isEmpty) {
-      return;
-    }
-    navigation.appendUniqueMessages(page);
-    _tailMessageId = _messageCache.last.id;
-  }
-
-  Future<void> _prefetchIfNeeded() async {
-    if (_shouldAppendMoreMessages()) {
-      await _appendMoreMessages();
-    }
-    await _prepareUpcomingPreviews();
-  }
-
-  Future<void> _ensureVisibleMessage() async {
-    if (navigation.isEmpty) {
-      await _appendMoreMessages();
-    }
-    navigation.ensureCurrentAndSync();
-    if (navigation.isEmpty) {
-      return;
-    }
-    await _refreshCurrentMediaIfNeeded();
-    await _prefetchIfNeeded();
-  }
-
   void _stopVideoRefresh() {
     mediaController.stop();
-  }
-
-  Future<void> _refreshRemainingCount() async {
-    await _remainingCountService.refreshRemainingCount(
-      loadCount: () => _messageReadGateway.countRemainingMessages(
-        sourceChatId: _settingsReader.currentSettings.sourceChatId,
-      ),
-      onStart: () {
-        remainingCountLoading.value = true;
-      },
-      onSuccess: (nextCount) {
-        remainingCount.value = nextCount;
-      },
-      onError: (error) {
-        remainingCount.value = null;
-        _showGeneralError('剩余统计失败：$error');
-      },
-      onComplete: () {
-        remainingCountLoading.value = false;
-      },
-    );
-  }
-
-  bool _shouldAppendMoreMessages() {
-    final remaining = _messageCache.length - _currentIndex - 1;
-    return remaining <= 2;
-  }
-
-  Future<void> _prepareUpcomingPreviews() async {
-    final prefetchCount = _settingsReader.currentSettings.previewPrefetchCount;
-    if (prefetchCount <= 0 || _currentIndex < 0) {
-      return;
-    }
-    final start = _currentIndex + 1;
-    final end = math.min(_messageCache.length, start + prefetchCount);
-    for (var index = start; index < end; index++) {
-      final item = _messageCache[index];
-      for (final messageId in item.messageIds) {
-        if (!_previewPreparedMessageIds.add(messageId)) {
-          continue;
-        }
-        await _mediaGateway.prepareMediaPreview(
-          sourceChatId: item.sourceChatId,
-          messageId: messageId,
-        );
-      }
-    }
-  }
-
-  void _decrementRemainingCount(int delta) {
-    final current = remainingCount.value;
-    if (current == null || current <= 0 || delta <= 0) {
-      return;
-    }
-    remainingCount.value = math.max(0, current - delta);
-  }
-
-  void _incrementRemainingCount(int delta) {
-    final current = remainingCount.value;
-    if (current == null || delta <= 0) {
-      return;
-    }
-    remainingCount.value = current + delta;
   }
 
   void _reportError(String title, String message) {
