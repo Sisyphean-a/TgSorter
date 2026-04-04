@@ -5,9 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
-import 'package:tgsorter/app/core/routing/getx_auth_navigation_adapter.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
@@ -59,26 +59,14 @@ void main() {
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
-    final auth = AuthCoordinator(
-      authGateway,
-      errors,
-      settings,
-      lifecycle: AuthLifecycleCoordinator(
-        auth: authGateway,
-        errors: errors,
-        errorMapper: const AuthErrorMapper(),
-        settings: settings,
-        navigation: const GetxAuthNavigationAdapter(),
-      ),
-    );
-
     Get.put<AppErrorController>(errors);
+    Get.put<AuthGateway>(authGateway);
     Get.put<SettingsCoordinator>(settings);
     Get.put<PipelineCoordinator>(pipeline);
-    Get.put<AuthCoordinator>(auth);
+    expect(registerAuthModule, returnsNormally);
+    final auth = Get.find<AuthCoordinator>();
     settings.onInit();
     pipeline.onInit();
-    auth.onInit();
     pipelineGateway.emitConnectionReady();
 
     await tester.pumpWidget(
@@ -154,7 +142,6 @@ void main() {
         auth: authGateway,
         errors: errors,
         errorMapper: const AuthErrorMapper(),
-        settings: settings,
         navigation: _NoopAuthNavigationPort(),
       ),
     );

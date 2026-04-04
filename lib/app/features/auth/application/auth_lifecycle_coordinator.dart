@@ -4,7 +4,6 @@ import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
-import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 
@@ -22,18 +21,15 @@ class AuthLifecycleCoordinator {
     required AuthGateway auth,
     required AppErrorController errors,
     required AuthErrorMapper errorMapper,
-    required SettingsCoordinator settings,
     required AuthNavigationPort navigation,
   }) : _auth = auth,
        _errors = errors,
        _errorMapper = errorMapper,
-       _settings = settings,
        _navigation = navigation;
 
   final AuthGateway _auth;
   final AppErrorController _errors;
   final AuthErrorMapper _errorMapper;
-  final SettingsCoordinator _settings;
   final AuthNavigationPort _navigation;
   StreamSubscription<TdAuthState>? _authSub;
 
@@ -58,23 +54,6 @@ class AuthLifecycleCoordinator {
     } catch (error) {
       _reportGeneralError(error, title: '启动失败');
     }
-  }
-
-  Future<void> saveProxyAndRetry({
-    required String server,
-    required String port,
-    required String username,
-    required String password,
-  }) async {
-    await _settings.saveProxySettings(
-      server: server,
-      port: port,
-      username: username,
-      password: password,
-    );
-    _errors.clear();
-    await _auth.restart();
-    _errors.clearCurrent();
   }
 
   void reportActionError(Object error, {required String title}) {

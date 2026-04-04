@@ -7,9 +7,7 @@ import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
-import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
-import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/shared/errors/app_error_event.dart';
@@ -95,26 +93,18 @@ void main() {
 }
 
 Future<_Harness> _buildHarness() async {
-  final prefs = await SharedPreferences.getInstance();
   final gateway = _FakeAuthGateway();
   final errors = AppErrorController();
-  final settings = SettingsCoordinator(
-    SettingsRepository(prefs),
-    gateway,
-    auth: gateway,
-  )..onInit();
   final navigation = _FakeAuthNavigationPort();
   final lifecycle = AuthLifecycleCoordinator(
     auth: gateway,
     errors: errors,
     errorMapper: const AuthErrorMapper(),
-    settings: settings,
     navigation: navigation,
   );
   return _Harness(
     gateway: gateway,
     errors: errors,
-    settings: settings,
     navigation: navigation,
     lifecycle: lifecycle,
   );
@@ -124,14 +114,12 @@ class _Harness {
   const _Harness({
     required this.gateway,
     required this.errors,
-    required this.settings,
     required this.navigation,
     required this.lifecycle,
   });
 
   final _FakeAuthGateway gateway;
   final AppErrorController errors;
-  final SettingsCoordinator settings;
   final _FakeAuthNavigationPort navigation;
   final AuthLifecycleCoordinator lifecycle;
 }

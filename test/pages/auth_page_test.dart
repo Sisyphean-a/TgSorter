@@ -111,7 +111,6 @@ Future<void> _pumpAuthPage(
       auth: service,
       errors: errors,
       errorMapper: const AuthErrorMapper(),
-      settings: settings,
       navigation: _FakeAuthNavigationPort(),
     ),
   );

@@ -14,7 +14,6 @@ void registerAuthModule() {
     auth: Get.find<AuthGateway>(),
     errors: Get.find<AppErrorController>(),
     errorMapper: const AuthErrorMapper(),
-    settings: Get.find<SettingsCoordinator>(),
     navigation: Get.find<AuthNavigationPort>(),
   );
   Get.put(

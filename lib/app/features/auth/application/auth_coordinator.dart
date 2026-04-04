@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
@@ -31,7 +32,11 @@ class AuthCoordinator extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _lifecycle.initialize(onStageChanged: (nextStage) => stage.value = nextStage);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _lifecycle.initialize(
+        onStageChanged: (nextStage) => stage.value = nextStage,
+      );
+    });
   }
 
   Future<void> submitPhone(String phone) async {
@@ -63,7 +68,7 @@ class AuthCoordinator extends GetxController {
   }) async {
     stage.value = AuthStage.loading;
     await _runAction(
-      action: () => _lifecycle.saveProxyAndRetry(
+      action: () => _saveProxyAndRestart(
         server: server,
         port: port,
         username: username,
@@ -75,6 +80,23 @@ class AuthCoordinator extends GetxController {
 
   void clearErrorHistory() {
     _errors.clear();
+  }
+
+  Future<void> _saveProxyAndRestart({
+    required String server,
+    required String port,
+    required String username,
+    required String password,
+  }) async {
+    await _settings.saveProxySettings(
+      server: server,
+      port: port,
+      username: username,
+      password: password,
+    );
+    _errors.clear();
+    await _service.restart();
+    _errors.clearCurrent();
   }
 
   Future<void> _runAction({
