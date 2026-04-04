@@ -1,6 +1,6 @@
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 
 class CategorySettingsService {
   AppSettings addCategory({

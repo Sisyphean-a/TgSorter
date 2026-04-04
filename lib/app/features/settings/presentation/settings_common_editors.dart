@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class SourceChatDraftEditor extends StatelessWidget {
   const SourceChatDraftEditor({

@@ -1,13 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tgsorter/app/features/auth/application/auth_gateway.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
-import 'package:tgsorter/app/features/settings/application/session_query_gateway.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void main() {
   test('save persists draft and restarts only when proxy changes', () async {

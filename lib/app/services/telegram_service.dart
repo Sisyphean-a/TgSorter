@@ -19,7 +19,6 @@ import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_classify_workflow.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/services/telegram_media_service.dart';
 import 'package:tgsorter/app/services/telegram_message_forwarder.dart';
 import 'package:tgsorter/app/services/telegram_message_reader.dart';

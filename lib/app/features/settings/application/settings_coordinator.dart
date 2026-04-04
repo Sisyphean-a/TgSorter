@@ -11,7 +11,6 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class SettingsCoordinator extends GetxController
     implements PipelineSettingsReader {

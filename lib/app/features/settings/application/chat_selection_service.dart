@@ -1,5 +1,3 @@
-import 'package:tgsorter/app/services/telegram_gateway.dart';
-
 import 'session_query_gateway.dart';
 
 class ChatSelectionService {

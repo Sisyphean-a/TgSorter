@@ -5,9 +5,6 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
-import 'package:tgsorter/app/features/pipeline/application/classify_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/application/media_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/application/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_action_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_media_refresh_service.dart';
@@ -15,7 +12,6 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_s
 import 'package:tgsorter/app/features/pipeline/application/pipeline_recovery_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
-import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/remaining_count_service.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';

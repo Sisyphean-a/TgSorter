@@ -1,5 +1,6 @@
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/services/classify_transaction_coordinator.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 typedef ForwardMessagesAndConfirmDelivery =
     Future<List<int>> Function({

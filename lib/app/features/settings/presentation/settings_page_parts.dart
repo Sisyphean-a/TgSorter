@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/shared/presentation/formatters/pipeline_log_formatter.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/widgets/settings_section_card.dart';
 

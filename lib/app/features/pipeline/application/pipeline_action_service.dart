@@ -1,10 +1,9 @@
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
-import 'classify_gateway.dart';
 import 'pipeline_navigation_service.dart';
 import 'pipeline_runtime_state.dart';
 import 'pipeline_settings_reader.dart';

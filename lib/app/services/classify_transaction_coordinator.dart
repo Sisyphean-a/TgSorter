@@ -1,6 +1,6 @@
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class ClassifyTransactionCoordinator {
   static const String manualReviewReason =

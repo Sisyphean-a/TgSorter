@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class AddCategoryDialog extends StatefulWidget {
   const AddCategoryDialog({

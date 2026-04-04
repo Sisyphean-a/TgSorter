@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
-import 'package:tgsorter/app/services/td_connection_state.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/sticky_action_bar.dart';
 
 void main() {
@@ -238,16 +237,13 @@ Future<SettingsCoordinator> _pumpSettingsPage(
   return controller;
 }
 
-class _SettingsPageFakeGateway implements TelegramGateway {
+class _SettingsPageFakeGateway implements AuthGateway, SessionQueryGateway {
   _SettingsPageFakeGateway(this._chats);
 
   final List<SelectableChat> _chats;
 
   @override
   Stream<TdAuthState> get authStates => const Stream.empty();
-
-  @override
-  Stream<TdConnectionState> get connectionStates => const Stream.empty();
 
   @override
   Future<void> start() async {}
@@ -266,69 +262,4 @@ class _SettingsPageFakeGateway implements TelegramGateway {
 
   @override
   Future<List<SelectableChat>> listSelectableChats() async => _chats;
-
-  @override
-  Future<int> countRemainingMessages({required int? sourceChatId}) async => 0;
-
-  @override
-  Future<List<PipelineMessage>> fetchMessagePage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-    required int? fromMessageId,
-    required int limit,
-  }) async {
-    return const [];
-  }
-
-  @override
-  Future<PipelineMessage?> fetchNextMessage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-  }) async {
-    return null;
-  }
-
-  @override
-  Future<PipelineMessage> prepareMediaPlayback({
-    required int sourceChatId,
-    required int messageId,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> prepareMediaPreview({
-    required int sourceChatId,
-    required int messageId,
-  }) async {}
-
-  @override
-  Future<PipelineMessage> refreshMessage({
-    required int sourceChatId,
-    required int messageId,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<ClassifyReceipt> classifyMessage({
-    required int? sourceChatId,
-    required List<int> messageIds,
-    required int targetChatId,
-    required bool asCopy,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> undoClassify({
-    required int sourceChatId,
-    required int targetChatId,
-    required List<int> targetMessageIds,
-  }) async {}
-
-  @override
-  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
-    return ClassifyRecoverySummary.empty;
-  }
 }

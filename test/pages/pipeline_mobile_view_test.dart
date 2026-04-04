@@ -7,9 +7,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_mobile_view.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -18,7 +26,6 @@ import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 import 'package:tgsorter/app/widgets/mobile_action_tray.dart';
 
@@ -27,11 +34,12 @@ void main() {
     Get.testMode = true;
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    final service = _FakeTelegramService();
+    final settingsGateway = _FakeSettingsGateway();
+    final pipelineGateway = _FakePipelineGateway();
     final settingsController = SettingsCoordinator(
       SettingsRepository(prefs),
-      service,
-      auth: service,
+      settingsGateway,
+      auth: settingsGateway,
     );
     settingsController.onInit();
     settingsController.settings.value = const AppSettings(
@@ -46,7 +54,12 @@ void main() {
       proxy: ProxySettings.empty,
     );
     final controller = PipelineCoordinator(
-      service: service,
+      authStateGateway: pipelineGateway,
+      connectionStateGateway: pipelineGateway,
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      classifyGateway: pipelineGateway,
+      recoveryGateway: pipelineGateway,
       settingsReader: settingsController,
       journalRepository: OperationJournalRepository(prefs),
       errorController: AppErrorController(),
@@ -101,11 +114,12 @@ void main() {
       Get.testMode = true;
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
-      final service = _FakeTelegramService();
+      final settingsGateway = _FakeSettingsGateway();
+      final pipelineGateway = _FakePipelineGateway();
       final settingsController = SettingsCoordinator(
         SettingsRepository(prefs),
-        service,
-        auth: service,
+        settingsGateway,
+        auth: settingsGateway,
       );
       settingsController.onInit();
       settingsController.settings.value = const AppSettings(
@@ -126,7 +140,12 @@ void main() {
         proxy: ProxySettings.empty,
       );
       final controller = PipelineCoordinator(
-        service: service,
+        authStateGateway: pipelineGateway,
+        connectionStateGateway: pipelineGateway,
+        messageReadGateway: pipelineGateway,
+        mediaGateway: pipelineGateway,
+        classifyGateway: pipelineGateway,
+        recoveryGateway: pipelineGateway,
         settingsReader: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: AppErrorController(),
@@ -208,11 +227,12 @@ void main() {
       Get.testMode = true;
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
-      final service = _FakeTelegramService();
+      final settingsGateway = _FakeSettingsGateway();
+      final pipelineGateway = _FakePipelineGateway();
       final settingsController = SettingsCoordinator(
         SettingsRepository(prefs),
-        service,
-        auth: service,
+        settingsGateway,
+        auth: settingsGateway,
       );
       settingsController.onInit();
       settingsController.settings.value = const AppSettings(
@@ -229,7 +249,12 @@ void main() {
         proxy: ProxySettings.empty,
       );
       final controller = PipelineCoordinator(
-        service: service,
+        authStateGateway: pipelineGateway,
+        connectionStateGateway: pipelineGateway,
+        messageReadGateway: pipelineGateway,
+        mediaGateway: pipelineGateway,
+        classifyGateway: pipelineGateway,
+        recoveryGateway: pipelineGateway,
         settingsReader: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: AppErrorController(),
@@ -276,15 +301,21 @@ void main() {
       Get.testMode = true;
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
-      final service = _FakeTelegramService();
+      final settingsGateway = _FakeSettingsGateway();
+      final pipelineGateway = _FakePipelineGateway();
       final settingsController = SettingsCoordinator(
         SettingsRepository(prefs),
-        service,
-        auth: service,
+        settingsGateway,
+        auth: settingsGateway,
       );
       settingsController.onInit();
       final controller = PipelineCoordinator(
-        service: service,
+        authStateGateway: pipelineGateway,
+        connectionStateGateway: pipelineGateway,
+        messageReadGateway: pipelineGateway,
+        mediaGateway: pipelineGateway,
+        classifyGateway: pipelineGateway,
+        recoveryGateway: pipelineGateway,
         settingsReader: settingsController,
         journalRepository: OperationJournalRepository(prefs),
         errorController: AppErrorController(),
@@ -333,7 +364,39 @@ void main() {
   );
 }
 
-class _FakeTelegramService implements TelegramGateway {
+class _FakeSettingsGateway implements AuthGateway, SessionQueryGateway {
+  final _authController = StreamController<TdAuthState>.broadcast();
+
+  @override
+  Stream<TdAuthState> get authStates => _authController.stream;
+
+  @override
+  Future<List<SelectableChat>> listSelectableChats() async => const [];
+
+  @override
+  Future<void> restart() async {}
+
+  @override
+  Future<void> start() async {}
+
+  @override
+  Future<void> submitCode(String code) async {}
+
+  @override
+  Future<void> submitPassword(String password) async {}
+
+  @override
+  Future<void> submitPhoneNumber(String phoneNumber) async {}
+}
+
+class _FakePipelineGateway
+    implements
+        AuthStateGateway,
+        ConnectionStateGateway,
+        ClassifyGateway,
+        MessageReadGateway,
+        MediaGateway,
+        RecoveryGateway {
   final _authController = StreamController<TdAuthState>.broadcast();
   final _connectionController = StreamController<TdConnectionState>.broadcast();
 
@@ -373,9 +436,6 @@ class _FakeTelegramService implements TelegramGateway {
   }
 
   @override
-  Future<List<SelectableChat>> listSelectableChats() async => const [];
-
-  @override
   Future<int> countRemainingMessages({required int? sourceChatId}) async => 0;
 
   @override
@@ -399,21 +459,6 @@ class _FakeTelegramService implements TelegramGateway {
   }) async {
     throw UnimplementedError();
   }
-
-  @override
-  Future<void> restart() async {}
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> submitCode(String code) async {}
-
-  @override
-  Future<void> submitPassword(String password) async {}
-
-  @override
-  Future<void> submitPhoneNumber(String phoneNumber) async {}
 
   @override
   Future<void> undoClassify({

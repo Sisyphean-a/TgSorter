@@ -1,4 +1,18 @@
-import 'package:tgsorter/app/services/telegram_gateway.dart';
+class ClassifyReceipt {
+  const ClassifyReceipt({
+    required this.sourceChatId,
+    required this.sourceMessageIds,
+    required this.targetChatId,
+    required this.targetMessageIds,
+  });
+
+  final int sourceChatId;
+  final List<int> sourceMessageIds;
+  final int targetChatId;
+  final List<int> targetMessageIds;
+
+  int get primarySourceMessageId => sourceMessageIds.first;
+}
 
 /// Pipeline feature 依赖的最小分类能力接口（capability port）。
 abstract class ClassifyGateway {
@@ -15,4 +29,3 @@ abstract class ClassifyGateway {
     required List<int> targetMessageIds,
   });
 }
-

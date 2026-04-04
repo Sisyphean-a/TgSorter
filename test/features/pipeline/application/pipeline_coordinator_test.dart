@@ -4,9 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
-import 'package:tgsorter/app/features/pipeline/application/classify_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/application/media_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/application/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_action_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_feed_controller.dart';
@@ -15,11 +12,14 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_media_refres
 import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_recovery_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
-import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/remaining_count_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
@@ -29,17 +29,8 @@ import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
-import 'package:tgsorter/app/services/tdlib_adapter.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
-import 'package:tgsorter/app/services/telegram_service.dart';
 
 void main() {
-  test('telegram service does not implement TelegramGateway (ports-only)', () {
-    final service = TelegramService(adapter: _FakeTdlibAdapter());
-
-    expect(service is TelegramGateway, isFalse);
-  });
-
   test('coordinator classify delegates to action service', () async {
     final harness = _PipelineCoordinatorHarness();
     harness.runtimeState.isOnline.value = true;
@@ -104,7 +95,7 @@ void main() {
   });
 
   test('coordinator onInit wires auth and connection events through lifecycle', () async {
-    final service = _RecordingTelegramGateway();
+    final service = _RecordingPipelineSignalGateway();
     final lifecycle = _RecordingPipelineLifecycleCoordinator();
     final harness = _PipelineCoordinatorHarness(
       authStateGateway: service,
@@ -128,9 +119,7 @@ void main() {
 
     expect(harness.recovery.recoverCalls, 1);
   });
-  }
-
-class _FakeTdlibAdapter extends Fake implements TdlibAdapter {}
+}
 
 class _PipelineCoordinatorHarness {
   factory _PipelineCoordinatorHarness({
@@ -147,7 +136,7 @@ class _PipelineCoordinatorHarness {
     );
     final recovery = _RecordingPipelineRecoveryService();
     final mediaRefresh = _RecordingPipelineMediaRefreshService();
-    final sharedGateway = _NoopTelegramGateway();
+    final sharedGateway = _NoopPipelineSignalGateway();
     return _PipelineCoordinatorHarness._(
       runtimeState: runtimeState,
       authStateGateway: authStateGateway ?? sharedGateway,
@@ -472,102 +461,17 @@ class _NoopRecoveryGateway implements RecoveryGateway {
   }
 }
 
-class _NoopTelegramGateway
-    implements TelegramGateway, AuthStateGateway, ConnectionStateGateway {
+class _NoopPipelineSignalGateway
+    implements AuthStateGateway, ConnectionStateGateway {
   @override
   Stream<TdAuthState> get authStates => const Stream<TdAuthState>.empty();
 
   @override
   Stream<TdConnectionState> get connectionStates =>
       const Stream<TdConnectionState>.empty();
-
-  @override
-  Future<ClassifyReceipt> classifyMessage({
-    required int? sourceChatId,
-    required List<int> messageIds,
-    required int targetChatId,
-    required bool asCopy,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<int> countRemainingMessages({required int? sourceChatId}) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<List<PipelineMessage>> fetchMessagePage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-    required int? fromMessageId,
-    required int limit,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<PipelineMessage?> fetchNextMessage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<List<SelectableChat>> listSelectableChats() async => const [];
-
-  @override
-  Future<PipelineMessage> prepareMediaPlayback({
-    required int sourceChatId,
-    required int messageId,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> prepareMediaPreview({
-    required int sourceChatId,
-    required int messageId,
-  }) async {}
-
-  @override
-  Future<PipelineMessage> refreshMessage({
-    required int sourceChatId,
-    required int messageId,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
-    return ClassifyRecoverySummary.empty;
-  }
-
-  @override
-  Future<void> restart() async {}
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> submitCode(String code) async {}
-
-  @override
-  Future<void> submitPassword(String password) async {}
-
-  @override
-  Future<void> submitPhoneNumber(String phoneNumber) async {}
-
-  @override
-  Future<void> undoClassify({
-    required int sourceChatId,
-    required int targetChatId,
-    required List<int> targetMessageIds,
-  }) async {}
 }
 
-class _RecordingTelegramGateway extends _NoopTelegramGateway {
+class _RecordingPipelineSignalGateway extends _NoopPipelineSignalGateway {
   final StreamController<TdAuthState> _authController =
       StreamController<TdAuthState>.broadcast();
   final StreamController<TdConnectionState> _connectionController =

@@ -1,10 +1,10 @@
 import 'dart:developer' as developer;
 
 import 'package:tdlib/td_api.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/services/td_chat_dto.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 class TelegramSessionResolver {
   static const int _defaultChatListLimit = 200;
