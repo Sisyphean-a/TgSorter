@@ -7,63 +7,68 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_lifecycle_co
 import 'package:tgsorter/app/features/pipeline/application/pipeline_recovery_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
-import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void main() {
-  test('updateConnection triggers fetch only after authorization is ready', () async {
-    var fetchCalls = 0;
-    final lifecycle = PipelineLifecycleCoordinator(
-      state: PipelineRuntimeState(),
-      settings: _FakeSettingsReader(),
-      recovery: _FakeRecoveryService(completed: true),
-      onFetchNext: () async {
-        fetchCalls++;
-      },
-      onResetPipeline: () {},
-    );
+  test(
+    'updateConnection triggers fetch only after authorization is ready',
+    () async {
+      var fetchCalls = 0;
+      final lifecycle = PipelineLifecycleCoordinator(
+        state: PipelineRuntimeState(),
+        settings: _FakeSettingsReader(),
+        recovery: _FakeRecoveryService(completed: true),
+        onFetchNext: () async {
+          fetchCalls++;
+        },
+        onResetPipeline: () {},
+      );
 
-    lifecycle.updateConnection(true);
-    await Future<void>.delayed(Duration.zero);
-    expect(fetchCalls, 0);
+      lifecycle.updateConnection(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(fetchCalls, 0);
 
-    lifecycle.updateAuthorization(true);
-    await Future<void>.delayed(Duration.zero);
-    expect(fetchCalls, 1);
-  });
+      lifecycle.updateAuthorization(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(fetchCalls, 1);
+    },
+  );
 
-  test('settings change resets pipeline only when source or direction changes', () async {
-    var didReset = false;
-    var fetchCalls = 0;
-    final lifecycle = PipelineLifecycleCoordinator(
-      state: PipelineRuntimeState()..isOnline.value = true,
-      settings: _FakeSettingsReader(),
-      recovery: _FakeRecoveryService(completed: true),
-      onFetchNext: () async {
-        fetchCalls++;
-      },
-      onResetPipeline: () {
-        didReset = true;
-      },
-    );
+  test(
+    'settings change resets pipeline only when source or direction changes',
+    () async {
+      var didReset = false;
+      var fetchCalls = 0;
+      final lifecycle = PipelineLifecycleCoordinator(
+        state: PipelineRuntimeState()..isOnline.value = true,
+        settings: _FakeSettingsReader(),
+        recovery: _FakeRecoveryService(completed: true),
+        onFetchNext: () async {
+          fetchCalls++;
+        },
+        onResetPipeline: () {
+          didReset = true;
+        },
+      );
 
-    lifecycle.updateAuthorization(true);
-    await Future<void>.delayed(Duration.zero);
-    fetchCalls = 0;
+      lifecycle.updateAuthorization(true);
+      await Future<void>.delayed(Duration.zero);
+      fetchCalls = 0;
 
-    lifecycle.handleSettingsChanged(_unchangedSettings());
-    await Future<void>.delayed(Duration.zero);
-    expect(didReset, isFalse);
-    expect(fetchCalls, 0);
+      lifecycle.handleSettingsChanged(_unchangedSettings());
+      await Future<void>.delayed(Duration.zero);
+      expect(didReset, isFalse);
+      expect(fetchCalls, 0);
 
-    lifecycle.handleSettingsChanged(_updatedSettings());
-    await Future<void>.delayed(Duration.zero);
-    expect(didReset, isTrue);
-    expect(fetchCalls, 1);
-  });
+      lifecycle.handleSettingsChanged(_updatedSettings());
+      await Future<void>.delayed(Duration.zero);
+      expect(didReset, isTrue);
+      expect(fetchCalls, 1);
+    },
+  );
 
   test('auto fetch waits recovery completion before fetching', () async {
     final recovery = _FakeRecoveryService(completed: false);
@@ -140,7 +145,10 @@ class _FakeSettingsReader implements PipelineSettingsReader {
 class _FakeRecoveryService extends PipelineRecoveryService {
   _FakeRecoveryService({required bool completed})
     : _completed = completed,
-      super(recoveryGateway: _NoopRecoveryGateway(), errors: AppErrorController());
+      super(
+        recoveryGateway: _NoopRecoveryGateway(),
+        errors: AppErrorController(),
+      );
 
   bool _completed;
   int recoverCalls = 0;

@@ -372,61 +372,67 @@ void main() {
       expect(service.recoveryCalls, 0);
     });
 
-    test('prepareCurrentMedia delegates to injected media refresh service', () async {
-      final mediaRefresh = _RecordingPipelineMediaRefreshService();
-      controller.onClose();
-      controller = PipelineCoordinator(
-        authStateGateway: service,
-        connectionStateGateway: service,
-        messageReadGateway: service,
-        mediaGateway: service,
-        classifyGateway: service,
-        recoveryGateway: service,
-        settingsReader: settingsProvider,
-        journalRepository: journalRepository,
-        errorController: errorController,
-        mediaRefresh: mediaRefresh,
-      );
-      controller.onInit();
-      service.emitAuthReady();
-      service.emitConnectionReady();
-      service.pages.add([
-        _videoMessage(id: 61, title: 'delegated', localVideoPath: null),
-      ]);
-      await controller.fetchNext();
+    test(
+      'prepareCurrentMedia delegates to injected media refresh service',
+      () async {
+        final mediaRefresh = _RecordingPipelineMediaRefreshService();
+        controller.onClose();
+        controller = PipelineCoordinator(
+          authStateGateway: service,
+          connectionStateGateway: service,
+          messageReadGateway: service,
+          mediaGateway: service,
+          classifyGateway: service,
+          recoveryGateway: service,
+          settingsReader: settingsProvider,
+          journalRepository: journalRepository,
+          errorController: errorController,
+          mediaRefresh: mediaRefresh,
+        );
+        controller.onInit();
+        service.emitAuthReady();
+        service.emitConnectionReady();
+        service.pages.add([
+          _videoMessage(id: 61, title: 'delegated', localVideoPath: null),
+        ]);
+        await controller.fetchNext();
 
-      await controller.prepareCurrentMedia();
+        await controller.prepareCurrentMedia();
 
-      expect(mediaRefresh.prepareCalls, 1);
-      expect(service.videoRequestCount, 0);
-    });
+        expect(mediaRefresh.prepareCalls, 1);
+        expect(service.videoRequestCount, 0);
+      },
+    );
 
-    test('fetchNext delegates remaining count refresh to injected service', () async {
-      final remainingCountService = _RecordingRemainingCountService();
-      controller.onClose();
-      controller = PipelineCoordinator(
-        authStateGateway: service,
-        connectionStateGateway: service,
-        messageReadGateway: service,
-        mediaGateway: service,
-        classifyGateway: service,
-        recoveryGateway: service,
-        settingsReader: settingsProvider,
-        journalRepository: journalRepository,
-        errorController: errorController,
-        remainingCountService: remainingCountService,
-      );
-      controller.onInit();
-      service.emitAuthReady();
-      service.emitConnectionReady();
-      service.pages.add([_message(71, 'remaining')]);
+    test(
+      'fetchNext delegates remaining count refresh to injected service',
+      () async {
+        final remainingCountService = _RecordingRemainingCountService();
+        controller.onClose();
+        controller = PipelineCoordinator(
+          authStateGateway: service,
+          connectionStateGateway: service,
+          messageReadGateway: service,
+          mediaGateway: service,
+          classifyGateway: service,
+          recoveryGateway: service,
+          settingsReader: settingsProvider,
+          journalRepository: journalRepository,
+          errorController: errorController,
+          remainingCountService: remainingCountService,
+        );
+        controller.onInit();
+        service.emitAuthReady();
+        service.emitConnectionReady();
+        service.pages.add([_message(71, 'remaining')]);
 
-      await controller.fetchNext();
+        await controller.fetchNext();
 
-      expect(remainingCountService.refreshCalls, 1);
-      expect(controller.remainingCount.value, 7);
-      expect(service.remainingCountCalls, 0);
-    });
+        expect(remainingCountService.refreshCalls, 1);
+        expect(controller.remainingCount.value, 7);
+        expect(service.remainingCountCalls, 0);
+      },
+    );
 
     test(
       'showNextMessage prefetches previews for next configured items',
@@ -648,7 +654,7 @@ class _RecordingPipelineActionService extends PipelineActionService {
   }) async {
     classifyCalls++;
     lastCategoryKey = key;
-    _lastReceipt = const ClassifyReceipt(
+    _lastReceipt = ClassifyReceipt(
       sourceChatId: 8888,
       sourceMessageIds: <int>[51],
       targetChatId: 10001,
@@ -659,8 +665,9 @@ class _RecordingPipelineActionService extends PipelineActionService {
 }
 
 class _RecordingPipelineRecoveryService extends PipelineRecoveryService {
-  _RecordingPipelineRecoveryService({required AppErrorController errorController})
-    : super(recoveryGateway: _NoopRecoveryGateway(), errors: errorController);
+  _RecordingPipelineRecoveryService({
+    required AppErrorController errorController,
+  }) : super(recoveryGateway: _NoopRecoveryGateway(), errors: errorController);
 
   int recoverCalls = 0;
 
@@ -676,7 +683,8 @@ class _RecordingPipelineRecoveryService extends PipelineRecoveryService {
   }
 }
 
-class _RecordingPipelineMediaRefreshService extends PipelineMediaRefreshService {
+class _RecordingPipelineMediaRefreshService
+    extends PipelineMediaRefreshService {
   _RecordingPipelineMediaRefreshService()
     : super(
         mediaGateway: _NoopMediaGateway(),

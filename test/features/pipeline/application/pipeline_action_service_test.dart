@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
-import 'package:tgsorter/app/features/pipeline/application/classify_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_action_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
@@ -15,7 +15,6 @@ import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void main() {
   test('classify success appends log and removes current message', () async {
@@ -71,7 +70,7 @@ void main() {
     final service = harness.build();
 
     final undone = await service.undoLastSuccess(
-      receipt: const ClassifyReceipt(
+      receipt: ClassifyReceipt(
         sourceChatId: 8888,
         sourceMessageIds: <int>[21, 22],
         targetChatId: 10001,
@@ -88,33 +87,36 @@ void main() {
     );
   });
 
-  test('retryNextFailed removes queue head and appends retry success log', () async {
-    final harness = _PipelineActionHarness.success();
-    final service = harness.build();
-    harness.retryQueue.add(
-      RetryQueueItem(
-        id: 'retry-21',
-        categoryKey: 'work',
-        sourceChatId: 8888,
-        messageIds: const <int>[21],
-        targetChatId: 10001,
-        createdAtMs: 1,
-        reason: 'network',
-      ),
-    );
+  test(
+    'retryNextFailed removes queue head and appends retry success log',
+    () async {
+      final harness = _PipelineActionHarness.success();
+      final service = harness.build();
+      harness.retryQueue.add(
+        RetryQueueItem(
+          id: 'retry-21',
+          categoryKey: 'work',
+          sourceChatId: 8888,
+          messageIds: const <int>[21],
+          targetChatId: 10001,
+          createdAtMs: 1,
+          reason: 'network',
+        ),
+      );
 
-    final retried = await service.retryNextFailed(
-      retryQueue: harness.retryQueue,
-      logs: harness.logs,
-    );
+      final retried = await service.retryNextFailed(
+        retryQueue: harness.retryQueue,
+        logs: harness.logs,
+      );
 
-    expect(retried, isTrue);
-    expect(harness.retryQueue, isEmpty);
-    expect(
-      harness.appendedLogs.single.status,
-      ClassifyOperationStatus.retrySuccess,
-    );
-  });
+      expect(retried, isTrue);
+      expect(harness.retryQueue, isEmpty);
+      expect(
+        harness.appendedLogs.single.status,
+        ClassifyOperationStatus.retrySuccess,
+      );
+    },
+  );
 }
 
 class _PipelineActionHarness {

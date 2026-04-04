@@ -43,23 +43,26 @@ void main() {
     expect(harness.actions.lastCategoryKey, 'work');
   });
 
-  test('coordinator prepareCurrentMedia delegates to media refresh service', () async {
-    final harness = _PipelineCoordinatorHarness();
-    harness.runtimeState.currentMessage.value = PipelineMessage(
-      id: 21,
-      messageIds: const <int>[21],
-      sourceChatId: 8888,
-      preview: const MessagePreview(
-        kind: MessagePreviewKind.video,
-        title: 'video',
-      ),
-    );
+  test(
+    'coordinator prepareCurrentMedia delegates to media refresh service',
+    () async {
+      final harness = _PipelineCoordinatorHarness();
+      harness.runtimeState.currentMessage.value = PipelineMessage(
+        id: 21,
+        messageIds: const <int>[21],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.video,
+          title: 'video',
+        ),
+      );
 
-    await harness.coordinator.prepareCurrentMedia(21);
+      await harness.coordinator.prepareCurrentMedia(21);
 
-    expect(harness.mediaRefresh.prepareCalls, 1);
-    expect(harness.runtimeState.currentMessage.value?.id, 21);
-  });
+      expect(harness.mediaRefresh.prepareCalls, 1);
+      expect(harness.runtimeState.currentMessage.value?.id, 21);
+    },
+  );
 
   test('coordinator showNextMessage delegates to navigation service', () async {
     final harness = _PipelineCoordinatorHarness();
@@ -73,52 +76,64 @@ void main() {
     expect(harness.runtimeState.currentMessage.value?.id, 2);
   });
 
-  test('coordinator fetchNext delegates feed loading to feed controller', () async {
-    final feed = _RecordingPipelineFeedController();
-    final harness = _PipelineCoordinatorHarness(feed: feed);
+  test(
+    'coordinator fetchNext delegates feed loading to feed controller',
+    () async {
+      final feed = _RecordingPipelineFeedController();
+      final harness = _PipelineCoordinatorHarness(feed: feed);
 
-    await harness.coordinator.fetchNext();
+      await harness.coordinator.fetchNext();
 
-    expect(feed.loadInitialCalls, 1);
-  });
+      expect(feed.loadInitialCalls, 1);
+    },
+  );
 
-  test('coordinator classify delegates visibility maintenance to feed controller', () async {
-    final feed = _RecordingPipelineFeedController();
-    final harness = _PipelineCoordinatorHarness(feed: feed);
-    harness.runtimeState.isOnline.value = true;
-    harness.runtimeState.currentMessage.value = _textMessage(21, 'current');
+  test(
+    'coordinator classify delegates visibility maintenance to feed controller',
+    () async {
+      final feed = _RecordingPipelineFeedController();
+      final harness = _PipelineCoordinatorHarness(feed: feed);
+      harness.runtimeState.isOnline.value = true;
+      harness.runtimeState.currentMessage.value = _textMessage(21, 'current');
 
-    await harness.coordinator.classify('work');
+      await harness.coordinator.classify('work');
 
-    expect(feed.decrementCalls, [1]);
-    expect(feed.ensureVisibleCalls, 1);
-  });
+      expect(feed.decrementCalls, [1]);
+      expect(feed.ensureVisibleCalls, 1);
+    },
+  );
 
-  test('coordinator onInit wires auth and connection events through lifecycle', () async {
-    final service = _RecordingPipelineSignalGateway();
-    final lifecycle = _RecordingPipelineLifecycleCoordinator();
-    final harness = _PipelineCoordinatorHarness(
-      authStateGateway: service,
-      connectionStateGateway: service,
-      lifecycle: lifecycle,
-    );
+  test(
+    'coordinator onInit wires auth and connection events through lifecycle',
+    () async {
+      final service = _RecordingPipelineSignalGateway();
+      final lifecycle = _RecordingPipelineLifecycleCoordinator();
+      final harness = _PipelineCoordinatorHarness(
+        authStateGateway: service,
+        connectionStateGateway: service,
+        lifecycle: lifecycle,
+      );
 
-    harness.coordinator.onInit();
-    service.emitConnectionReady();
-    service.emitAuthReady();
-    await Future<void>.delayed(Duration.zero);
+      harness.coordinator.onInit();
+      service.emitConnectionReady();
+      service.emitAuthReady();
+      await Future<void>.delayed(Duration.zero);
 
-    expect(lifecycle.connectionUpdates, 1);
-    expect(lifecycle.authorizationUpdates, 1);
-  });
+      expect(lifecycle.connectionUpdates, 1);
+      expect(lifecycle.authorizationUpdates, 1);
+    },
+  );
 
-  test('coordinator recoverPendingTransactions delegates to recovery service', () async {
-    final harness = _PipelineCoordinatorHarness();
+  test(
+    'coordinator recoverPendingTransactions delegates to recovery service',
+    () async {
+      final harness = _PipelineCoordinatorHarness();
 
-    await harness.coordinator.recoverPendingTransactionsIfNeeded();
+      await harness.coordinator.recoverPendingTransactionsIfNeeded();
 
-    expect(harness.recovery.recoverCalls, 1);
-  });
+      expect(harness.recovery.recoverCalls, 1);
+    },
+  );
 }
 
 class _PipelineCoordinatorHarness {
@@ -171,9 +186,9 @@ class _PipelineCoordinatorHarness {
       classifyGateway: _NoopClassifyGateway(),
       recoveryGateway: _NoopRecoveryGateway(),
       settingsReader: _FakeSettingsReader(),
-	      journalRepository: _FakeOperationJournalRepository(),
-	      errorController: AppErrorController(),
-	      runtimeState: runtimeState,
+      journalRepository: _FakeOperationJournalRepository(),
+      errorController: AppErrorController(),
+      runtimeState: runtimeState,
       navigation: navigation,
       actions: actions,
       recovery: recovery,
@@ -182,7 +197,7 @@ class _PipelineCoordinatorHarness {
       feedController: feed,
       lifecycle: lifecycle,
     );
-	}
+  }
 
   final PipelineRuntimeState runtimeState;
   final AuthStateGateway authStateGateway;
@@ -277,7 +292,7 @@ class _RecordingPipelineActionService extends PipelineActionService {
   }) async {
     classifyCalls++;
     lastCategoryKey = key;
-    return const ClassifyReceipt(
+    return ClassifyReceipt(
       sourceChatId: 8888,
       sourceMessageIds: <int>[21],
       targetChatId: 10001,
@@ -286,7 +301,8 @@ class _RecordingPipelineActionService extends PipelineActionService {
   }
 }
 
-class _RecordingPipelineMediaRefreshService extends PipelineMediaRefreshService {
+class _RecordingPipelineMediaRefreshService
+    extends PipelineMediaRefreshService {
   _RecordingPipelineMediaRefreshService()
     : super(
         mediaGateway: _NoopMediaGateway(),
@@ -356,7 +372,8 @@ class _FakeOperationJournalRepository implements OperationJournalRepository {
   final List<RetryQueueItem> _retryQueue = <RetryQueueItem>[];
 
   @override
-  List<ClassifyOperationLog> loadLogs() => List<ClassifyOperationLog>.from(_logs);
+  List<ClassifyOperationLog> loadLogs() =>
+      List<ClassifyOperationLog>.from(_logs);
 
   @override
   Future<void> saveLogs(List<ClassifyOperationLog> logs) async {

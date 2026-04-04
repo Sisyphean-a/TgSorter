@@ -2,12 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
-import 'package:tgsorter/app/services/td_connection_state.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void main() {
   group('SettingsCoordinator', () {
@@ -109,7 +108,10 @@ void main() {
 
       expect(controller.isDirty.value, isFalse);
       expect(controller.savedSettings.value.sourceChatId, -10001);
-      expect(controller.savedSettings.value.fetchDirection, MessageFetchDirection.oldestFirst);
+      expect(
+        controller.savedSettings.value.fetchDirection,
+        MessageFetchDirection.oldestFirst,
+      );
       expect(controller.savedSettings.value.forwardAsCopy, isTrue);
       expect(controller.savedSettings.value.batchSize, 8);
       expect(controller.savedSettings.value.throttleMs, 1500);
@@ -118,38 +120,41 @@ void main() {
       expect(gateway.restartCount, 0);
     });
 
-    test('discardDraft restores saved settings and drops category edits', () async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final gateway = _SettingsFakeGateway();
-      final controller = SettingsCoordinator(
-        SettingsRepository(prefs),
-        gateway,
-        auth: gateway,
-      );
-      controller.onInit();
-      await controller.saveDraft();
+    test(
+      'discardDraft restores saved settings and drops category edits',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final gateway = _SettingsFakeGateway();
+        final controller = SettingsCoordinator(
+          SettingsRepository(prefs),
+          gateway,
+          auth: gateway,
+        );
+        controller.onInit();
+        await controller.saveDraft();
 
-      controller.addCategoryDraft(
-        const SelectableChat(id: -1001, title: '频道一'),
-      );
-      controller.updateProxyDraft(
-        server: '127.0.0.1',
-        port: '7897',
-        username: '',
-        password: '',
-      );
+        controller.addCategoryDraft(
+          const SelectableChat(id: -1001, title: '频道一'),
+        );
+        controller.updateProxyDraft(
+          server: '127.0.0.1',
+          port: '7897',
+          username: '',
+          password: '',
+        );
 
-      expect(controller.draftSettings.value.categories, hasLength(1));
-      expect(controller.isDirty.value, isTrue);
+        expect(controller.draftSettings.value.categories, hasLength(1));
+        expect(controller.isDirty.value, isTrue);
 
-      controller.discardDraft();
+        controller.discardDraft();
 
-      expect(controller.isDirty.value, isFalse);
-      expect(controller.draftSettings.value.categories, isEmpty);
-      expect(controller.savedSettings.value.categories, isEmpty);
-      expect(controller.draftSettings.value.proxy.server, isEmpty);
-    });
+        expect(controller.isDirty.value, isFalse);
+        expect(controller.draftSettings.value.categories, isEmpty);
+        expect(controller.savedSettings.value.categories, isEmpty);
+        expect(controller.draftSettings.value.proxy.server, isEmpty);
+      },
+    );
 
     test('category draft changes persist only after saveDraft', () async {
       SharedPreferences.setMockInitialValues({});
@@ -176,14 +181,14 @@ void main() {
       );
 
       expect(controller.savedSettings.value.categories, isEmpty);
-      expect(controller.draftSettings.value.categories.single.targetChatTitle, '频道三');
+      expect(
+        controller.draftSettings.value.categories.single.targetChatTitle,
+        '频道三',
+      );
 
       await controller.saveDraft();
 
-      expect(
-        controller.savedSettings.value.categories,
-        hasLength(1),
-      );
+      expect(controller.savedSettings.value.categories, hasLength(1));
       expect(
         controller.savedSettings.value.categories.single,
         isA<CategoryConfig>()
@@ -195,14 +200,11 @@ void main() {
   });
 }
 
-class _SettingsFakeGateway implements TelegramGateway {
+class _SettingsFakeGateway implements AuthGateway, SessionQueryGateway {
   int restartCount = 0;
 
   @override
   Stream<TdAuthState> get authStates => const Stream.empty();
-
-  @override
-  Stream<TdConnectionState> get connectionStates => const Stream.empty();
 
   @override
   Future<void> start() async {}
@@ -223,69 +225,4 @@ class _SettingsFakeGateway implements TelegramGateway {
 
   @override
   Future<List<SelectableChat>> listSelectableChats() async => const [];
-
-  @override
-  Future<int> countRemainingMessages({required int? sourceChatId}) async => 0;
-
-  @override
-  Future<List<PipelineMessage>> fetchMessagePage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-    required int? fromMessageId,
-    required int limit,
-  }) async {
-    return const [];
-  }
-
-  @override
-  Future<PipelineMessage?> fetchNextMessage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-  }) async {
-    return null;
-  }
-
-  @override
-  Future<PipelineMessage> prepareMediaPlayback({
-    required int sourceChatId,
-    required int messageId,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> prepareMediaPreview({
-    required int sourceChatId,
-    required int messageId,
-  }) async {}
-
-  @override
-  Future<PipelineMessage> refreshMessage({
-    required int sourceChatId,
-    required int messageId,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<ClassifyReceipt> classifyMessage({
-    required int? sourceChatId,
-    required List<int> messageIds,
-    required int targetChatId,
-    required bool asCopy,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> undoClassify({
-    required int sourceChatId,
-    required int targetChatId,
-    required List<int> targetMessageIds,
-  }) async {}
-
-  @override
-  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
-    return ClassifyRecoverySummary.empty;
-  }
 }

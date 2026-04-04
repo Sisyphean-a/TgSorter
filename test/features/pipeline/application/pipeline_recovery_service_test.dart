@@ -1,8 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_recovery_service.dart';
-import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 
 void main() {
@@ -16,14 +15,17 @@ void main() {
     expect(harness.recoverCalls, 1);
   });
 
-  test('recoverPendingTransactions reports failure summary to error controller', () async {
-    final harness = _PipelineRecoveryHarness.failure();
-    final service = harness.build();
+  test(
+    'recoverPendingTransactions reports failure summary to error controller',
+    () async {
+      final harness = _PipelineRecoveryHarness.failure();
+      final service = harness.build();
 
-    await service.recoverPendingTransactionsIfNeeded();
+      await service.recoverPendingTransactionsIfNeeded();
 
-    expect(harness.errorMessages.single, contains('恢复失败'));
-  });
+      expect(harness.errorMessages.single, contains('恢复失败'));
+    },
+  );
 }
 
 class _PipelineRecoveryHarness {
@@ -90,11 +92,6 @@ class _RecordingErrorController extends AppErrorController {
     required String message,
   }) {
     messages.add('$title::$message');
-    super.report(
-      scope: scope,
-      level: level,
-      title: title,
-      message: message,
-    );
+    super.report(scope: scope, level: level, title: title, message: message);
   }
 }

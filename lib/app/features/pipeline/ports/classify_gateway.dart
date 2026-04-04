@@ -1,10 +1,11 @@
 class ClassifyReceipt {
-  const ClassifyReceipt({
+  ClassifyReceipt({
     required this.sourceChatId,
-    required this.sourceMessageIds,
+    required List<int> sourceMessageIds,
     required this.targetChatId,
-    required this.targetMessageIds,
-  });
+    required List<int> targetMessageIds,
+  }) : sourceMessageIds = List<int>.unmodifiable(sourceMessageIds),
+       targetMessageIds = List<int>.unmodifiable(targetMessageIds);
 
   final int sourceChatId;
   final List<int> sourceMessageIds;
