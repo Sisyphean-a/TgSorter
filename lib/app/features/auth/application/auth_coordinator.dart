@@ -103,7 +103,7 @@ class AuthCoordinator extends GetxController {
       _errors.clear();
       stage.value = AuthStage.loading;
       await _service.restart();
-      startupError.value = null;
+      _errors.clearCurrent();
     } on TdlibFailure catch (error) {
       _showTdlibError(error, '启动失败');
     } catch (error) {
@@ -116,7 +116,7 @@ class AuthCoordinator extends GetxController {
   Future<void> _bootstrap() async {
     try {
       await _service.start();
-      startupError.value = null;
+      _errors.clearCurrent();
     } on TdlibFailure catch (error) {
       _showTdlibError(error, '启动失败');
     } catch (error) {
