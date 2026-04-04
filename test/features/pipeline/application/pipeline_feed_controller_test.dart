@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
@@ -81,6 +83,49 @@ void main() {
       expect(media.prepareCalls, [2, 2]);
     },
   );
+
+  test(
+    'prepareUpcomingPreviews stops stale work after pipeline reset',
+    () async {
+      final state = PipelineRuntimeState();
+      final navigation = PipelineNavigationService(state: state);
+      final media = _BlockingMediaGateway();
+      final controller = PipelineFeedController(
+        state: state,
+        navigation: navigation,
+        messages: _FakeMessageReadGateway(),
+        media: media,
+        settings: _FakeSettingsReader(),
+        remainingCount: _FakeRemainingCountService(),
+        reportGeneralError: (_) {},
+      );
+      navigation.replaceMessages(<PipelineMessage>[
+        _message(1, 'first'),
+        _message(2, 'second'),
+        _message(3, 'third'),
+      ]);
+
+      final preparing = controller.prepareUpcomingPreviews();
+      await media.firstPrepareStarted.future;
+      controller.reset();
+      media.releaseFirstPrepare();
+
+      await expectLater(preparing, completes);
+      expect(media.prepareCalls, [2]);
+    },
+  );
+}
+
+PipelineMessage _message(int id, String title) {
+  return PipelineMessage(
+    id: id,
+    messageIds: <int>[id],
+    sourceChatId: 8888,
+    preview: MessagePreview(
+      kind: MessagePreviewKind.video,
+      title: title,
+    ),
+  );
 }
 
 class _FakeMessageReadGateway implements MessageReadGateway {
@@ -160,6 +205,33 @@ class _RetryMediaGateway extends _FakeMediaGateway {
     if (!_failed) {
       _failed = true;
       throw StateError('preview failed once');
+    }
+  }
+}
+
+class _BlockingMediaGateway extends _FakeMediaGateway {
+  final List<int> prepareCalls = <int>[];
+  final Completer<void> firstPrepareStarted = Completer<void>();
+  final Completer<void> _releaseFirstPrepare = Completer<void>();
+
+  @override
+  Future<void> prepareMediaPreview({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    prepareCalls.add(messageId);
+    if (messageId != 2) {
+      return;
+    }
+    if (!firstPrepareStarted.isCompleted) {
+      firstPrepareStarted.complete();
+    }
+    await _releaseFirstPrepare.future;
+  }
+
+  void releaseFirstPrepare() {
+    if (!_releaseFirstPrepare.isCompleted) {
+      _releaseFirstPrepare.complete();
     }
   }
 }

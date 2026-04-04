@@ -29,6 +29,7 @@ class PipelineLifecycleCoordinator {
   bool _isAuthorized = false;
   MessageFetchDirection? _lastFetchDirection;
   int? _lastSourceChatId;
+  bool _pendingAutoFetchAfterLoad = false;
 
   void updateConnection(bool isReady) {
     _state.isOnline.value = isReady;
@@ -49,6 +50,18 @@ class PipelineLifecycleCoordinator {
       return;
     }
     _onResetPipeline();
+    if (_state.loading.value) {
+      _pendingAutoFetchAfterLoad = true;
+      return;
+    }
+    tryAutoFetchNext();
+  }
+
+  void handleFetchCompleted() {
+    if (!_pendingAutoFetchAfterLoad || _state.loading.value) {
+      return;
+    }
+    _pendingAutoFetchAfterLoad = false;
     tryAutoFetchNext();
   }
 

@@ -200,6 +200,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
       _showGeneralError(error);
     } finally {
       loading.value = false;
+      lifecycle.handleFetchCompleted();
     }
   }
 

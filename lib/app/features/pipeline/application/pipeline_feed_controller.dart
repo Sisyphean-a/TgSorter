@@ -42,11 +42,13 @@ class PipelineFeedController {
 
   int? tailMessageId;
   final Set<int> _previewPreparedMessageIds = <int>{};
+  int _feedSession = 0;
 
   int get _currentIndex => _state.currentIndex;
   List<PipelineMessage> get _messageCache => _state.cache;
 
   Future<void> loadInitialMessages() async {
+    final session = ++_feedSession;
     unawaited(refreshRemainingCount());
     _navigation.replaceMessages(const <PipelineMessage>[]);
     _previewPreparedMessageIds.clear();
@@ -57,6 +59,9 @@ class PipelineFeedController {
       fromMessageId: null,
       limit: messagePageSize,
     );
+    if (session != _feedSession) {
+      return;
+    }
     _navigation.replaceMessages(page);
     tailMessageId = page.isEmpty ? null : page.last.id;
     if (page.isNotEmpty) {
@@ -68,13 +73,14 @@ class PipelineFeedController {
     if (!_state.isOnline.value || tailMessageId == null) {
       return;
     }
+    final session = _feedSession;
     final page = await _messages.fetchMessagePage(
       direction: _settings.currentSettings.fetchDirection,
       sourceChatId: _settings.currentSettings.sourceChatId,
       fromMessageId: tailMessageId,
       limit: messagePageSize,
     );
-    if (page.isEmpty) {
+    if (session != _feedSession || page.isEmpty) {
       return;
     }
     _navigation.appendUniqueMessages(page);
@@ -126,11 +132,18 @@ class PipelineFeedController {
     if (prefetchCount <= 0 || _currentIndex < 0) {
       return;
     }
+    final session = _feedSession;
     final start = _currentIndex + 1;
     final end = math.min(_messageCache.length, start + prefetchCount);
-    for (var index = start; index < end; index++) {
-      final item = _messageCache[index];
+    final items = _messageCache.sublist(start, end).toList(growable: false);
+    for (final item in items) {
+      if (session != _feedSession) {
+        return;
+      }
       for (final messageId in item.messageIds) {
+        if (session != _feedSession) {
+          return;
+        }
         if (!_previewPreparedMessageIds.add(messageId)) {
           continue;
         }
@@ -139,6 +152,10 @@ class PipelineFeedController {
             sourceChatId: item.sourceChatId,
             messageId: messageId,
           );
+          if (session != _feedSession) {
+            _previewPreparedMessageIds.remove(messageId);
+            return;
+          }
         } catch (_) {
           _previewPreparedMessageIds.remove(messageId);
           rethrow;
@@ -160,6 +177,7 @@ class PipelineFeedController {
   }
 
   void reset() {
+    _feedSession++;
     _remainingCount.beginRequest();
     _navigation.replaceMessages(const <PipelineMessage>[]);
     _previewPreparedMessageIds.clear();

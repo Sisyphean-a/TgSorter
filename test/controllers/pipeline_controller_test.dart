@@ -203,6 +203,44 @@ void main() {
       },
     );
 
+    test(
+      'changing fetch direction during in-flight fetch reloads with new settings',
+      () async {
+        final initialPage = Completer<List<PipelineMessage>>();
+        service.pageCompleter = initialPage;
+        controller.onClose();
+        controller = PipelineCoordinator(
+          authStateGateway: service,
+          connectionStateGateway: service,
+          messageReadGateway: service,
+          mediaGateway: service,
+          classifyGateway: service,
+          recoveryGateway: service,
+          settingsReader: settingsProvider,
+          journalRepository: journalRepository,
+          errorController: errorController,
+        );
+        controller.onInit();
+        service.emitAuthReady();
+        service.emitConnectionReady();
+        await _waitFor(() => controller.loading.value);
+
+        service.pages.add([_message(1, 'oldest')]);
+        settingsProvider.update(
+          settingsProvider.currentSettings.updateFetchDirection(
+            MessageFetchDirection.oldestFirst,
+          ),
+        );
+        initialPage.complete([_message(31, 'latest')]);
+        await Future<void>.delayed(Duration.zero);
+        await _waitFor(() => controller.currentMessage.value?.id == 1);
+
+        expect(service.fetchNextCalls, 2);
+        expect(controller.currentMessage.value?.id, 1);
+        expect(service.fetchDirections.last, MessageFetchDirection.oldestFirst);
+      },
+    );
+
     test('does not auto fetch before authorization is ready', () async {
       controller.onClose();
       controller = PipelineCoordinator(
@@ -523,6 +561,7 @@ class _FakePipelineGateway
   int remainingCount = 0;
   int remainingCountCalls = 0;
   Completer<int>? remainingCountCompleter;
+  Completer<List<PipelineMessage>>? pageCompleter;
   int? blockedPreviewMessageId;
   Completer<void>? previewPreparationCompleter;
   int recoveryCalls = 0;
@@ -573,6 +612,11 @@ class _FakePipelineGateway
     fetchNextCalls++;
     fetchDirections.add(direction);
     lastFetchSourceChatId = sourceChatId;
+    final completer = pageCompleter;
+    if (completer != null) {
+      pageCompleter = null;
+      return completer.future;
+    }
     if (pages.isEmpty) {
       return const [];
     }
