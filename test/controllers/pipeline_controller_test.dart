@@ -17,6 +17,8 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_stat
 import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/remaining_count_service.dart';
+import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -71,7 +73,12 @@ void main() {
       journalRepository = OperationJournalRepository(prefs);
       errorController = AppErrorController();
       controller = PipelineCoordinator(
-        service: service,
+        authStateGateway: service,
+        connectionStateGateway: service,
+        messageReadGateway: service,
+        mediaGateway: service,
+        classifyGateway: service,
+        recoveryGateway: service,
         settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
@@ -181,7 +188,12 @@ void main() {
     test('does not auto fetch before authorization is ready', () async {
       controller.onClose();
       controller = PipelineCoordinator(
-        service: service,
+        authStateGateway: service,
+        connectionStateGateway: service,
+        messageReadGateway: service,
+        mediaGateway: service,
+        classifyGateway: service,
+        recoveryGateway: service,
         settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
@@ -201,7 +213,12 @@ void main() {
     test('auto fetch waits transaction recovery before first fetch', () async {
       controller.onClose();
       controller = PipelineCoordinator(
-        service: service,
+        authStateGateway: service,
+        connectionStateGateway: service,
+        messageReadGateway: service,
+        mediaGateway: service,
+        classifyGateway: service,
+        recoveryGateway: service,
         settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
@@ -302,7 +319,12 @@ void main() {
       );
       controller.onClose();
       controller = PipelineCoordinator(
-        service: service,
+        authStateGateway: service,
+        connectionStateGateway: service,
+        messageReadGateway: service,
+        mediaGateway: service,
+        classifyGateway: service,
+        recoveryGateway: service,
         settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
@@ -330,7 +352,12 @@ void main() {
       );
       controller.onClose();
       controller = PipelineCoordinator(
-        service: service,
+        authStateGateway: service,
+        connectionStateGateway: service,
+        messageReadGateway: service,
+        mediaGateway: service,
+        classifyGateway: service,
+        recoveryGateway: service,
         settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
@@ -350,7 +377,12 @@ void main() {
       final mediaRefresh = _RecordingPipelineMediaRefreshService();
       controller.onClose();
       controller = PipelineCoordinator(
-        service: service,
+        authStateGateway: service,
+        connectionStateGateway: service,
+        messageReadGateway: service,
+        mediaGateway: service,
+        classifyGateway: service,
+        recoveryGateway: service,
         settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
@@ -374,7 +406,12 @@ void main() {
       final remainingCountService = _RecordingRemainingCountService();
       controller.onClose();
       controller = PipelineCoordinator(
-        service: service,
+        authStateGateway: service,
+        connectionStateGateway: service,
+        messageReadGateway: service,
+        mediaGateway: service,
+        classifyGateway: service,
+        recoveryGateway: service,
         settingsReader: settingsProvider,
         journalRepository: journalRepository,
         errorController: errorController,
@@ -438,7 +475,11 @@ class _TestPipelineSettingsProvider implements PipelineSettingsReader {
 }
 
 class _FakeTelegramService
-    implements TelegramGateway, RecoverableClassifyGateway {
+    implements
+        TelegramGateway,
+        RecoverableClassifyGateway,
+        AuthStateGateway,
+        ConnectionStateGateway {
   final _authController = StreamController<TdAuthState>.broadcast();
   final _connectionController = StreamController<TdConnectionState>.broadcast();
 

@@ -18,6 +18,8 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_stat
 import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/remaining_count_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
@@ -97,7 +99,8 @@ void main() {
     final service = _RecordingTelegramGateway();
     final lifecycle = _RecordingPipelineLifecycleCoordinator();
     final harness = _PipelineCoordinatorHarness(
-      service: service,
+      authStateGateway: service,
+      connectionStateGateway: service,
       lifecycle: lifecycle,
     );
 
@@ -121,7 +124,8 @@ void main() {
 
 class _PipelineCoordinatorHarness {
   factory _PipelineCoordinatorHarness({
-    TelegramGateway? service,
+    AuthStateGateway? authStateGateway,
+    ConnectionStateGateway? connectionStateGateway,
     PipelineFeedController? feed,
     PipelineLifecycleCoordinator? lifecycle,
   }) {
@@ -133,9 +137,11 @@ class _PipelineCoordinatorHarness {
     );
     final recovery = _RecordingPipelineRecoveryService();
     final mediaRefresh = _RecordingPipelineMediaRefreshService();
+    final sharedGateway = _NoopTelegramGateway();
     return _PipelineCoordinatorHarness._(
       runtimeState: runtimeState,
-      service: service ?? _NoopTelegramGateway(),
+      authStateGateway: authStateGateway ?? sharedGateway,
+      connectionStateGateway: connectionStateGateway ?? sharedGateway,
       navigation: navigation,
       actions: actions,
       recovery: recovery,
@@ -148,7 +154,8 @@ class _PipelineCoordinatorHarness {
 
   _PipelineCoordinatorHarness._({
     required this.runtimeState,
-    required this.service,
+    required this.authStateGateway,
+    required this.connectionStateGateway,
     required this.navigation,
     required this.actions,
     required this.recovery,
@@ -158,11 +165,16 @@ class _PipelineCoordinatorHarness {
     this.lifecycle,
   }) {
     coordinator = PipelineCoordinator(
-      service: service,
+      authStateGateway: authStateGateway,
+      connectionStateGateway: connectionStateGateway,
+      messageReadGateway: _NoopMessageReadGateway(),
+      mediaGateway: _NoopMediaGateway(),
+      classifyGateway: _NoopClassifyGateway(),
+      recoveryGateway: _NoopRecoveryGateway(),
       settingsReader: _FakeSettingsReader(),
-      journalRepository: _FakeOperationJournalRepository(),
-      errorController: AppErrorController(),
-      runtimeState: runtimeState,
+	      journalRepository: _FakeOperationJournalRepository(),
+	      errorController: AppErrorController(),
+	      runtimeState: runtimeState,
       navigation: navigation,
       actions: actions,
       recovery: recovery,
@@ -171,10 +183,11 @@ class _PipelineCoordinatorHarness {
       feedController: feed,
       lifecycle: lifecycle,
     );
-  }
+	}
 
   final PipelineRuntimeState runtimeState;
-  final TelegramGateway service;
+  final AuthStateGateway authStateGateway;
+  final ConnectionStateGateway connectionStateGateway;
   final PipelineNavigationService navigation;
   final RemainingCountService remainingCount;
   final _RecordingPipelineActionService actions;
@@ -449,7 +462,8 @@ class _NoopRecoveryGateway implements RecoveryGateway {
   }
 }
 
-class _NoopTelegramGateway implements TelegramGateway {
+class _NoopTelegramGateway
+    implements TelegramGateway, AuthStateGateway, ConnectionStateGateway {
   @override
   Stream<TdAuthState> get authStates => const Stream<TdAuthState>.empty();
 

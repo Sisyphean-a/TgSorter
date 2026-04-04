@@ -6,7 +6,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
-import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -35,7 +35,7 @@ class PipelineCoordinator extends GetxController {
   static const Duration _videoRefreshInterval = Duration(seconds: 1);
 
   PipelineCoordinator({
-    required AuthGateway authGateway,
+    required AuthStateGateway authStateGateway,
     required ConnectionStateGateway connectionStateGateway,
     required MessageReadGateway messageReadGateway,
     required MediaGateway mediaGateway,
@@ -52,7 +52,7 @@ class PipelineCoordinator extends GetxController {
     PipelineFeedController? feedController,
     PipelineLifecycleCoordinator? lifecycle,
     RemainingCountService? remainingCountService,
-  }) : _authGateway = authGateway,
+  }) : _authStateGateway = authStateGateway,
        _connectionStateGateway = connectionStateGateway,
        _settingsReader = settingsReader,
        _journalRepository = journalRepository,
@@ -123,7 +123,7 @@ class PipelineCoordinator extends GetxController {
         );
   }
 
-  final AuthGateway _authGateway;
+  final AuthStateGateway _authStateGateway;
   final ConnectionStateGateway _connectionStateGateway;
   final PipelineSettingsReader _settingsReader;
   final OperationJournalRepository _journalRepository;
@@ -170,7 +170,7 @@ class PipelineCoordinator extends GetxController {
     _connectionSub = _connectionStateGateway.connectionStates.listen((state) {
       lifecycle.updateConnection(state.isReady);
     });
-    _authSub = _authGateway.authStates.listen((state) {
+    _authSub = _authStateGateway.authStates.listen((state) {
       lifecycle.updateAuthorization(state.isReady);
     });
     _settingsWorker = ever<AppSettings>(

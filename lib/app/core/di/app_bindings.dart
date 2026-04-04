@@ -5,6 +5,7 @@ import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
@@ -71,6 +72,7 @@ Future<void> registerAppBindings() async {
   Get.put(adapter, permanent: true);
   Get.put<AuthGateway>(telegram, permanent: true);
   Get.put<SessionQueryGateway>(telegram, permanent: true);
+  Get.put<AuthStateGateway>(telegram, permanent: true);
   Get.put<ConnectionStateGateway>(telegram, permanent: true);
   Get.put<MessageReadGateway>(telegram, permanent: true);
   Get.put<MediaGateway>(telegram, permanent: true);

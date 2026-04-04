@@ -11,6 +11,7 @@ import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
@@ -43,7 +44,7 @@ void main() {
       auth: service,
     );
     final pipeline = PipelineCoordinator(
-      authGateway: service,
+      authStateGateway: service,
       connectionStateGateway: service,
       messageReadGateway: service,
       mediaGateway: service,
@@ -117,7 +118,7 @@ void main() {
       auth: service,
     );
     final pipeline = PipelineCoordinator(
-      authGateway: service,
+      authStateGateway: service,
       connectionStateGateway: service,
       messageReadGateway: service,
       mediaGateway: service,
@@ -184,6 +185,7 @@ void main() {
 
     Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
     Get.put<AppErrorController>(AppErrorController());
+    Get.put<AuthStateGateway>(service);
     Get.put<ConnectionStateGateway>(service);
     Get.put<MessageReadGateway>(service);
     Get.put<MediaGateway>(service);
@@ -199,6 +201,7 @@ class _IntegrationFakeGateway
     implements
         AuthGateway,
         SessionQueryGateway,
+        AuthStateGateway,
         ConnectionStateGateway,
         MessageReadGateway,
         MediaGateway,

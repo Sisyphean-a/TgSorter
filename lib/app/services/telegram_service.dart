@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
@@ -28,6 +29,7 @@ class TelegramService
     implements
         AuthGateway,
         SessionQueryGateway,
+        AuthStateGateway,
         ConnectionStateGateway,
         MessageReadGateway,
         MediaGateway,
