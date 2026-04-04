@@ -44,14 +44,30 @@ lib/
   app/
     app.dart
     bootstrap_app.dart
-    bindings.dart
-    controllers/
+    core/
+      di/
+      routing/
     domain/
+    features/
+      auth/
+      pipeline/
+      settings/
     models/
-    pages/
     services/
+    shared/
+    theme/
     widgets/
 test/
+  app/
+  controllers/
+  domain/
+  features/
+  integration/
+  models/
+  pages/
+  services/
+  shared/
+  widgets/
 docs/
 ```
 
@@ -97,7 +113,7 @@ $env:TDLIB_DLL_PATH="D:\\path\\to\\tdjson.dll"
 - 启动时先初始化视频播放后端，再执行依赖注入与 TDLib 启动。
 - 登录流程覆盖手机号、验证码、二步验证密码。
 - 流水线页会监听 TDLib 授权状态与连接状态，自动拉取首批消息。
-- 全局界面使用统一 `AppTheme`、`AppShell`、`BrandAppBar` 和状态徽章组件。
+- 全局界面统一复用 `AppTheme`、`AppShell` 和状态徽章组件；登录页继续使用 `BrandAppBar`，流水线与设置页使用各自的紧凑 app bar。
 - 桌面端流水线采用“左侧消息工作区 + 右侧操作面板”的双栏结构。
 - 移动端流水线将主分类按钮固定在底部操作托盘，辅助动作降级到次级区。
 - 设置页按“基础流程 / 分类管理 / 连接设置 / 操作与工具”分组，分类、代理、快捷键都先写入草稿，再统一保存。

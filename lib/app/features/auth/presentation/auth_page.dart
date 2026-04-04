@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
-import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_error_panel.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
@@ -10,16 +9,10 @@ import 'package:tgsorter/app/shared/presentation/widgets/brand_app_bar.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 
 class AuthPage extends StatefulWidget {
-  const AuthPage({
-    required this.auth,
-    required this.errors,
-    required this.settings,
-    super.key,
-  });
+  const AuthPage({required this.auth, required this.errors, super.key});
 
   final AuthCoordinator auth;
   final AppErrorController errors;
-  final SettingsCoordinator settings;
 
   @override
   State<AuthPage> createState() => _AuthPageState();
@@ -28,7 +21,6 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   AuthCoordinator get _auth => widget.auth;
   AppErrorController get _errors => widget.errors;
-  SettingsCoordinator get _settings => widget.settings;
 
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _codeCtrl;
@@ -41,7 +33,7 @@ class _AuthPageState extends State<AuthPage> {
   @override
   void initState() {
     super.initState();
-    final proxy = _settings.settings.value.proxy;
+    final proxy = _auth.currentProxySettings;
     _phoneCtrl = TextEditingController();
     _codeCtrl = TextEditingController();
     _passwordCtrl = TextEditingController();

@@ -6,7 +6,7 @@ import 'package:tgsorter/app/services/tdlib_failure.dart';
 
 import 'pipeline_navigation_service.dart';
 import 'pipeline_runtime_state.dart';
-import 'pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 
 typedef PipelineActionIdBuilder = String Function(String prefix, int messageId);
 typedef PipelineActionNowMs = int Function();

@@ -12,6 +12,7 @@ import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.da
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
+import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
@@ -27,10 +28,10 @@ import 'pipeline_media_refresh_service.dart';
 import 'pipeline_navigation_service.dart';
 import 'pipeline_recovery_service.dart';
 import 'pipeline_runtime_state.dart';
-import 'pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'remaining_count_service.dart';
 
-class PipelineCoordinator extends GetxController {
+class PipelineCoordinator extends GetxController implements PipelineLogsPort {
   static const Duration _videoRefreshInterval = Duration(seconds: 1);
 
   PipelineCoordinator({
@@ -152,6 +153,9 @@ class PipelineCoordinator extends GetxController {
   RxBool get canShowNext => runtimeState.canShowNext;
   RxBool get remainingCountLoading => runtimeState.remainingCountLoading;
   RxnInt get remainingCount => runtimeState.remainingCount;
+
+  @override
+  List<ClassifyOperationLog> get logsSnapshot => logs.toList(growable: false);
 
   StreamSubscription<TdConnectionState>? _connectionSub;
   StreamSubscription<TdAuthState>? _authSub;

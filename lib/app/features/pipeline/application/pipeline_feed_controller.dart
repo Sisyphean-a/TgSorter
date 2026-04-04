@@ -7,7 +7,7 @@ import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'pipeline_navigation_service.dart';
 import 'pipeline_runtime_state.dart';
-import 'pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'remaining_count_service.dart';
 
 class PipelineFeedController {

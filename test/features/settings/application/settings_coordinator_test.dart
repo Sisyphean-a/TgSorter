@@ -102,6 +102,34 @@ void main() {
       expect(harness.restartCalls, 0);
     },
   );
+
+  test('getCategory resolves from saved settings instead of draft edits', () {
+    final harness = _SettingsCoordinatorHarness()
+      ..persistence.loaded = const AppSettings(
+        categories: <CategoryConfig>[
+          CategoryConfig(
+            key: 'news',
+            targetChatId: 1001,
+            targetChatTitle: '已保存目标',
+          ),
+        ],
+        sourceChatId: null,
+        fetchDirection: MessageFetchDirection.latestFirst,
+        forwardAsCopy: false,
+        batchSize: 5,
+        throttleMs: 1200,
+        proxy: ProxySettings.empty,
+      );
+    final coordinator = harness.build();
+    coordinator.onInit();
+
+    coordinator.updateCategoryDraft(
+      key: 'news',
+      chat: const SelectableChat(id: 2002, title: '草稿目标'),
+    );
+
+    expect(coordinator.getCategory('news').targetChatId, 1001);
+  });
 }
 
 class _SettingsCoordinatorHarness {

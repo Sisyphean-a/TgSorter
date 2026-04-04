@@ -12,6 +12,7 @@ import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
@@ -81,7 +82,7 @@ void main() {
 
     Get.put<AuthGateway>(authGateway);
     Get.put<AppErrorController>(errors);
-    Get.put<SettingsCoordinator>(settings);
+    Get.put<AuthSettingsPort>(settings);
 
     expect(registerAuthModule, returnsNormally);
     final coordinator = Get.find<AuthCoordinator>();
@@ -124,7 +125,7 @@ Future<void> _pumpAuthPage(
   await tester.pumpWidget(
     GetMaterialApp(
       theme: AppTheme.dark(),
-      home: AuthPage(auth: auth, errors: errors, settings: settings),
+      home: AuthPage(auth: auth, errors: errors),
     ),
   );
   await tester.pump();

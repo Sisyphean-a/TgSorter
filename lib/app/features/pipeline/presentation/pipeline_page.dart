@@ -3,9 +3,9 @@ import 'package:get/get.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/routing/app_routes.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_desktop_view.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_mobile_view.dart';
-import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_error_panel.dart';
@@ -21,7 +21,7 @@ class PipelinePage extends StatelessWidget {
   });
 
   final PipelineCoordinator pipeline;
-  final SettingsCoordinator settings;
+  final PipelineSettingsReader settings;
   final AppErrorController errors;
 
   @override

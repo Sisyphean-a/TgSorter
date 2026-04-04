@@ -61,7 +61,7 @@
 
 - `lib/app/services/telegram_service.dart`
 - `lib/app/domain/message_preview_mapper.dart`
-- `lib/app/widgets/message_viewer_card.dart`
+- `lib/app/shared/presentation/widgets/message_viewer_card.dart`
 
 说明：
 
@@ -155,7 +155,7 @@ Bad state: TDLib 授权未就绪，无法执行当前请求
 
 更具体的触发链路：
 
-1. `PipelineController` 是全局常驻 controller
+1. `PipelineCoordinator` 是全局常驻协调器
 2. 它在 `onInit()` 里订阅 `connectionStates`
 3. 只要连接状态变成 `Ready`，就会尝试自动 `fetchNext()`
 4. 但此时用户仍在登录页，授权流程未完成
@@ -165,13 +165,13 @@ Bad state: TDLib 授权未就绪，无法执行当前请求
 这意味着：
 
 - “连接 ready” 不等于“授权 ready”
-- 目前 `PipelineController` 的自动取消息条件过宽
+- 目前 `PipelineCoordinator` 的自动取消息条件过宽
 
 ---
 
 ## 当前最值得优先修复的问题
 
-### P1：修正 `PipelineController` 的自动拉取条件
+### P1：修正 `PipelineCoordinator` 的自动拉取条件
 
 优先级最高。
 
@@ -180,8 +180,8 @@ Bad state: TDLib 授权未就绪，无法执行当前请求
 - 不要仅凭 `connectionStateReady` 就触发 `fetchNext()`
 - 应当增加“授权 ready”条件
 - 可选做法：
-  - 让 `PipelineController` 同时监听 auth state
-  - 或由 `TelegramGateway` / `TelegramService` 暴露 `isAuthorized` / `authorizedStates`
+  - 让 `PipelineCoordinator` 同时监听 auth state
+  - 或由 capability ports / `TelegramService` 暴露授权就绪状态
   - 或只在进入 pipeline 页面且授权 ready 后再允许自动取消息
 
 如果不修：
@@ -225,7 +225,7 @@ Bad state: TDLib 授权未就绪，无法执行当前请求
 
 ### 启动与传输
 
-- `lib/app/bindings.dart`
+- `lib/app/core/di/app_bindings.dart`
 - `lib/app/services/tdlib_adapter_support.dart`
 - `lib/app/services/td_raw_transport.dart`
 - `lib/app/services/td_client_transport.dart`
@@ -246,15 +246,15 @@ Bad state: TDLib 授权未就绪，无法执行当前请求
 ### 业务层
 
 - `lib/app/services/telegram_service.dart`
-- `lib/app/controllers/auth_controller.dart`
-- `lib/app/controllers/pipeline_controller.dart`
-- `lib/app/controllers/settings_controller.dart`
+- `lib/app/features/auth/application/auth_coordinator.dart`
+- `lib/app/features/pipeline/application/pipeline_coordinator.dart`
+- `lib/app/features/settings/application/settings_coordinator.dart`
 
 ### UI
 
-- `lib/app/pages/auth_page.dart`
-- `lib/app/pages/settings_page.dart`
-- `lib/app/widgets/message_viewer_card.dart`
+- `lib/app/features/auth/presentation/auth_page.dart`
+- `lib/app/features/settings/presentation/settings_page.dart`
+- `lib/app/shared/presentation/widgets/message_viewer_card.dart`
 
 ### VS Code 启动配置
 
@@ -267,7 +267,7 @@ Bad state: TDLib 授权未就绪，无法执行当前请求
 下一轮对话建议直接使用下面这段：
 
 > 请先阅读 `docs/tdlib-raw-json-migration-handoff-2026-04-01.md`。当前 raw JSON 迁移主体已完成，测试与 analyze 都通过。现在优先处理两个运行时问题：  
-> 1. `PipelineController` 在“连接 ready 但授权未 ready”时过早自动 `fetchNext()`，导致登录页出现“TDLib 授权未就绪，无法执行当前请求”；  
+> 1. `PipelineCoordinator` 在“连接 ready 但授权未 ready”时过早自动 `fetchNext()`，导致登录页出现“TDLib 授权未就绪，无法执行当前请求”；
 > 2. `TdClientTransport` 仍会对 `addedProxy` 等 raw-only update 做 typed 解析并输出噪音 parse error。  
 > 先修第 1 个，再决定是否收口第 2 个。不要重新做大规模调研。
 

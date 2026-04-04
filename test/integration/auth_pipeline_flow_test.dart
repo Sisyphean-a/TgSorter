@@ -13,6 +13,7 @@ import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
@@ -20,9 +21,11 @@ import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -61,7 +64,7 @@ void main() {
     );
     Get.put<AppErrorController>(errors);
     Get.put<AuthGateway>(authGateway);
-    Get.put<SettingsCoordinator>(settings);
+    Get.put<AuthSettingsPort>(settings);
     Get.put<PipelineCoordinator>(pipeline);
     expect(registerAuthModule, returnsNormally);
     final auth = Get.find<AuthCoordinator>();
@@ -75,8 +78,7 @@ void main() {
         getPages: [
           GetPage(
             name: '/auth',
-            page: () =>
-                AuthPage(auth: auth, errors: errors, settings: settings),
+            page: () => AuthPage(auth: auth, errors: errors),
           ),
           GetPage(
             name: '/pipeline',
@@ -147,7 +149,7 @@ void main() {
     );
 
     Get.put<AppErrorController>(errors);
-    Get.put<SettingsCoordinator>(settings);
+    Get.put<AuthSettingsPort>(settings);
     Get.put<PipelineCoordinator>(pipeline);
     Get.put<AuthCoordinator>(auth);
     settings.onInit();
@@ -160,8 +162,7 @@ void main() {
         getPages: [
           GetPage(
             name: '/auth',
-            page: () =>
-                AuthPage(auth: auth, errors: errors, settings: settings),
+            page: () => AuthPage(auth: auth, errors: errors),
           ),
         ],
       ),
@@ -200,6 +201,8 @@ void main() {
 
     expect(registerSettingsModule, returnsNormally);
     expect(Get.isRegistered<SettingsCoordinator>(), isTrue);
+    expect(Get.isRegistered<AuthSettingsPort>(), isTrue);
+    expect(Get.isRegistered<PipelineSettingsReader>(), isTrue);
 
     Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
     Get.put<AppErrorController>(AppErrorController());
@@ -212,6 +215,7 @@ void main() {
 
     expect(registerPipelineModule, returnsNormally);
     expect(Get.isRegistered<PipelineCoordinator>(), isTrue);
+    expect(Get.isRegistered<PipelineLogsPort>(), isTrue);
   });
 }
 

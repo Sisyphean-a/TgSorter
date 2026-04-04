@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_category_dialog.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
@@ -15,7 +15,7 @@ class SettingsPage extends StatefulWidget {
   const SettingsPage({required this.controller, this.pipeline, super.key});
 
   final SettingsCoordinator controller;
-  final PipelineCoordinator? pipeline;
+  final PipelineLogsPort? pipeline;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -23,7 +23,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   SettingsCoordinator get controller => widget.controller;
-  PipelineCoordinator? get pipeline => widget.pipeline;
+  PipelineLogsPort? get pipeline => widget.pipeline;
 
   @override
   void initState() {
@@ -91,8 +91,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 controller: controller,
                 draft: draft,
                 saved: saved,
-                recentLogs:
-                    pipeline?.logs.take(20).toList(growable: false) ?? const [],
+                recentLogs: pipeline?.logsSnapshot.take(20).toList(growable: false) ??
+                    const [],
                 onReloadChats: _loadChats,
               ),
             ],

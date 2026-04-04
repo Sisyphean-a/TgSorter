@@ -3,7 +3,8 @@ import 'package:get/get.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
-import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 
 export 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart'
     show AuthStage;
@@ -18,14 +19,14 @@ class AuthCoordinator extends GetxController {
 
   final AuthGateway _service;
   final AppErrorController _errors;
-  final SettingsCoordinator _settings;
+  final AuthSettingsPort _settings;
   final AuthLifecycleCoordinator _lifecycle;
   final stage = AuthStage.loading.obs;
   final loading = false.obs;
 
   RxnString get startupError => _errors.currentError;
   RxList<String> get errorHistory => _errors.errorHistory;
-  SettingsCoordinator get settings => _settings;
+  ProxySettings get currentProxySettings => _settings.currentProxySettings;
   AuthGateway get auth => _service;
   AppErrorController get errors => _errors;
 

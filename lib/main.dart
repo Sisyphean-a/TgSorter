@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/bootstrap_app.dart';
-import 'package:tgsorter/app/bindings.dart';
+import 'package:tgsorter/app/core/di/app_bindings.dart';
 import 'package:tgsorter/app/services/video_playback_initializer.dart';
 
 Future<void> main() async {
@@ -17,7 +17,7 @@ Future<void> main() async {
     _recordStartupError('PlatformError: $error\n$stack');
     return false;
   };
-  runApp(const BootstrapApp(init: initDependencies));
+  runApp(const BootstrapApp(init: registerAppBindings));
 }
 
 void _recordStartupError(String message) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
-import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_viewer_card.dart';
 import 'package:tgsorter/app/widgets/mobile_action_tray.dart';
 
@@ -13,12 +13,12 @@ class PipelineMobileView extends StatelessWidget {
   });
 
   final PipelineCoordinator pipeline;
-  final SettingsCoordinator settings;
+  final PipelineSettingsReader settings;
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final categories = settings.settings.value.categories;
+      final categories = settings.settingsStream.value.categories;
       final processing = pipeline.processing.value;
       final canClick = pipeline.isOnline.value && !processing;
       final currentMessage = pipeline.currentMessage.value;

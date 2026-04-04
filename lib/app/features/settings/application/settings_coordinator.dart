@@ -1,8 +1,9 @@
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
+import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/settings/application/category_settings_service.dart';
 import 'package:tgsorter/app/features/settings/application/connection_settings_service.dart';
-import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
 import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
@@ -11,11 +12,12 @@ import 'package:tgsorter/app/features/settings/application/settings_restart_poli
 import 'package:tgsorter/app/features/settings/application/shortcut_settings_service.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 
 class SettingsCoordinator extends GetxController
-    implements PipelineSettingsReader {
+    implements PipelineSettingsReader, AuthSettingsPort {
   SettingsCoordinator(
     SettingsRepository repository,
     SessionQueryGateway sessions, {
@@ -69,6 +71,9 @@ class SettingsCoordinator extends GetxController
   AppSettings get currentSettings => savedSettings.value;
 
   @override
+  ProxySettings get currentProxySettings => savedSettings.value.proxy;
+
+  @override
   void onInit() {
     super.onInit();
     _draftCoordinator.replace(_persistence.load());
@@ -76,16 +81,6 @@ class SettingsCoordinator extends GetxController
 
   @override
   CategoryConfig getCategory(String key) {
-    CategoryConfig? category;
-    for (final item in draftSettings.value.categories) {
-      if (item.key == key) {
-        category = item;
-        break;
-      }
-    }
-    if (category != null) {
-      return category;
-    }
     return savedSettings.value.categories.firstWhere((item) => item.key == key);
   }
 
@@ -229,6 +224,7 @@ class SettingsCoordinator extends GetxController
     await saveDraft();
   }
 
+  @override
   Future<void> saveProxySettings({
     required String server,
     required String port,

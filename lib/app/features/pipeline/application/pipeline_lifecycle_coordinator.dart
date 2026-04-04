@@ -4,7 +4,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 
 import 'pipeline_recovery_service.dart';
 import 'pipeline_runtime_state.dart';
-import 'pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 
 class PipelineLifecycleCoordinator {
   PipelineLifecycleCoordinator({
