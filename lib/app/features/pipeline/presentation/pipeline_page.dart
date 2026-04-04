@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/routing/app_routes.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_desktop_view.dart';

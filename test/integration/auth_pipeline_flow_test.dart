@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
@@ -264,7 +264,8 @@ class _IntegrationPipelineGateway
   final _connectionController = StreamController<TdConnectionState>.broadcast();
 
   @override
-  Stream<TdConnectionState> get connectionStates => _connectionController.stream;
+  Stream<TdConnectionState> get connectionStates =>
+      _connectionController.stream;
 
   void emitConnectionReady() {
     _connectionController.add(

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';

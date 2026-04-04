@@ -1,7 +1,7 @@
 import 'package:tgsorter/app/models/pipeline_message.dart';
 
-import 'media_gateway.dart';
-import 'message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 
 class PipelineMediaRefreshService {
   PipelineMediaRefreshService({

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';

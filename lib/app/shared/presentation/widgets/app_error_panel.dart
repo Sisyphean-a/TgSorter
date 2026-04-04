@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 
 class AppErrorPanel extends StatelessWidget {

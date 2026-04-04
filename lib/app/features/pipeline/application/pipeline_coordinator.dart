@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:get/get.dart';
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -317,10 +317,7 @@ class PipelineCoordinator extends GetxController {
       return;
     }
     try {
-      await actions.retryNextFailed(
-        idBuilder: _buildId,
-        nowMs: _nowMs,
-      );
+      await actions.retryNextFailed(idBuilder: _buildId, nowMs: _nowMs);
     } on TdlibFailure catch (error) {
       _showTdlibError(error);
     }

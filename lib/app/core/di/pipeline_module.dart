@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';

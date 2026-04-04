@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
@@ -50,26 +50,32 @@ void main() {
     expect(harness.errors.currentError.value, contains('启动失败'));
   });
 
-  test('saveProxyAndRetry reports restart failures after persisting settings', () async {
-    final harness = await _buildHarness();
-    harness.gateway.restartError = TdlibFailure.transport(
-      message: 'NETWORK_UNREACHABLE',
-      request: 'restart',
-      phase: TdlibPhase.startup,
-    );
+  test(
+    'saveProxyAndRetry reports restart failures after persisting settings',
+    () async {
+      final harness = await _buildHarness();
+      harness.gateway.restartError = TdlibFailure.transport(
+        message: 'NETWORK_UNREACHABLE',
+        request: 'restart',
+        phase: TdlibPhase.startup,
+      );
 
-    await harness.coordinator.saveProxyAndRetry(
-      server: '127.0.0.1',
-      port: '7897',
-      username: '',
-      password: '',
-    );
+      await harness.coordinator.saveProxyAndRetry(
+        server: '127.0.0.1',
+        port: '7897',
+        username: '',
+        password: '',
+      );
 
-    expect(harness.settings.operations, ['saveProxySettings']);
-    expect(harness.gateway.restartCalls, 1);
-    expect(harness.errors.currentError.value, contains('启动失败'));
-    expect(harness.errors.currentError.value, contains('网络异常：NETWORK_UNREACHABLE'));
-  });
+      expect(harness.settings.operations, ['saveProxySettings']);
+      expect(harness.gateway.restartCalls, 1);
+      expect(harness.errors.currentError.value, contains('启动失败'));
+      expect(
+        harness.errors.currentError.value,
+        contains('网络异常：NETWORK_UNREACHABLE'),
+      );
+    },
+  );
 }
 
 Future<_CoordinatorHarness> _buildHarness() async {
@@ -150,11 +156,7 @@ class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
 }
 
 class _FakeSettingsCoordinator extends SettingsCoordinator {
-  _FakeSettingsCoordinator(
-    super.repository,
-    super.sessions, {
-    super.auth,
-  });
+  _FakeSettingsCoordinator(super.repository, super.sessions, {super.auth});
 
   final operations = <String>[];
   Object? failOnSave;

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
@@ -47,26 +47,29 @@ void main() {
     expect(event.message, '鉴权失败：PHONE_CODE_INVALID');
   });
 
-  test('initialize binds auth stream and reports initialization errors', () async {
-    final harness = await _buildHarness();
-    final emittedStages = <AuthStage>[];
+  test(
+    'initialize binds auth stream and reports initialization errors',
+    () async {
+      final harness = await _buildHarness();
+      final emittedStages = <AuthStage>[];
 
-    harness.lifecycle.initialize(onStageChanged: emittedStages.add);
-    harness.gateway.emitError(
-      TdlibFailure.transport(
-        message: 'NETWORK_UNREACHABLE',
-        request: 'authState',
-        phase: TdlibPhase.auth,
-      ),
-    );
-    await Future<void>.delayed(Duration.zero);
+      harness.lifecycle.initialize(onStageChanged: emittedStages.add);
+      harness.gateway.emitError(
+        TdlibFailure.transport(
+          message: 'NETWORK_UNREACHABLE',
+          request: 'authState',
+          phase: TdlibPhase.auth,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
 
-    final event = harness.errors.structuredCurrentError.value;
-    expect(event, isNotNull);
-    expect(event!.title, '授权初始化失败');
-    expect(event.message, '网络异常：NETWORK_UNREACHABLE');
-    expect(emittedStages, isEmpty);
-  });
+      final event = harness.errors.structuredCurrentError.value;
+      expect(event, isNotNull);
+      expect(event!.title, '授权初始化失败');
+      expect(event.message, '网络异常：NETWORK_UNREACHABLE');
+      expect(emittedStages, isEmpty);
+    },
+  );
 
   test('initialize maps auth states and navigates when ready', () async {
     final harness = await _buildHarness();

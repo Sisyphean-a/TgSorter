@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_recovery_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';

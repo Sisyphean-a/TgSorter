@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/routing/getx_auth_navigation_adapter.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
@@ -68,7 +68,7 @@ void main() {
     expect(find.text('输入验证码'), findsOneWidget);
   });
 
-  test('auth DI module resolves by capability ports (no TelegramGateway)', () async {
+  test('auth DI module resolves by capability ports only', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final authGateway = _FakeAuthGateway();

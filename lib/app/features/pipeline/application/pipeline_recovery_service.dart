@@ -1,6 +1,6 @@
-import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 
-import 'recovery_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 
 class PipelineRecoveryService {
   PipelineRecoveryService({
