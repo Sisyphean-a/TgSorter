@@ -67,6 +67,7 @@ class AuthCoordinator extends GetxController {
     required String username,
     required String password,
   }) async {
+    final previousStage = stage.value;
     stage.value = AuthStage.loading;
     await _runAction(
       action: () => _saveProxyAndRestart(
@@ -76,6 +77,11 @@ class AuthCoordinator extends GetxController {
         password: password,
       ),
       errorTitle: '启动失败',
+      onError: () {
+        if (stage.value == AuthStage.loading) {
+          stage.value = previousStage;
+        }
+      },
     );
   }
 
@@ -103,11 +109,16 @@ class AuthCoordinator extends GetxController {
   Future<void> _runAction({
     required Future<void> Function() action,
     required String errorTitle,
+    void Function()? onError,
   }) async {
+    if (loading.value) {
+      return;
+    }
     loading.value = true;
     try {
       await action();
     } catch (error) {
+      onError?.call();
       _lifecycle.reportActionError(error, title: errorTitle);
     } finally {
       loading.value = false;

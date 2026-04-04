@@ -116,6 +116,39 @@ void main() {
     );
   });
 
+  testWidgets(
+    'shows partial success message when save succeeds but restart fails',
+    (tester) async {
+      final gateway = _SettingsPageFakeGateway(const [
+        SelectableChat(id: -1001, title: '频道一'),
+      ])..restartError = StateError('restart failed');
+      final controller = await _pumpSettingsPage(
+        tester,
+        chats: const [SelectableChat(id: -1001, title: '频道一')],
+        gateway: gateway,
+      );
+
+      await tester.tap(find.text('最新优先'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('最旧优先').last);
+      await tester.pumpAndSettle();
+
+      controller.updateProxyDraft(
+        server: '127.0.0.1',
+        port: '7890',
+        username: '',
+        password: '',
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('保存更改'));
+      await tester.pump();
+
+      expect(find.textContaining('设置已保存，但重启失败'), findsOneWidget);
+      expect(find.textContaining('保存失败'), findsNothing);
+    },
+  );
+
   testWidgets('does not overflow on narrow screen with category rows', (
     tester,
   ) async {
@@ -213,14 +246,15 @@ Future<SettingsCoordinator> _pumpSettingsPage(
   WidgetTester tester, {
   required List<SelectableChat> chats,
   AppSettings? initialSettings,
+  _SettingsPageFakeGateway? gateway,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
-  final gateway = _SettingsPageFakeGateway(chats);
+  final resolvedGateway = gateway ?? _SettingsPageFakeGateway(chats);
   final controller = SettingsCoordinator(
     SettingsRepository(prefs),
-    gateway,
-    auth: gateway,
+    resolvedGateway,
+    auth: resolvedGateway,
   );
   controller.onInit();
   if (initialSettings != null) {
@@ -241,6 +275,7 @@ class _SettingsPageFakeGateway implements AuthGateway, SessionQueryGateway {
   _SettingsPageFakeGateway(this._chats);
 
   final List<SelectableChat> _chats;
+  Object? restartError;
 
   @override
   Stream<TdAuthState> get authStates => const Stream.empty();
@@ -249,7 +284,11 @@ class _SettingsPageFakeGateway implements AuthGateway, SessionQueryGateway {
   Future<void> start() async {}
 
   @override
-  Future<void> restart() async {}
+  Future<void> restart() async {
+    if (restartError != null) {
+      throw restartError!;
+    }
+  }
 
   @override
   Future<void> submitPhoneNumber(String phoneNumber) async {}

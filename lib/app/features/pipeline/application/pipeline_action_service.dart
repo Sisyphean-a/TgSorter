@@ -121,20 +121,25 @@ class PipelineActionService {
     final logStore = logs ?? _logs ?? <ClassifyOperationLog>[];
     final buildId = idBuilder ?? _defaultIdBuilder;
     final createdAtMs = nowMs ?? _defaultNowMs;
-    await _appendLog(
-      logStore,
-      ClassifyOperationLog(
-        id: buildId('skip', message.id),
-        categoryKey: '-',
-        messageId: message.id,
-        targetChatId: 0,
-        createdAtMs: createdAtMs(),
-        status: ClassifyOperationStatus.skipped,
-        reason: source,
-      ),
-    );
-    _navigation.removeCurrentAndSync();
-    return true;
+    _state.processing.value = true;
+    try {
+      await _appendLog(
+        logStore,
+        ClassifyOperationLog(
+          id: buildId('skip', message.id),
+          categoryKey: '-',
+          messageId: message.id,
+          targetChatId: 0,
+          createdAtMs: createdAtMs(),
+          status: ClassifyOperationStatus.skipped,
+          reason: source,
+        ),
+      );
+      _navigation.removeCurrentAndSync();
+      return true;
+    } finally {
+      _state.processing.value = false;
+    }
   }
 
   Future<bool> undoLastSuccess({
@@ -204,7 +209,8 @@ class PipelineActionService {
     _state.processing.value = true;
     try {
       await _classifyGateway.classifyMessage(
-        sourceChatId: item.sourceChatId ?? _settings.currentSettings.sourceChatId,
+        sourceChatId:
+            item.sourceChatId ?? _settings.currentSettings.sourceChatId,
         messageIds: item.messageIds,
         targetChatId: item.targetChatId,
         asCopy: _settings.currentSettings.forwardAsCopy,
@@ -263,7 +269,9 @@ class PipelineActionService {
     RetryQueueItem item,
   ) async {
     retryQueue.add(item);
-    await _journalRepository.saveRetryQueue(List<RetryQueueItem>.from(retryQueue));
+    await _journalRepository.saveRetryQueue(
+      List<RetryQueueItem>.from(retryQueue),
+    );
   }
 
   static String _defaultIdBuilder(String prefix, int messageId) {

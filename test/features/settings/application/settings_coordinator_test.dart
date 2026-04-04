@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
@@ -48,7 +50,6 @@ void main() {
       expect(harness.restartPolicy.previous?.proxy, ProxySettings.empty);
       expect(harness.restartPolicy.next?.proxy.server, '127.0.0.1');
       expect(harness.restartCalls, 1);
-
       await coordinator.saveDraft(restartOnProxyChange: false);
 
       expect(harness.persistence.saveCalls, 2);
@@ -67,6 +68,30 @@ void main() {
     expect(harness.chatLoader.loadCalls, 1);
     expect(coordinator.chats.single.title, '频道一');
   });
+
+  test(
+    'loadChats coalesces duplicate requests while a load is already running',
+    () async {
+      final harness = _SettingsCoordinatorHarness()
+        ..chatLoader.loadCompleter = Completer<List<SelectableChat>>();
+      final coordinator = harness.build();
+
+      final firstLoad = coordinator.loadChats();
+      final secondLoad = coordinator.loadChats();
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(harness.chatLoader.loadCalls, 1);
+
+      harness.chatLoader.loadCompleter!.complete(const [
+        SelectableChat(id: -1001, title: '频道一'),
+      ]);
+      await firstLoad;
+      await secondLoad;
+
+      expect(coordinator.chats.single.title, '频道一');
+    },
+  );
 
   test(
     'saveDraft does not commit or evaluate restart when persistence save fails',
@@ -130,6 +155,57 @@ void main() {
 
     expect(coordinator.getCategory('news').targetChatId, 1001);
   });
+
+  test(
+    'saveDraft still commits saved settings when restart fails after persistence',
+    () async {
+      final harness = _SettingsCoordinatorHarness()
+        ..restartPolicy.shouldRestartResult = true
+        ..sessions.restartError = StateError('restart failed');
+      final coordinator = harness.build();
+      coordinator.onInit();
+      coordinator.updateProxyDraft(
+        server: '127.0.0.1',
+        port: '7890',
+        username: '',
+        password: '',
+      );
+
+      await expectLater(coordinator.saveDraft(), completes);
+      expect(coordinator.isDirty.value, isFalse);
+      expect(coordinator.savedSettings.value.proxy.server, '127.0.0.1');
+      expect(harness.restartCalls, 1);
+    },
+  );
+
+  test(
+    'saveDraft coalesces duplicate requests while a save is already running',
+    () async {
+      final harness = _SettingsCoordinatorHarness()
+        ..restartPolicy.shouldRestartResult = true
+        ..sessions.restartCompleter = Completer<void>();
+      final coordinator = harness.build();
+      coordinator.onInit();
+      coordinator.updateProxyDraft(
+        server: '127.0.0.1',
+        port: '7890',
+        username: '',
+        password: '',
+      );
+
+      final firstSave = coordinator.saveDraft();
+      final secondSave = coordinator.saveDraft();
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(harness.persistence.saveCalls, 1);
+      expect(harness.restartCalls, 1);
+
+      harness.sessions.restartCompleter!.complete();
+      await firstSave;
+      await secondSave;
+    },
+  );
 }
 
 class _SettingsCoordinatorHarness {
@@ -179,6 +255,8 @@ class _FakeSettingsRepository implements SettingsRepository {
 
 class _FakeSessionGateway implements SessionQueryGateway, AuthGateway {
   int restartCalls = 0;
+  Object? restartError;
+  Completer<void>? restartCompleter;
 
   @override
   Stream<TdAuthState> get authStates => const Stream<TdAuthState>.empty();
@@ -189,6 +267,13 @@ class _FakeSessionGateway implements SessionQueryGateway, AuthGateway {
   @override
   Future<void> restart() async {
     restartCalls++;
+    if (restartError != null) {
+      throw restartError!;
+    }
+    final completer = restartCompleter;
+    if (completer != null) {
+      await completer.future;
+    }
   }
 
   @override
@@ -257,10 +342,15 @@ class _FakeSettingsChatLoader extends SettingsChatLoader {
 
   List<SelectableChat> chats = const [];
   int loadCalls = 0;
+  Completer<List<SelectableChat>>? loadCompleter;
 
   @override
   Future<List<SelectableChat>> loadChats() async {
     loadCalls++;
+    final completer = loadCompleter;
+    if (completer != null) {
+      return completer.future;
+    }
     return chats;
   }
 }

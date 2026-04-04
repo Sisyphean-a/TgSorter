@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'dart:async';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_action_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_service.dart';
@@ -46,6 +47,34 @@ void main() {
     expect(harness.appendedLogs.single.reason, 'shortcut');
     expect(harness.removedCurrentMessage, isTrue);
   });
+
+  test(
+    'skipCurrent ignores a second request while first skip is still saving',
+    () async {
+      final harness = _PipelineActionHarness.success();
+      harness.journalRepository.saveLogsCompleter = Completer<void>();
+      final service = harness.build();
+
+      final firstSkip = service.skipCurrent(
+        source: 'first',
+        logs: harness.logs,
+      );
+      final secondSkip = service.skipCurrent(
+        source: 'second',
+        logs: harness.logs,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(harness.logs, hasLength(1));
+      expect(harness.logs.single.reason, 'first');
+      expect(await secondSkip, isFalse);
+
+      harness.journalRepository.saveLogsCompleter!.complete();
+      expect(await firstSkip, isTrue);
+      expect(harness.appendedLogs, hasLength(1));
+    },
+  );
 
   test('classify failure appends failure log and enqueues retry', () async {
     final harness = _PipelineActionHarness.failure();
@@ -268,6 +297,7 @@ class _FakeOperationJournalRepository implements OperationJournalRepository {
   final List<RetryQueueItem> _retryQueue = <RetryQueueItem>[];
   final List<ClassifyTransactionEntry> _transactions =
       <ClassifyTransactionEntry>[];
+  Completer<void>? saveLogsCompleter;
 
   @override
   List<ClassifyOperationLog> loadLogs() =>
@@ -275,6 +305,10 @@ class _FakeOperationJournalRepository implements OperationJournalRepository {
 
   @override
   Future<void> saveLogs(List<ClassifyOperationLog> logs) async {
+    final completer = saveLogsCompleter;
+    if (completer != null) {
+      await completer.future;
+    }
     savedLogs
       ..clear()
       ..addAll(logs);

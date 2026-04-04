@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
@@ -9,6 +11,7 @@ import 'package:tgsorter/app/features/settings/application/settings_chat_loader.
 import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
 import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
+import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/features/settings/application/shortcut_settings_service.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -52,6 +55,8 @@ class SettingsCoordinator extends GetxController
   final ShortcutSettingsService _shortcuts;
   final ConnectionSettingsService _connection;
   final SettingsChatLoader _chatLoader;
+  Future<SettingsSaveResult>? _pendingSaveDraft;
+  Future<void>? _pendingChatLoad;
   final chatsState = <SelectableChat>[].obs;
   final chatsLoading = false.obs;
   final chatsError = RxnString();
@@ -255,18 +260,75 @@ class SettingsCoordinator extends GetxController
     await saveDraft();
   }
 
-  Future<void> saveDraft({bool restartOnProxyChange = true}) async {
+  Future<SettingsSaveResult> saveDraft({
+    bool restartOnProxyChange = true,
+  }) async {
+    final pending = _pendingSaveDraft;
+    if (pending != null) {
+      return pending;
+    }
+    final completer = Completer<SettingsSaveResult>();
+    _pendingSaveDraft = completer.future;
+    unawaited(() async {
+      try {
+        completer.complete(
+          await _saveDraftInternal(
+            restartOnProxyChange: restartOnProxyChange,
+          ),
+        );
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      } finally {
+        if (identical(_pendingSaveDraft, completer.future)) {
+          _pendingSaveDraft = null;
+        }
+      }
+    }());
+    return completer.future;
+  }
+
+  Future<SettingsSaveResult> _saveDraftInternal({
+    required bool restartOnProxyChange,
+  }) async {
     final previous = savedSettings.value;
     final next = draftSettings.value;
     await _persistence.save(next);
     _draftCoordinator.commit();
     final shouldRestart = _restartPolicy.shouldRestart(previous, next);
-    if (shouldRestart && restartOnProxyChange && _auth != null) {
+    if (!shouldRestart || !restartOnProxyChange || _auth == null) {
+      return SettingsSaveResult.saved;
+    }
+    try {
       await _auth.restart();
+      return SettingsSaveResult.savedAndRestarted;
+    } catch (_) {
+      return SettingsSaveResult.savedNeedsRestartAttention;
     }
   }
 
   Future<void> loadChats() async {
+    final pending = _pendingChatLoad;
+    if (pending != null) {
+      return pending;
+    }
+    final completer = Completer<void>();
+    _pendingChatLoad = completer.future;
+    unawaited(() async {
+      try {
+        await _loadChatsInternal();
+        completer.complete();
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      } finally {
+        if (identical(_pendingChatLoad, completer.future)) {
+          _pendingChatLoad = null;
+        }
+      }
+    }());
+    return completer.future;
+  }
+
+  Future<void> _loadChatsInternal() async {
     chatsLoading.value = true;
     chatsError.value = null;
     try {

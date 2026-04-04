@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_category_dialog.dart';
@@ -91,7 +92,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 controller: controller,
                 draft: draft,
                 saved: saved,
-                recentLogs: pipeline?.logsSnapshot.take(20).toList(growable: false) ??
+                recentLogs:
+                    pipeline?.logsSnapshot.take(20).toList(growable: false) ??
                     const [],
                 onReloadChats: _loadChats,
               ),
@@ -104,11 +106,19 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _handleSave() async {
     try {
-      await controller.saveDraft();
+      final result = await controller.saveDraft();
       if (!mounted) {
         return;
       }
-      _showMessage('设置已保存');
+      switch (result) {
+        case SettingsSaveResult.saved:
+        case SettingsSaveResult.savedAndRestarted:
+          _showMessage('设置已保存');
+          break;
+        case SettingsSaveResult.savedNeedsRestartAttention:
+          _showMessage('设置已保存，但重启失败，请稍后手动重试。');
+          break;
+      }
     } catch (error) {
       if (!mounted) {
         return;

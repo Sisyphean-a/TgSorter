@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -76,6 +78,44 @@ void main() {
       );
     },
   );
+
+  test(
+    'saveProxyAndRetry restores previous auth stage when restart fails',
+    () async {
+      final harness = await _buildHarness();
+      harness.coordinator.stage.value = AuthStage.waitCode;
+      harness.gateway.restartError = StateError('restart failed');
+
+      await harness.coordinator.saveProxyAndRetry(
+        server: '127.0.0.1',
+        port: '7897',
+        username: '',
+        password: '',
+      );
+
+      expect(harness.coordinator.loading.value, isFalse);
+      expect(harness.coordinator.stage.value, AuthStage.waitCode);
+    },
+  );
+
+  test(
+    'submitPhone ignores a second request while first submit is still running',
+    () async {
+      final harness = await _buildHarness();
+      harness.gateway.submitPhoneCompleter = Completer<void>();
+
+      final firstSubmit = harness.coordinator.submitPhone('+8613800000000');
+      final secondSubmit = harness.coordinator.submitPhone('+8613900000000');
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(harness.gateway.submitPhoneCalls, 1);
+
+      harness.gateway.submitPhoneCompleter!.complete();
+      await firstSubmit;
+      await secondSubmit;
+    },
+  );
 }
 
 Future<_CoordinatorHarness> _buildHarness() async {
@@ -127,6 +167,8 @@ class _CoordinatorHarness {
 class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
   int restartCalls = 0;
   Object? restartError;
+  int submitPhoneCalls = 0;
+  Completer<void>? submitPhoneCompleter;
 
   @override
   Stream<TdAuthState> get authStates => const Stream<TdAuthState>.empty();
@@ -149,7 +191,13 @@ class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
   Future<void> submitPassword(String password) async {}
 
   @override
-  Future<void> submitPhoneNumber(String phoneNumber) async {}
+  Future<void> submitPhoneNumber(String phoneNumber) async {
+    submitPhoneCalls++;
+    final completer = submitPhoneCompleter;
+    if (completer != null) {
+      await completer.future;
+    }
+  }
 
   @override
   Future<List<SelectableChat>> listSelectableChats() async => const [];
