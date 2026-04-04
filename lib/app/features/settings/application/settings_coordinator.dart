@@ -262,7 +262,8 @@ class SettingsCoordinator extends GetxController
   Future<void> saveDraft({bool restartOnProxyChange = true}) async {
     final previous = savedSettings.value;
     final next = draftSettings.value;
-    await _persistence.saveDraft(_draftCoordinator);
+    await _persistence.save(next);
+    _draftCoordinator.commit();
     final shouldRestart = _restartPolicy.shouldRestart(previous, next);
     if (shouldRestart && restartOnProxyChange && _auth != null) {
       await _auth.restart();

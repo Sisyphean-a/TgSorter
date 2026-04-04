@@ -43,6 +43,7 @@ void main() {
       await coordinator.saveDraft();
 
       expect(harness.persistence.saveCalls, 1);
+      expect(coordinator.isDirty.value, isFalse);
       expect(harness.restartPolicy.calls, 1);
       expect(harness.restartPolicy.previous?.proxy, ProxySettings.empty);
       expect(harness.restartPolicy.next?.proxy.server, '127.0.0.1');
@@ -66,6 +67,41 @@ void main() {
     expect(harness.chatLoader.loadCalls, 1);
     expect(coordinator.chats.single.title, '频道一');
   });
+
+  test(
+    'saveDraft does not commit or evaluate restart when persistence save fails',
+    () async {
+      final harness = _SettingsCoordinatorHarness()
+        ..persistence.throwOnSave = true
+        ..restartPolicy.shouldRestartResult = true;
+      final coordinator = harness.build();
+      coordinator.onInit();
+      coordinator.updateProxyDraft(
+        server: '127.0.0.1',
+        port: '7890',
+        username: '',
+        password: '',
+      );
+
+      await expectLater(
+        coordinator.saveDraft(),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'save failed',
+          ),
+        ),
+      );
+
+      expect(harness.persistence.saveCalls, 1);
+      expect(coordinator.isDirty.value, isTrue);
+      expect(coordinator.savedSettings.value.proxy, ProxySettings.empty);
+      expect(coordinator.draftSettings.value.proxy.server, '127.0.0.1');
+      expect(harness.restartPolicy.calls, 0);
+      expect(harness.restartCalls, 0);
+    },
+  );
 }
 
 class _SettingsCoordinatorHarness {
@@ -154,6 +190,8 @@ class _FakeSettingsPersistenceService extends SettingsPersistenceService {
   );
   int loadCalls = 0;
   int saveCalls = 0;
+  bool throwOnSave = false;
+  AppSettings? lastSaved;
 
   @override
   AppSettings load() {
@@ -162,9 +200,12 @@ class _FakeSettingsPersistenceService extends SettingsPersistenceService {
   }
 
   @override
-  Future<void> saveDraft(SettingsDraftCoordinator draft) async {
+  Future<void> save(AppSettings next) async {
     saveCalls++;
-    draft.commit();
+    if (throwOnSave) {
+      throw StateError('save failed');
+    }
+    lastSaved = next;
   }
 }
 
