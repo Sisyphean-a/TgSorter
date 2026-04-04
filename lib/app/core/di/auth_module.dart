@@ -10,13 +10,19 @@ import 'package:tgsorter/app/features/settings/application/settings_coordinator.
 
 void registerAuthModule() {
   Get.put<AuthNavigationPort>(const GetxAuthNavigationAdapter(), permanent: true);
+  final lifecycle = AuthLifecycleCoordinator(
+    auth: Get.find<AuthGateway>(),
+    errors: Get.find<AppErrorController>(),
+    errorMapper: const AuthErrorMapper(),
+    settings: Get.find<SettingsCoordinator>(),
+    navigation: Get.find<AuthNavigationPort>(),
+  );
   Get.put(
     AuthCoordinator(
       Get.find<AuthGateway>(),
       Get.find<AppErrorController>(),
       Get.find<SettingsCoordinator>(),
-      errorMapper: const AuthErrorMapper(),
-      lifecycle: AuthLifecycleCoordinator(Get.find<AuthNavigationPort>()),
+      lifecycle: lifecycle,
     ),
     permanent: true,
   );

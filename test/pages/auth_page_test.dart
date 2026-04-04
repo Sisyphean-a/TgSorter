@@ -107,8 +107,13 @@ Future<void> _pumpAuthPage(
     service,
     errors,
     settings,
-    lifecycle: AuthLifecycleCoordinator(_FakeAuthNavigationPort()),
-    errorMapper: const AuthErrorMapper(),
+    lifecycle: AuthLifecycleCoordinator(
+      auth: service,
+      errors: errors,
+      errorMapper: const AuthErrorMapper(),
+      settings: settings,
+      navigation: _FakeAuthNavigationPort(),
+    ),
   );
 
   Get.put<AppErrorController>(errors);

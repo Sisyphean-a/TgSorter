@@ -63,8 +63,13 @@ void main() {
       authGateway,
       errors,
       settings,
-      lifecycle: AuthLifecycleCoordinator(const GetxAuthNavigationAdapter()),
-      errorMapper: const AuthErrorMapper(),
+      lifecycle: AuthLifecycleCoordinator(
+        auth: authGateway,
+        errors: errors,
+        errorMapper: const AuthErrorMapper(),
+        settings: settings,
+        navigation: const GetxAuthNavigationAdapter(),
+      ),
     );
 
     Get.put<AppErrorController>(errors);
@@ -145,8 +150,13 @@ void main() {
       authGateway,
       errors,
       settings,
-      lifecycle: AuthLifecycleCoordinator(_NoopAuthNavigationPort()),
-      errorMapper: const AuthErrorMapper(),
+      lifecycle: AuthLifecycleCoordinator(
+        auth: authGateway,
+        errors: errors,
+        errorMapper: const AuthErrorMapper(),
+        settings: settings,
+        navigation: _NoopAuthNavigationPort(),
+      ),
     );
 
     Get.put<AppErrorController>(errors);
