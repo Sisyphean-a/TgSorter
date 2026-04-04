@@ -1,4 +1,4 @@
-import 'package:tgsorter/app/features/settings/application/session_query_gateway.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 
 class SettingsChatLoader {
   SettingsChatLoader({required SessionQueryGateway sessionQueryGateway})

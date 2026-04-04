@@ -4,6 +4,7 @@ import 'package:tgsorter/app/features/settings/application/settings_chat_loader.
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
+import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -26,21 +27,31 @@ void main() {
   });
 
   test(
-    'saveDraft delegates to persistence and restarts only when requested',
+    'saveDraft lets coordinator evaluate restart policy after persistence',
     () async {
       final harness = _SettingsCoordinatorHarness()
-        ..persistence.shouldRestart = true;
+        ..restartPolicy.shouldRestartResult = true;
       final coordinator = harness.build();
       coordinator.onInit();
+      coordinator.updateProxyDraft(
+        server: '127.0.0.1',
+        port: '7890',
+        username: '',
+        password: '',
+      );
 
       await coordinator.saveDraft();
 
       expect(harness.persistence.saveCalls, 1);
+      expect(harness.restartPolicy.calls, 1);
+      expect(harness.restartPolicy.previous?.proxy, ProxySettings.empty);
+      expect(harness.restartPolicy.next?.proxy.server, '127.0.0.1');
       expect(harness.restartCalls, 1);
 
       await coordinator.saveDraft(restartOnProxyChange: false);
 
       expect(harness.persistence.saveCalls, 2);
+      expect(harness.restartPolicy.calls, 2);
       expect(harness.restartCalls, 1);
     },
   );
@@ -63,6 +74,7 @@ class _SettingsCoordinatorHarness {
   final _FakeSettingsPersistenceService persistence =
       _FakeSettingsPersistenceService();
   final _FakeSettingsChatLoader chatLoader = _FakeSettingsChatLoader();
+  final _FakeSettingsRestartPolicy restartPolicy = _FakeSettingsRestartPolicy();
 
   int get restartCalls => sessions.restartCalls;
 
@@ -73,6 +85,7 @@ class _SettingsCoordinatorHarness {
       auth: sessions,
       draftCoordinator: SettingsDraftCoordinator(AppSettings.defaults()),
       persistence: persistence,
+      restartPolicy: restartPolicy,
       chatLoader: chatLoader,
     );
   }
@@ -137,14 +150,8 @@ class _FakeSettingsPersistenceService extends SettingsPersistenceService {
     forwardAsCopy: false,
     batchSize: 5,
     throttleMs: 1200,
-    proxy: ProxySettings(
-      server: '127.0.0.1',
-      port: 7890,
-      username: '',
-      password: '',
-    ),
+    proxy: ProxySettings.empty,
   );
-  bool shouldRestart = false;
   int loadCalls = 0;
   int saveCalls = 0;
 
@@ -155,10 +162,24 @@ class _FakeSettingsPersistenceService extends SettingsPersistenceService {
   }
 
   @override
-  Future<bool> saveDraft(SettingsDraftCoordinator draft) async {
+  Future<void> saveDraft(SettingsDraftCoordinator draft) async {
     saveCalls++;
     draft.commit();
-    return shouldRestart;
+  }
+}
+
+class _FakeSettingsRestartPolicy extends SettingsRestartPolicy {
+  bool shouldRestartResult = false;
+  int calls = 0;
+  AppSettings? previous;
+  AppSettings? next;
+
+  @override
+  bool shouldRestart(AppSettings previous, AppSettings next) {
+    calls++;
+    this.previous = previous;
+    this.next = next;
+    return shouldRestartResult;
   }
 }
 

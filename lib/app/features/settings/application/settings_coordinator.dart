@@ -7,6 +7,7 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
 import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
+import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
 import 'package:tgsorter/app/features/settings/application/shortcut_settings_service.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -21,6 +22,7 @@ class SettingsCoordinator extends GetxController
     AuthGateway? auth,
     SettingsDraftCoordinator? draftCoordinator,
     SettingsPersistenceService? persistence,
+    SettingsRestartPolicy? restartPolicy,
     CategorySettingsService? categories,
     ShortcutSettingsService? shortcuts,
     ConnectionSettingsService? connection,
@@ -31,6 +33,7 @@ class SettingsCoordinator extends GetxController
        _draftCoordinator =
            draftCoordinator ?? SettingsDraftCoordinator(AppSettings.defaults()),
        _persistence = persistence ?? SettingsPersistenceService(repository),
+       _restartPolicy = restartPolicy ?? SettingsRestartPolicy(),
        _categories = categories ?? CategorySettingsService(),
        _shortcuts = shortcuts ?? ShortcutSettingsService(),
        _connection = connection ?? ConnectionSettingsService(),
@@ -42,6 +45,7 @@ class SettingsCoordinator extends GetxController
   final AuthGateway? _auth;
   final SettingsDraftCoordinator _draftCoordinator;
   final SettingsPersistenceService _persistence;
+  final SettingsRestartPolicy _restartPolicy;
   final CategorySettingsService _categories;
   final ShortcutSettingsService _shortcuts;
   final ConnectionSettingsService _connection;
@@ -256,7 +260,10 @@ class SettingsCoordinator extends GetxController
   }
 
   Future<void> saveDraft({bool restartOnProxyChange = true}) async {
-    final shouldRestart = await _persistence.saveDraft(_draftCoordinator);
+    final previous = savedSettings.value;
+    final next = draftSettings.value;
+    await _persistence.saveDraft(_draftCoordinator);
+    final shouldRestart = _restartPolicy.shouldRestart(previous, next);
     if (shouldRestart && restartOnProxyChange && _auth != null) {
       await _auth.restart();
     }
