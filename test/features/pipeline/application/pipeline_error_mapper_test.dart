@@ -33,4 +33,60 @@ void main() {
     expect(resolved.title, '网络异常');
     expect(resolved.message, '请检查网络连接后重试');
   });
+
+  test('maps auth failure to re-login guidance', () {
+    final mapper = PipelineErrorMapper();
+
+    final resolved = mapper.mapTdlibFailure(
+      TdlibFailure.tdError(
+        code: 401,
+        message: 'AUTH_KEY_INVALID',
+        request: 'auth',
+        phase: TdlibPhase.auth,
+      ),
+    );
+
+    expect(resolved.title, '鉴权异常');
+    expect(resolved.message, '登录态可能失效，请重新登录');
+  });
+
+  test('maps permission failure to target permission guidance', () {
+    final mapper = PipelineErrorMapper();
+
+    final resolved = mapper.mapTdlibFailure(
+      TdlibFailure.tdError(
+        code: 403,
+        message: 'CHAT_WRITE_FORBIDDEN',
+        request: 'classify',
+        phase: TdlibPhase.business,
+      ),
+    );
+
+    expect(resolved.title, '权限异常');
+    expect(resolved.message, '目标会话可能无发送权限');
+  });
+
+  test('maps unexpected tdlib failure to generic tdlib message', () {
+    final mapper = PipelineErrorMapper();
+
+    final failure = TdlibFailure.tdError(
+      code: 500,
+      message: 'UNKNOWN',
+      request: 'fetch',
+      phase: TdlibPhase.business,
+    );
+    final resolved = mapper.mapTdlibFailure(failure);
+
+    expect(resolved.title, 'TDLib 错误');
+    expect(resolved.message, failure.toString());
+  });
+
+  test('maps general error to runtime message', () {
+    final mapper = PipelineErrorMapper();
+
+    final resolved = mapper.mapGeneralError(StateError('boom'));
+
+    expect(resolved.title, '运行异常');
+    expect(resolved.message, 'Bad state: boom');
+  });
 }
