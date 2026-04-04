@@ -7,8 +7,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
+import 'package:tgsorter/app/core/routing/getx_auth_navigation_adapter.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
+import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
+import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
@@ -55,7 +59,13 @@ void main() {
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
-    final auth = AuthCoordinator(authGateway, errors, settings);
+    final auth = AuthCoordinator(
+      authGateway,
+      errors,
+      settings,
+      lifecycle: AuthLifecycleCoordinator(const GetxAuthNavigationAdapter()),
+      errorMapper: const AuthErrorMapper(),
+    );
 
     Get.put<AppErrorController>(errors);
     Get.put<SettingsCoordinator>(settings);
@@ -131,7 +141,13 @@ void main() {
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
-    final auth = AuthCoordinator(authGateway, errors, settings);
+    final auth = AuthCoordinator(
+      authGateway,
+      errors,
+      settings,
+      lifecycle: AuthLifecycleCoordinator(_NoopAuthNavigationPort()),
+      errorMapper: const AuthErrorMapper(),
+    );
 
     Get.put<AppErrorController>(errors);
     Get.put<SettingsCoordinator>(settings);
@@ -232,9 +248,13 @@ class _IntegrationAuthGateway implements AuthGateway, AuthStateGateway {
 }
 
 class _IntegrationSettingsGateway implements SessionQueryGateway {
-
   @override
   Future<List<SelectableChat>> listSelectableChats() async => const [];
+}
+
+class _NoopAuthNavigationPort implements AuthNavigationPort {
+  @override
+  void goToPipeline() {}
 }
 
 class _IntegrationPipelineGateway

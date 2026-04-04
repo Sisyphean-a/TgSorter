@@ -3,29 +3,32 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/core/routing/app_routes.dart';
-import 'package:tgsorter/app/domain/flood_wait.dart';
-import 'package:tgsorter/app/domain/td_error_classifier.dart';
+import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
+import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 
-enum AuthStage {
-  loading,
-  waitPhone,
-  waitCode,
-  waitPassword,
-  ready,
-  unsupported,
-}
+export 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart'
+    show AuthStage;
 
 class AuthCoordinator extends GetxController {
-  AuthCoordinator(this._service, this._errors, this._settings);
+  AuthCoordinator(
+    this._service,
+    this._errors,
+    this._settings, {
+    AuthErrorMapper errorMapper = const AuthErrorMapper(),
+    required AuthLifecycleCoordinator lifecycle,
+  }) : _errorMapper = errorMapper,
+       _lifecycle = lifecycle;
 
   final AuthGateway _service;
   final AppErrorController _errors;
   final SettingsCoordinator _settings;
+  final AuthErrorMapper _errorMapper;
+  final AuthLifecycleCoordinator _lifecycle;
   final stage = AuthStage.loading.obs;
   final loading = false.obs;
 
@@ -53,7 +56,7 @@ class AuthCoordinator extends GetxController {
     } on TdlibFailure catch (error) {
       _showTdlibError(error, '发送验证码失败');
     } catch (error) {
-      _showSafeError('发送验证码失败', error.toString());
+      _showSafeError('发送验证码失败', error);
     } finally {
       loading.value = false;
     }
@@ -66,7 +69,7 @@ class AuthCoordinator extends GetxController {
     } on TdlibFailure catch (error) {
       _showTdlibError(error, '提交验证码失败');
     } catch (error) {
-      _showSafeError('提交验证码失败', error.toString());
+      _showSafeError('提交验证码失败', error);
     } finally {
       loading.value = false;
     }
@@ -79,7 +82,7 @@ class AuthCoordinator extends GetxController {
     } on TdlibFailure catch (error) {
       _showTdlibError(error, '提交密码失败');
     } catch (error) {
-      _showSafeError('提交密码失败', error.toString());
+      _showSafeError('提交密码失败', error);
     } finally {
       loading.value = false;
     }
@@ -106,7 +109,7 @@ class AuthCoordinator extends GetxController {
     } on TdlibFailure catch (error) {
       _showTdlibError(error, '启动失败');
     } catch (error) {
-      _showSafeError('启动失败', error.toString());
+      _showSafeError('启动失败', error);
     } finally {
       loading.value = false;
     }
@@ -119,56 +122,20 @@ class AuthCoordinator extends GetxController {
     } on TdlibFailure catch (error) {
       _showTdlibError(error, '启动失败');
     } catch (error) {
-      _showSafeError('启动失败', error.toString());
+      _showSafeError('启动失败', error);
     }
   }
 
   void _onAuthState(TdAuthState state) {
-    if (state.kind == TdAuthStateKind.waitPhoneNumber) {
-      stage.value = AuthStage.waitPhone;
-      return;
-    }
-    if (state.kind == TdAuthStateKind.waitCode) {
-      stage.value = AuthStage.waitCode;
-      return;
-    }
-    if (state.kind == TdAuthStateKind.waitPassword) {
-      stage.value = AuthStage.waitPassword;
-      return;
-    }
-    if (state.kind == TdAuthStateKind.ready) {
-      stage.value = AuthStage.ready;
-      Get.offNamed(AppRoutes.pipeline);
-      return;
-    }
-    stage.value = AuthStage.loading;
+    stage.value = _lifecycle.handle(state);
   }
 
   void _showTdlibError(TdlibFailure error, String title) {
-    final kind = classifyTdlibError(error);
-    if (kind == TdErrorKind.rateLimit) {
-      final waitSeconds = parseFloodWaitSeconds(error.message);
-      final suffix = waitSeconds == null ? '' : '，请等待 $waitSeconds 秒';
-      _showSafeError(title, '触发 FloodWait$suffix');
-      return;
-    }
-    if (kind == TdErrorKind.network) {
-      _showSafeError(title, '网络异常：${error.message}');
-      return;
-    }
-    if (kind == TdErrorKind.auth) {
-      _showSafeError(title, '鉴权失败：${error.message}');
-      return;
-    }
-    if (kind == TdErrorKind.permission) {
-      _showSafeError(title, '权限受限，请检查 Telegram 账号状态');
-      return;
-    }
-    _showSafeError(title, error.toString());
+    _reportError(_errorMapper.mapTdlibFailure(error, title: title));
   }
 
-  void _showSafeError(String title, String message) {
-    _errors.report(title: title, message: message);
+  void _showSafeError(String title, Object error) {
+    _reportError(_errorMapper.mapGeneralError(error, title: title));
   }
 
   void _onAuthError(Object error, StackTrace stackTrace) {
@@ -176,11 +143,15 @@ class AuthCoordinator extends GetxController {
       _showTdlibError(error, '授权初始化失败');
       return;
     }
-    _showSafeError('授权初始化失败', error.toString());
+    _showSafeError('授权初始化失败', error);
   }
 
   void clearErrorHistory() {
     _errors.clear();
+  }
+
+  void _reportError(AppErrorEvent event) {
+    _errors.reportEvent(event);
   }
 
   @override

@@ -6,8 +6,12 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
+import 'package:tgsorter/app/core/routing/getx_auth_navigation_adapter.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
+import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
+import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
@@ -81,6 +85,7 @@ void main() {
 
     expect(registerAuthModule, returnsNormally);
     final coordinator = Get.find<AuthCoordinator>();
+    expect(Get.find<AuthNavigationPort>(), isA<GetxAuthNavigationAdapter>());
     expect(coordinator.auth, same(authGateway));
   });
 }
@@ -98,7 +103,13 @@ Future<void> _pumpAuthPage(
     service,
     auth: service,
   );
-  final auth = AuthCoordinator(service, errors, settings);
+  final auth = AuthCoordinator(
+    service,
+    errors,
+    settings,
+    lifecycle: AuthLifecycleCoordinator(_FakeAuthNavigationPort()),
+    errorMapper: const AuthErrorMapper(),
+  );
 
   Get.put<AppErrorController>(errors);
   Get.put<SettingsCoordinator>(settings);
@@ -142,4 +153,9 @@ class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
 
   @override
   Future<List<SelectableChat>> listSelectableChats() async => const [];
+}
+
+class _FakeAuthNavigationPort implements AuthNavigationPort {
+  @override
+  void goToPipeline() {}
 }
