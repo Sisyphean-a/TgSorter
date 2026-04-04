@@ -3,6 +3,7 @@ import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_recovery_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
+import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 
 void main() {
   test('recoverPendingTransactions reports recovered count once', () async {
@@ -82,8 +83,18 @@ class _RecordingErrorController extends AppErrorController {
   final List<String> messages = <String>[];
 
   @override
-  void report({required String title, required String message}) {
+  void report({
+    AppErrorScope scope = AppErrorScope.runtime,
+    AppErrorLevel level = AppErrorLevel.error,
+    required String title,
+    required String message,
+  }) {
     messages.add('$title::$message');
-    super.report(title: title, message: message);
+    super.report(
+      scope: scope,
+      level: level,
+      title: title,
+      message: message,
+    );
   }
 }

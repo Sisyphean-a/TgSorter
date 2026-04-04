@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 
 class AppErrorPanel extends StatelessWidget {
   const AppErrorPanel({super.key, required this.controller});
@@ -10,7 +11,7 @@ class AppErrorPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final history = controller.errorHistory;
+      final history = controller.structuredErrorHistory;
       if (history.isEmpty) {
         return const SizedBox.shrink();
       }
@@ -57,7 +58,7 @@ class AppErrorPanel extends StatelessWidget {
               ),
               child: SingleChildScrollView(
                 child: SelectableText(
-                  history.join('\n\n'),
+                  _historyToText(history),
                   style: const TextStyle(
                     color: Colors.redAccent,
                     fontSize: 12,
@@ -71,4 +72,8 @@ class AppErrorPanel extends StatelessWidget {
       );
     });
   }
+}
+
+String _historyToText(List<AppErrorEvent> history) {
+  return history.map(formatAppErrorEvent).join('\n\n');
 }

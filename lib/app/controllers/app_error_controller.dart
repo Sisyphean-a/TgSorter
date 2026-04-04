@@ -1,25 +1,42 @@
 import 'package:get/get.dart';
 
+import 'package:tgsorter/app/shared/errors/app_error_event.dart';
+
 class AppErrorController extends GetxController {
   final currentError = RxnString();
   final errorHistory = <String>[].obs;
 
-  void report({required String title, required String message}) {
-    final line = _formatErrorLine(title, message);
+  final structuredCurrentError = Rxn<AppErrorEvent>();
+  final structuredErrorHistory = <AppErrorEvent>[].obs;
+
+  void reportEvent(AppErrorEvent event) {
+    structuredCurrentError.value = event;
+    structuredErrorHistory.insert(0, event);
+    final line = formatAppErrorEvent(event);
     currentError.value = line;
     errorHistory.insert(0, line);
   }
 
-  void clear() {
-    currentError.value = null;
-    errorHistory.clear();
+  void report({
+    required String title,
+    required String message,
+    AppErrorScope scope = AppErrorScope.runtime,
+    AppErrorLevel level = AppErrorLevel.error,
+  }) {
+    reportEvent(
+      AppErrorEvent(
+        scope: scope,
+        level: level,
+        title: title,
+        message: message,
+      ),
+    );
   }
 
-  String _formatErrorLine(String title, String message) {
-    final now = DateTime.now();
-    final hh = now.hour.toString().padLeft(2, '0');
-    final mm = now.minute.toString().padLeft(2, '0');
-    final ss = now.second.toString().padLeft(2, '0');
-    return '[$hh:$mm:$ss] $title：$message';
+  void clear() {
+    structuredCurrentError.value = null;
+    structuredErrorHistory.clear();
+    currentError.value = null;
+    errorHistory.clear();
   }
 }

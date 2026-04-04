@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_error_mapper.dart';
+import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 
 void main() {
@@ -17,6 +18,8 @@ void main() {
 
     expect(resolved.title, '操作过快');
     expect(resolved.message, contains('17'));
+    expect(resolved.scope, AppErrorScope.pipeline);
+    expect(resolved.level, AppErrorLevel.error);
   });
 
   test('maps network failure to stable offline copy', () {
@@ -32,6 +35,8 @@ void main() {
 
     expect(resolved.title, '网络异常');
     expect(resolved.message, '请检查网络连接后重试');
+    expect(resolved.scope, AppErrorScope.pipeline);
+    expect(resolved.level, AppErrorLevel.error);
   });
 
   test('maps auth failure to re-login guidance', () {
@@ -48,6 +53,8 @@ void main() {
 
     expect(resolved.title, '鉴权异常');
     expect(resolved.message, '登录态可能失效，请重新登录');
+    expect(resolved.scope, AppErrorScope.pipeline);
+    expect(resolved.level, AppErrorLevel.error);
   });
 
   test('maps permission failure to target permission guidance', () {
@@ -64,6 +71,8 @@ void main() {
 
     expect(resolved.title, '权限异常');
     expect(resolved.message, '目标会话可能无发送权限');
+    expect(resolved.scope, AppErrorScope.pipeline);
+    expect(resolved.level, AppErrorLevel.error);
   });
 
   test('maps unexpected tdlib failure to generic tdlib message', () {
@@ -79,6 +88,8 @@ void main() {
 
     expect(resolved.title, 'TDLib 错误');
     expect(resolved.message, failure.toString());
+    expect(resolved.scope, AppErrorScope.pipeline);
+    expect(resolved.level, AppErrorLevel.error);
   });
 
   test('maps general error to runtime message', () {
@@ -88,5 +99,7 @@ void main() {
 
     expect(resolved.title, '运行异常');
     expect(resolved.message, 'Bad state: boom');
+    expect(resolved.scope, AppErrorScope.pipeline);
+    expect(resolved.level, AppErrorLevel.error);
   });
 }

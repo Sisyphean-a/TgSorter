@@ -11,6 +11,8 @@ import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
+import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 
 import 'media_gateway.dart';
 import 'message_read_gateway.dart';
@@ -32,6 +34,7 @@ class PipelineCoordinator extends GetxController {
 
   PipelineCoordinator({
     required TelegramGateway service,
+    ConnectionStateGateway? connectionStateGateway,
     required PipelineSettingsReader settingsReader,
     required OperationJournalRepository journalRepository,
     required AppErrorController errorController,
@@ -44,6 +47,7 @@ class PipelineCoordinator extends GetxController {
     PipelineLifecycleCoordinator? lifecycle,
     RemainingCountService? remainingCountService,
   }) : _service = service,
+       _connectionStateGateway = connectionStateGateway,
        _settingsReader = settingsReader,
        _journalRepository = journalRepository,
        _errorController = errorController,
@@ -116,6 +120,7 @@ class PipelineCoordinator extends GetxController {
   }
 
   final TelegramGateway _service;
+  final ConnectionStateGateway? _connectionStateGateway;
   final PipelineSettingsReader _settingsReader;
   final OperationJournalRepository _journalRepository;
   final AppErrorController _errorController;
@@ -156,7 +161,9 @@ class PipelineCoordinator extends GetxController {
     super.onInit();
     logs.assignAll(_journalRepository.loadLogs());
     retryQueue.assignAll(_journalRepository.loadRetryQueue());
-    _connectionSub = _service.connectionStates.listen((state) {
+    final connectionStream =
+        _connectionStateGateway?.connectionStates ?? _service.connectionStates;
+    _connectionSub = connectionStream.listen((state) {
       lifecycle.updateConnection(state.isReady);
     });
     _authSub = _service.authStates.listen((state) {
@@ -334,13 +341,13 @@ class PipelineCoordinator extends GetxController {
   int _nowMs() => DateTime.now().millisecondsSinceEpoch;
 
   void _showTdlibError(TdlibFailure error) {
-    final resolved = _errorMapper.mapTdlibFailure(error);
-    _reportError(resolved.title, resolved.message);
+    final event = _errorMapper.mapTdlibFailure(error);
+    _reportError(event);
   }
 
   void _showGeneralError(Object error) {
-    final resolved = _errorMapper.mapGeneralError(error);
-    _reportError(resolved.title, resolved.message);
+    final event = _errorMapper.mapGeneralError(error);
+    _reportError(event);
   }
 
   void _resetPipelineState() {
@@ -356,8 +363,8 @@ class PipelineCoordinator extends GetxController {
     mediaController.stop();
   }
 
-  void _reportError(String title, String message) {
-    _errorController.report(title: title, message: message);
+  void _reportError(AppErrorEvent event) {
+    _errorController.reportEvent(event);
   }
 
   @override
