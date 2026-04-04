@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
-import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -19,6 +18,7 @@ import 'message_read_gateway.dart';
 import 'pipeline_action_service.dart';
 import 'pipeline_error_mapper.dart';
 import 'pipeline_gateway_adapters.dart';
+import 'pipeline_media_controller.dart';
 import 'pipeline_media_refresh_service.dart';
 import 'pipeline_navigation_service.dart';
 import 'pipeline_recovery_service.dart';
@@ -82,6 +82,12 @@ class PipelineCoordinator extends GetxController {
     this.actions = resolvedActions;
     this.recovery = resolvedRecovery;
     this.mediaRefresh = resolvedMediaRefresh;
+    mediaController = PipelineMediaController(
+      state: this.runtimeState,
+      mediaRefresh: resolvedMediaRefresh,
+      reportGeneralError: _showGeneralError,
+      videoRefreshInterval: _videoRefreshInterval,
+    );
     _remainingCountService = remainingCountService ?? RemainingCountService();
   }
 
@@ -97,6 +103,7 @@ class PipelineCoordinator extends GetxController {
   late final PipelineActionService actions;
   late final PipelineRecoveryService recovery;
   late final PipelineMediaRefreshService mediaRefresh;
+  late final PipelineMediaController mediaController;
   late final RemainingCountService _remainingCountService;
 
   Rxn<PipelineMessage> get currentMessage => runtimeState.currentMessage;
@@ -114,11 +121,9 @@ class PipelineCoordinator extends GetxController {
   StreamSubscription<TdConnectionState>? _connectionSub;
   StreamSubscription<TdAuthState>? _authSub;
   Worker? _settingsWorker;
-  Timer? _videoRefreshTimer;
   ClassifyReceipt? _lastSuccessReceipt;
   bool _isAuthorized = false;
   int? _tailMessageId;
-  int? _refreshTargetMessageId;
   MessageFetchDirection? _lastFetchDirection;
   int? _lastSourceChatId;
   final Set<int> _previewPreparedMessageIds = <int>{};
@@ -169,27 +174,7 @@ class PipelineCoordinator extends GetxController {
   }
 
   Future<void> prepareCurrentMedia([int? targetMessageId]) async {
-    final message = currentMessage.value;
-    if (message == null ||
-        (message.preview.kind != MessagePreviewKind.video &&
-            message.preview.kind != MessagePreviewKind.audio) ||
-        videoPreparing.value) {
-      return;
-    }
-    final requestedMessageId = targetMessageId ?? message.id;
-    _refreshTargetMessageId = requestedMessageId;
-    videoPreparing.value = true;
-    try {
-      final prepared = await mediaRefresh.prepareCurrentMedia(
-        sourceChatId: message.sourceChatId,
-        messageId: requestedMessageId,
-      );
-      currentMessage.value = _mergePreparedMessage(message, prepared);
-      await _refreshCurrentMediaIfNeeded();
-    } catch (error) {
-      _showGeneralError(error);
-      videoPreparing.value = false;
-    }
+    await mediaController.prepareCurrentMedia(targetMessageId);
   }
 
   Future<void> skipCurrent([String source = 'unknown']) async {
@@ -393,84 +378,7 @@ class PipelineCoordinator extends GetxController {
   }
 
   Future<void> _refreshCurrentMediaIfNeeded() async {
-    final message = currentMessage.value;
-    if (message == null || !_needsMediaRefresh(message.preview)) {
-      videoPreparing.value = false;
-      _refreshTargetMessageId = null;
-      return;
-    }
-    _syncPreparingState(message.preview);
-    _videoRefreshTimer?.cancel();
-    _videoRefreshTimer = Timer.periodic(_videoRefreshInterval, (_) async {
-      final current = currentMessage.value;
-      if (current == null || !_needsMediaRefresh(current.preview)) {
-        _stopVideoRefresh();
-        return;
-      }
-      final refreshMessageId = _refreshTargetMessageId ?? current.id;
-      final refreshed = await mediaRefresh.refreshCurrentMedia(
-        sourceChatId: current.sourceChatId,
-        messageId: refreshMessageId,
-      );
-      final merged = _mergePreparedMessage(current, refreshed);
-      currentMessage.value = merged;
-      _syncPreparingState(merged.preview);
-      if (!_needsMediaRefresh(merged.preview)) {
-        _stopVideoRefresh();
-      }
-    });
-  }
-
-  bool _needsMediaRefresh(MessagePreview preview) {
-    if (preview.kind == MessagePreviewKind.video) {
-      if (preview.mediaItems.isNotEmpty) {
-        return preview.mediaItems.any((item) {
-          if (item.kind != MediaItemKind.video) {
-            return item.previewPath == null;
-          }
-          final waitingForPlayback =
-              videoPreparing.value &&
-              (_refreshTargetMessageId == null ||
-                  _refreshTargetMessageId == item.messageId);
-          return item.previewPath == null ||
-              (waitingForPlayback && item.fullPath == null);
-        });
-      }
-      return preview.localVideoThumbnailPath == null ||
-          (videoPreparing.value && preview.localVideoPath == null);
-    }
-    if (preview.kind == MessagePreviewKind.audio) {
-      return videoPreparing.value && preview.localAudioPath == null;
-    }
-    return false;
-  }
-
-  void _syncPreparingState(MessagePreview preview) {
-    if (preview.kind == MessagePreviewKind.video) {
-      if (preview.mediaItems.isNotEmpty) {
-        final targetId = _refreshTargetMessageId;
-        final waiting = preview.mediaItems.any((item) {
-          if (item.kind != MediaItemKind.video) {
-            return false;
-          }
-          if (targetId != null && item.messageId != targetId) {
-            return false;
-          }
-          return item.fullPath == null;
-        });
-        videoPreparing.value = waiting && videoPreparing.value;
-        return;
-      }
-      videoPreparing.value =
-          preview.localVideoPath == null && videoPreparing.value;
-      return;
-    }
-    if (preview.kind == MessagePreviewKind.audio) {
-      videoPreparing.value =
-          preview.localAudioPath == null && videoPreparing.value;
-      return;
-    }
-    videoPreparing.value = false;
+    await mediaController.refreshCurrentMediaIfNeeded();
   }
 
   Future<void> _loadInitialMessages() async {
@@ -528,65 +436,8 @@ class PipelineCoordinator extends GetxController {
     await _prefetchIfNeeded();
   }
 
-  PipelineMessage _mergePreparedMessage(
-    PipelineMessage current,
-    PipelineMessage prepared,
-  ) {
-    if (current.preview.mediaItems.isNotEmpty) {
-      final preparedItem = prepared.preview.mediaItems.isEmpty
-          ? null
-          : prepared.preview.mediaItems.first;
-      if (preparedItem != null) {
-        final items = current.preview.mediaItems
-            .map((item) {
-              if (item.messageId != prepared.id) {
-                return item;
-              }
-              return item.copyWith(
-                previewPath: preparedItem.previewPath,
-                fullPath: preparedItem.fullPath,
-                durationSeconds: preparedItem.durationSeconds,
-                caption: preparedItem.caption,
-              );
-            })
-            .toList(growable: false);
-        final preview = current.preview.copyWith(
-          mediaItems: items,
-          localVideoPath: prepared.preview.localVideoPath,
-          localVideoThumbnailPath: prepared.preview.localVideoThumbnailPath,
-          localImagePath: prepared.preview.localImagePath,
-        );
-        return current.copyWith(preview: preview);
-      }
-    }
-    if (current.preview.kind != MessagePreviewKind.audio ||
-        current.preview.audioTracks.length <= 1) {
-      return prepared;
-    }
-    final tracks = current.preview.audioTracks
-        .map((track) {
-          if (track.messageId != prepared.id) {
-            return track;
-          }
-          final preview = prepared.preview;
-          return track.copyWith(
-            localAudioPath: preview.localAudioPath,
-            audioDurationSeconds: preview.audioDurationSeconds,
-            title: preview.title,
-            subtitle: preview.subtitle,
-          );
-        })
-        .toList(growable: false);
-    return current.copyWith(
-      preview: current.preview.copyWith(audioTracks: tracks),
-    );
-  }
-
   void _stopVideoRefresh() {
-    _videoRefreshTimer?.cancel();
-    _videoRefreshTimer = null;
-    _refreshTargetMessageId = null;
-    videoPreparing.value = false;
+    mediaController.stop();
   }
 
   Future<void> _refreshRemainingCount() async {
