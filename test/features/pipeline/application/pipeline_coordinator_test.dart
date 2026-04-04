@@ -29,6 +29,7 @@ import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
+import 'package:tgsorter/app/services/tdlib_failure.dart';
 
 void main() {
   test('coordinator classify delegates to action service', () async {
@@ -39,8 +40,8 @@ void main() {
     final ok = await harness.coordinator.classify('work');
 
     expect(ok, isTrue);
-    expect(harness.actions.classifyCalls, 1);
-    expect(harness.actions.lastCategoryKey, 'work');
+    expect(harness.recordingActions.classifyCalls, 1);
+    expect(harness.recordingActions.lastCategoryKey, 'work');
   });
 
   test(
@@ -134,30 +135,57 @@ void main() {
       expect(harness.recovery.recoverCalls, 1);
     },
   );
+
+  test('coordinator runBatch stops after first classify failure', () async {
+    final runtimeState = PipelineRuntimeState();
+    final navigation = PipelineNavigationService(state: runtimeState);
+    final actions = _FailingPipelineActionService(
+      state: runtimeState,
+      navigation: navigation,
+    );
+    final harness = _PipelineCoordinatorHarness(
+      runtimeState: runtimeState,
+      navigation: navigation,
+      actions: actions,
+    );
+    harness.runtimeState.isOnline.value = true;
+    harness.runtimeState.currentMessage.value = _textMessage(21, 'current');
+
+    await harness.coordinator.runBatch('work');
+
+    expect(actions.classifyCalls, 1);
+    expect(harness.runtimeState.currentMessage.value?.id, 21);
+  });
 }
 
 class _PipelineCoordinatorHarness {
   factory _PipelineCoordinatorHarness({
     AuthStateGateway? authStateGateway,
     ConnectionStateGateway? connectionStateGateway,
+    PipelineRuntimeState? runtimeState,
+    PipelineNavigationService? navigation,
+    PipelineActionService? actions,
     PipelineFeedController? feed,
     PipelineLifecycleCoordinator? lifecycle,
   }) {
-    final runtimeState = PipelineRuntimeState();
-    final navigation = PipelineNavigationService(state: runtimeState);
-    final actions = _RecordingPipelineActionService(
-      state: runtimeState,
-      navigation: navigation,
-    );
+    final resolvedState = runtimeState ?? PipelineRuntimeState();
+    final resolvedNavigation =
+        navigation ?? PipelineNavigationService(state: resolvedState);
+    final resolvedActions =
+        actions ??
+        _RecordingPipelineActionService(
+          state: resolvedState,
+          navigation: resolvedNavigation,
+        );
     final recovery = _RecordingPipelineRecoveryService();
     final mediaRefresh = _RecordingPipelineMediaRefreshService();
     final sharedGateway = _NoopPipelineSignalGateway();
     return _PipelineCoordinatorHarness._(
-      runtimeState: runtimeState,
+      runtimeState: resolvedState,
       authStateGateway: authStateGateway ?? sharedGateway,
       connectionStateGateway: connectionStateGateway ?? sharedGateway,
-      navigation: navigation,
-      actions: actions,
+      navigation: resolvedNavigation,
+      actions: resolvedActions,
       recovery: recovery,
       mediaRefresh: mediaRefresh,
       remainingCount: RemainingCountService(),
@@ -204,12 +232,15 @@ class _PipelineCoordinatorHarness {
   final ConnectionStateGateway connectionStateGateway;
   final PipelineNavigationService navigation;
   final RemainingCountService remainingCount;
-  final _RecordingPipelineActionService actions;
+  final PipelineActionService actions;
   final _RecordingPipelineRecoveryService recovery;
   final _RecordingPipelineMediaRefreshService mediaRefresh;
   final PipelineFeedController? feed;
   final PipelineLifecycleCoordinator? lifecycle;
   late final PipelineCoordinator coordinator;
+
+  _RecordingPipelineActionService get recordingActions =>
+      actions as _RecordingPipelineActionService;
 }
 
 class _RecordingPipelineFeedController extends PipelineFeedController {
@@ -297,6 +328,35 @@ class _RecordingPipelineActionService extends PipelineActionService {
       sourceMessageIds: <int>[21],
       targetChatId: 10001,
       targetMessageIds: <int>[1021],
+    );
+  }
+}
+
+class _FailingPipelineActionService extends PipelineActionService {
+  _FailingPipelineActionService({
+    required super.state,
+    required super.navigation,
+  }) : super(
+         classifyGateway: _NoopClassifyGateway(),
+         settings: _FakeSettingsReader(),
+         journalRepository: _FakeOperationJournalRepository(),
+       );
+
+  int classifyCalls = 0;
+
+  @override
+  Future<ClassifyReceipt?> classifyCurrent(
+    String key, {
+    List<ClassifyOperationLog>? logs,
+    List<RetryQueueItem>? retryQueue,
+    PipelineActionIdBuilder? idBuilder,
+    PipelineActionNowMs? nowMs,
+  }) async {
+    classifyCalls++;
+    throw TdlibFailure.transport(
+      message: 'network down',
+      request: 'forwardMessages',
+      phase: TdlibPhase.business,
     );
   }
 }

@@ -231,7 +231,10 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
       if (currentMessage.value == null) {
         break;
       }
-      await classify(key);
+      final ok = await classify(key);
+      if (!ok) {
+        break;
+      }
       if (i + 1 < maxCount) {
         await _delayThrottle();
       }
