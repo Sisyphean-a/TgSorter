@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_media_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_media_refresh_service.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
@@ -35,6 +38,162 @@ void main() {
       );
     },
   );
+
+  test(
+    'prepareCurrentMedia keeps prepared payload when navigating away and back',
+    () async {
+      final state = PipelineRuntimeState();
+      final navigation = PipelineNavigationService(state: state);
+      navigation.replaceMessages(<PipelineMessage>[
+        PipelineMessage(
+          id: 21,
+          messageIds: const <int>[21],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.video,
+            title: 'video-1',
+          ),
+        ),
+        PipelineMessage(
+          id: 22,
+          messageIds: const <int>[22],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.text,
+            title: 'text-2',
+          ),
+        ),
+      ]);
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: _FakeMediaRefreshService(),
+      );
+
+      await controller.prepareCurrentMedia();
+      await navigation.showNext();
+      await navigation.showPrevious();
+
+      expect(state.currentMessage.value?.id, 21);
+      expect(
+        state.currentMessage.value?.preview.localVideoPath,
+        'C:/video.mp4',
+      );
+    },
+  );
+
+  test(
+    'prepareCurrentMedia does not overwrite a newer current message after async prepare',
+    () async {
+      final state = PipelineRuntimeState();
+      final navigation = PipelineNavigationService(state: state);
+      navigation.replaceMessages(<PipelineMessage>[
+        PipelineMessage(
+          id: 21,
+          messageIds: const <int>[21],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.video,
+            title: 'video-1',
+          ),
+        ),
+        PipelineMessage(
+          id: 22,
+          messageIds: const <int>[22],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.text,
+            title: 'text-2',
+          ),
+        ),
+      ]);
+      final prepareCompleter = Completer<PipelineMessage>();
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: _BlockingMediaRefreshService(prepareCompleter),
+      );
+
+      final preparing = controller.prepareCurrentMedia();
+      await navigation.showNext();
+      prepareCompleter.complete(
+        PipelineMessage(
+          id: 21,
+          messageIds: const <int>[21],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.video,
+            title: 'video-1',
+            localVideoPath: 'C:/video.mp4',
+          ),
+        ),
+      );
+      await preparing;
+
+      expect(state.currentMessage.value?.id, 22);
+      expect(state.currentMessage.value?.preview.title, 'text-2');
+      await navigation.showPrevious();
+      expect(state.currentMessage.value?.id, 21);
+      expect(
+        state.currentMessage.value?.preview.localVideoPath,
+        'C:/video.mp4',
+      );
+    },
+  );
+
+  test(
+    'prepareCurrentMedia stops stale follow-up refresh when current message changed',
+    () async {
+      final state = PipelineRuntimeState();
+      final navigation = PipelineNavigationService(state: state);
+      navigation.replaceMessages(<PipelineMessage>[
+        PipelineMessage(
+          id: 21,
+          messageIds: const <int>[21],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.video,
+            title: 'video-1',
+          ),
+        ),
+        PipelineMessage(
+          id: 22,
+          messageIds: const <int>[22],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.video,
+            title: 'video-2',
+          ),
+        ),
+      ]);
+      final prepareCompleter = Completer<PipelineMessage>();
+      final mediaRefresh = _BlockingMediaRefreshService(prepareCompleter);
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: mediaRefresh,
+        videoRefreshInterval: const Duration(milliseconds: 5),
+      );
+
+      final preparing = controller.prepareCurrentMedia();
+      await navigation.showNext();
+      prepareCompleter.complete(
+        PipelineMessage(
+          id: 21,
+          messageIds: const <int>[21],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.video,
+            title: 'video-1',
+            localVideoPath: 'C:/video.mp4',
+          ),
+        ),
+      );
+      await preparing;
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      expect(state.currentMessage.value?.id, 22);
+      expect(mediaRefresh.refreshCalls, isEmpty);
+      expect(state.videoPreparing.value, isFalse);
+    },
+  );
 }
 
 class _FakeMediaRefreshService extends PipelineMediaRefreshService {
@@ -57,6 +216,42 @@ class _FakeMediaRefreshService extends PipelineMediaRefreshService {
         kind: MessagePreviewKind.video,
         title: 'video',
         localVideoPath: 'C:/video.mp4',
+      ),
+    );
+  }
+}
+
+class _BlockingMediaRefreshService extends PipelineMediaRefreshService {
+  _BlockingMediaRefreshService(this.prepareCompleter)
+    : super(
+        mediaGateway: _NoopMediaGateway(),
+        messageGateway: _NoopMessageReadGateway(),
+      );
+
+  final Completer<PipelineMessage> prepareCompleter;
+  final List<int> refreshCalls = <int>[];
+
+  @override
+  Future<PipelineMessage> prepareCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) {
+    return prepareCompleter.future;
+  }
+
+  @override
+  Future<PipelineMessage> refreshCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    refreshCalls.add(messageId);
+    return PipelineMessage(
+      id: messageId,
+      messageIds: <int>[messageId],
+      sourceChatId: sourceChatId,
+      preview: const MessagePreview(
+        kind: MessagePreviewKind.video,
+        title: 'refreshed',
       ),
     );
   }

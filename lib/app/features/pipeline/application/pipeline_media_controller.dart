@@ -40,7 +40,13 @@ class PipelineMediaController {
         sourceChatId: message.sourceChatId,
         messageId: requestedMessageId,
       );
-      _state.currentMessage.value = mergePreparedMessage(message, prepared);
+      final base = _messageById(prepared.id) ?? message;
+      final merged = mergePreparedMessage(base, prepared);
+      _replaceMessage(merged);
+      if (!_currentMessageContainsTarget()) {
+        stop();
+        return;
+      }
       await refreshCurrentMediaIfNeeded();
     } catch (error) {
       _reportGeneralError?.call(error);
@@ -59,7 +65,9 @@ class PipelineMediaController {
     _videoRefreshTimer?.cancel();
     _videoRefreshTimer = Timer.periodic(_videoRefreshInterval, (_) async {
       final current = _state.currentMessage.value;
-      if (current == null || !_needsMediaRefresh(current.preview)) {
+      if (current == null ||
+          !_currentMessageContainsTarget() ||
+          !_needsMediaRefresh(current.preview)) {
         stop();
         return;
       }
@@ -68,8 +76,9 @@ class PipelineMediaController {
         sourceChatId: current.sourceChatId,
         messageId: refreshMessageId,
       );
-      final merged = mergePreparedMessage(current, refreshed);
-      _state.currentMessage.value = merged;
+      final base = _messageById(refreshed.id) ?? current;
+      final merged = mergePreparedMessage(base, refreshed);
+      _replaceMessage(merged);
       _syncPreparingState(merged.preview);
       if (!_needsMediaRefresh(merged.preview)) {
         stop();
@@ -129,6 +138,46 @@ class PipelineMediaController {
     return current.copyWith(
       preview: current.preview.copyWith(audioTracks: tracks),
     );
+  }
+
+  PipelineMessage? _messageById(int messageId) {
+    final current = _state.currentMessage.value;
+    if (current?.id == messageId) {
+      return current;
+    }
+    for (final item in _state.cache) {
+      if (item.id == messageId) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  void _replaceMessage(PipelineMessage message) {
+    for (var index = 0; index < _state.cache.length; index++) {
+      if (_state.cache[index].id == message.id) {
+        _state.cache[index] = message;
+        break;
+      }
+    }
+    if (_state.currentMessage.value?.id == message.id) {
+      _state.currentMessage.value = message;
+    }
+  }
+
+  bool _currentMessageContainsTarget() {
+    final current = _state.currentMessage.value;
+    if (current == null) {
+      return false;
+    }
+    final targetId = _refreshTargetMessageId;
+    if (targetId == null) {
+      return true;
+    }
+    if (current.id == targetId) {
+      return true;
+    }
+    return current.messageIds.contains(targetId);
   }
 
   void stop() {

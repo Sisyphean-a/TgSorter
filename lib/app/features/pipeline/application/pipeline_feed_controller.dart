@@ -134,10 +134,15 @@ class PipelineFeedController {
         if (!_previewPreparedMessageIds.add(messageId)) {
           continue;
         }
-        await _media.prepareMediaPreview(
-          sourceChatId: item.sourceChatId,
-          messageId: messageId,
-        );
+        try {
+          await _media.prepareMediaPreview(
+            sourceChatId: item.sourceChatId,
+            messageId: messageId,
+          );
+        } catch (_) {
+          _previewPreparedMessageIds.remove(messageId);
+          rethrow;
+        }
       }
     }
   }

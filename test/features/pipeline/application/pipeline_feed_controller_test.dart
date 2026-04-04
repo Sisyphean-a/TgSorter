@@ -35,6 +35,52 @@ void main() {
       expect(controller.tailMessageId, 2);
     },
   );
+
+  test(
+    'prepareUpcomingPreviews retries message after previous preview warmup failure',
+    () async {
+      final state = PipelineRuntimeState();
+      final navigation = PipelineNavigationService(state: state);
+      final media = _RetryMediaGateway();
+      final controller = PipelineFeedController(
+        state: state,
+        navigation: navigation,
+        messages: _FakeMessageReadGateway(),
+        media: media,
+        settings: _FakeSettingsReader(),
+        remainingCount: _FakeRemainingCountService(),
+        reportGeneralError: (_) {},
+      );
+      navigation.replaceMessages(<PipelineMessage>[
+        PipelineMessage(
+          id: 1,
+          messageIds: const <int>[1],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.text,
+            title: 'first',
+          ),
+        ),
+        PipelineMessage(
+          id: 2,
+          messageIds: const <int>[2],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.video,
+            title: 'second',
+          ),
+        ),
+      ]);
+
+      await expectLater(
+        controller.prepareUpcomingPreviews(),
+        throwsA(isA<StateError>()),
+      );
+      await controller.prepareUpcomingPreviews();
+
+      expect(media.prepareCalls, [2, 2]);
+    },
+  );
 }
 
 class _FakeMessageReadGateway implements MessageReadGateway {
@@ -98,6 +144,23 @@ class _FakeMediaGateway implements MediaGateway {
     required int messageId,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _RetryMediaGateway extends _FakeMediaGateway {
+  final List<int> prepareCalls = <int>[];
+  bool _failed = false;
+
+  @override
+  Future<void> prepareMediaPreview({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    prepareCalls.add(messageId);
+    if (!_failed) {
+      _failed = true;
+      throw StateError('preview failed once');
+    }
   }
 }
 
