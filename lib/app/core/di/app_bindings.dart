@@ -22,7 +22,6 @@ import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
 import 'package:tgsorter/app/services/tdlib_schema_probe.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
 
 Future<void> registerAppBindings() async {
@@ -78,8 +77,6 @@ Future<void> registerAppBindings() async {
   Get.put<MediaGateway>(telegram, permanent: true);
   Get.put<ClassifyGateway>(telegram, permanent: true);
   Get.put<RecoveryGateway>(telegram, permanent: true);
-  // 过渡期保留：方便未迁移模块继续按聚合接口取能力。
-  Get.put<TelegramGateway>(telegram, permanent: true);
 
   registerSettingsModule();
   registerAuthModule();

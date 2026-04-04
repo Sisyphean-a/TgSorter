@@ -29,9 +29,17 @@ import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
+import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
+import 'package:tgsorter/app/services/telegram_service.dart';
 
 void main() {
+  test('telegram service does not implement TelegramGateway (ports-only)', () {
+    final service = TelegramService(adapter: _FakeTdlibAdapter());
+
+    expect(service is TelegramGateway, isFalse);
+  });
+
   test('coordinator classify delegates to action service', () async {
     final harness = _PipelineCoordinatorHarness();
     harness.runtimeState.isOnline.value = true;
@@ -120,7 +128,9 @@ void main() {
 
     expect(harness.recovery.recoverCalls, 1);
   });
-}
+  }
+
+class _FakeTdlibAdapter extends Fake implements TdlibAdapter {}
 
 class _PipelineCoordinatorHarness {
   factory _PipelineCoordinatorHarness({

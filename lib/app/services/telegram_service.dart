@@ -35,7 +35,6 @@ class TelegramService
         MediaGateway,
         ClassifyGateway,
         RecoveryGateway,
-        TelegramGateway,
         RecoverableClassifyGateway {
   static const Duration _authorizationReadyTimeout = Duration(seconds: 20);
   static const Duration _defaultTimeout = Duration(seconds: 20);
