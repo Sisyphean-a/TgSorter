@@ -197,11 +197,32 @@ void main() {
       );
       expect(prefs.getStringList('category_keys'), isNotEmpty);
     });
+
+    test('loadChats exposes session chat list through facade', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final gateway = _SettingsFakeGateway()
+        ..chats = const [SelectableChat(id: -1001, title: '频道一')];
+      final controller = SettingsCoordinator(
+        SettingsRepository(prefs),
+        gateway,
+        auth: gateway,
+      );
+      controller.onInit();
+
+      await controller.loadChats();
+
+      expect(controller.chats, hasLength(1));
+      expect(controller.chats.single.title, '频道一');
+      expect(controller.chatsLoading.value, isFalse);
+      expect(controller.chatsError.value, isNull);
+    });
   });
 }
 
 class _SettingsFakeGateway implements AuthGateway, SessionQueryGateway {
   int restartCount = 0;
+  List<SelectableChat> chats = const [];
 
   @override
   Stream<TdAuthState> get authStates => const Stream.empty();
@@ -224,5 +245,5 @@ class _SettingsFakeGateway implements AuthGateway, SessionQueryGateway {
   Future<void> submitPassword(String password) async {}
 
   @override
-  Future<List<SelectableChat>> listSelectableChats() async => const [];
+  Future<List<SelectableChat>> listSelectableChats() async => chats;
 }

@@ -224,7 +224,7 @@ Future<SettingsCoordinator> _pumpSettingsPage(
   );
   controller.onInit();
   if (initialSettings != null) {
-    controller.settings.value = initialSettings;
+    controller.savedSettings.value = initialSettings;
     controller.draftSettings.value = initialSettings;
     controller.isDirty.value = false;
   }

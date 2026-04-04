@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -9,33 +12,69 @@ import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 
 void main() {
-  test('save persists draft and restarts only when proxy changes', () async {
+  test('onInit loads saved settings through persistence service', () {
     final harness = _SettingsCoordinatorHarness();
     final coordinator = harness.build();
+
     coordinator.onInit();
 
-    coordinator.updateProxyDraft(
-      server: '127.0.0.1',
-      port: '7890',
-      username: '',
-      password: '',
+    expect(harness.persistence.loadCalls, 1);
+    expect(
+      coordinator.savedSettings.value.proxy.server,
+      harness.persistence.loaded.proxy.server,
     );
-    await coordinator.saveDraft();
+  });
 
-    expect(harness.saveCalls, 1);
-    expect(harness.restartCalls, 1);
+  test(
+    'saveDraft delegates to persistence and restarts only when requested',
+    () async {
+      final harness = _SettingsCoordinatorHarness()
+        ..persistence.shouldRestart = true;
+      final coordinator = harness.build();
+      coordinator.onInit();
+
+      await coordinator.saveDraft();
+
+      expect(harness.persistence.saveCalls, 1);
+      expect(harness.restartCalls, 1);
+
+      await coordinator.saveDraft(restartOnProxyChange: false);
+
+      expect(harness.persistence.saveCalls, 2);
+      expect(harness.restartCalls, 1);
+    },
+  );
+
+  test('loadChats delegates to chat loader and exposes result', () async {
+    final harness = _SettingsCoordinatorHarness()
+      ..chatLoader.chats = const [SelectableChat(id: -1001, title: '频道一')];
+    final coordinator = harness.build();
+
+    await coordinator.loadChats();
+
+    expect(harness.chatLoader.loadCalls, 1);
+    expect(coordinator.chats.single.title, '频道一');
   });
 }
 
 class _SettingsCoordinatorHarness {
   final _FakeSettingsRepository repository = _FakeSettingsRepository();
   final _FakeSessionGateway sessions = _FakeSessionGateway();
+  final _FakeSettingsPersistenceService persistence =
+      _FakeSettingsPersistenceService();
+  final _FakeSettingsChatLoader chatLoader = _FakeSettingsChatLoader();
 
-  int get saveCalls => repository.saveCalls;
   int get restartCalls => sessions.restartCalls;
 
   SettingsCoordinator build() {
-    return SettingsCoordinator(repository, sessions, auth: sessions);
+    return SettingsCoordinator(
+      repository,
+      sessions,
+      auth: sessions,
+      draftCoordinator: SettingsDraftCoordinator(AppSettings.defaults()),
+      persistence: persistence,
+      chatLoader: chatLoader,
+    );
   }
 }
 
@@ -86,4 +125,52 @@ class _FakeSessionGateway implements SessionQueryGateway, AuthGateway {
 
   @override
   Future<void> submitPhoneNumber(String phoneNumber) async {}
+}
+
+class _FakeSettingsPersistenceService extends SettingsPersistenceService {
+  _FakeSettingsPersistenceService() : super(_FakeSettingsRepository());
+
+  AppSettings loaded = const AppSettings(
+    categories: <CategoryConfig>[],
+    sourceChatId: null,
+    fetchDirection: MessageFetchDirection.latestFirst,
+    forwardAsCopy: false,
+    batchSize: 5,
+    throttleMs: 1200,
+    proxy: ProxySettings(
+      server: '127.0.0.1',
+      port: 7890,
+      username: '',
+      password: '',
+    ),
+  );
+  bool shouldRestart = false;
+  int loadCalls = 0;
+  int saveCalls = 0;
+
+  @override
+  AppSettings load() {
+    loadCalls++;
+    return loaded;
+  }
+
+  @override
+  Future<bool> saveDraft(SettingsDraftCoordinator draft) async {
+    saveCalls++;
+    draft.commit();
+    return shouldRestart;
+  }
+}
+
+class _FakeSettingsChatLoader extends SettingsChatLoader {
+  _FakeSettingsChatLoader() : super(sessionQueryGateway: _FakeSessionGateway());
+
+  List<SelectableChat> chats = const [];
+  int loadCalls = 0;
+
+  @override
+  Future<List<SelectableChat>> loadChats() async {
+    loadCalls++;
+    return chats;
+  }
 }

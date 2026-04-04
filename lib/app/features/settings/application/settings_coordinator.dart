@@ -1,11 +1,12 @@
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/category_settings_service.dart';
-import 'package:tgsorter/app/features/settings/application/chat_selection_service.dart';
 import 'package:tgsorter/app/features/settings/application/connection_settings_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
-import 'package:tgsorter/app/features/settings/application/settings_draft_session.dart';
+import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
+import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
 import 'package:tgsorter/app/features/settings/application/shortcut_settings_service.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -15,30 +16,36 @@ import 'package:tgsorter/app/services/settings_repository.dart';
 class SettingsCoordinator extends GetxController
     implements PipelineSettingsReader {
   SettingsCoordinator(
-    this._repository,
-    this._sessions, {
+    SettingsRepository repository,
+    SessionQueryGateway sessions, {
     AuthGateway? auth,
-    SettingsDraftSession? draftSession,
+    SettingsDraftCoordinator? draftCoordinator,
+    SettingsPersistenceService? persistence,
     CategorySettingsService? categories,
     ShortcutSettingsService? shortcuts,
     ConnectionSettingsService? connection,
-    ChatSelectionService? chats,
-  }) : _auth = auth,
-       _draftSession = draftSession ?? SettingsDraftSession(AppSettings.defaults()),
+    SettingsChatLoader? chatLoader,
+  }) : _repository = repository,
+       _sessions = sessions,
+       _auth = auth,
+       _draftCoordinator =
+           draftCoordinator ?? SettingsDraftCoordinator(AppSettings.defaults()),
+       _persistence = persistence ?? SettingsPersistenceService(repository),
        _categories = categories ?? CategorySettingsService(),
        _shortcuts = shortcuts ?? ShortcutSettingsService(),
        _connection = connection ?? ConnectionSettingsService(),
-       _chats =
-           chats ?? ChatSelectionService(sessionQueryGateway: _sessions);
+       _chatLoader =
+           chatLoader ?? SettingsChatLoader(sessionQueryGateway: sessions);
 
   final SettingsRepository _repository;
   final SessionQueryGateway _sessions;
   final AuthGateway? _auth;
-  final SettingsDraftSession _draftSession;
+  final SettingsDraftCoordinator _draftCoordinator;
+  final SettingsPersistenceService _persistence;
   final CategorySettingsService _categories;
   final ShortcutSettingsService _shortcuts;
   final ConnectionSettingsService _connection;
-  final ChatSelectionService _chats;
+  final SettingsChatLoader _chatLoader;
   final chatsState = <SelectableChat>[].obs;
   final chatsLoading = false.obs;
   final chatsError = RxnString();
@@ -46,9 +53,9 @@ class SettingsCoordinator extends GetxController
   SettingsRepository get repository => _repository;
   SessionQueryGateway get sessions => _sessions;
   Rx<AppSettings> get settings => savedSettings;
-  Rx<AppSettings> get savedSettings => _draftSession.saved;
-  Rx<AppSettings> get draftSettings => _draftSession.draft;
-  RxBool get isDirty => _draftSession.isDirty;
+  Rx<AppSettings> get savedSettings => _draftCoordinator.saved;
+  Rx<AppSettings> get draftSettings => _draftCoordinator.draft;
+  RxBool get isDirty => _draftCoordinator.isDirty;
   RxList<SelectableChat> get chats => chatsState;
 
   @override
@@ -60,7 +67,7 @@ class SettingsCoordinator extends GetxController
   @override
   void onInit() {
     super.onInit();
-    _draftSession.replace(_repository.load());
+    _draftCoordinator.replace(_persistence.load());
   }
 
   @override
@@ -79,15 +86,19 @@ class SettingsCoordinator extends GetxController
   }
 
   void updateSourceChatDraft(int? sourceChatId) {
-    _draftSession.update(draftSettings.value.updateSourceChatId(sourceChatId));
+    _draftCoordinator.update(
+      draftSettings.value.updateSourceChatId(sourceChatId),
+    );
   }
 
   void updateFetchDirectionDraft(MessageFetchDirection direction) {
-    _draftSession.update(draftSettings.value.updateFetchDirection(direction));
+    _draftCoordinator.update(
+      draftSettings.value.updateFetchDirection(direction),
+    );
   }
 
   void updateForwardAsCopyDraft(bool value) {
-    _draftSession.update(draftSettings.value.updateForwardAsCopy(value));
+    _draftCoordinator.update(draftSettings.value.updateForwardAsCopy(value));
   }
 
   void updateBatchOptionsDraft({
@@ -96,7 +107,7 @@ class SettingsCoordinator extends GetxController
   }) {
     final safeBatchSize = batchSize < 1 ? 1 : batchSize;
     final safeThrottleMs = throttleMs < 0 ? 0 : throttleMs;
-    _draftSession.update(
+    _draftCoordinator.update(
       draftSettings.value.updateBatchOptions(
         batchSize: safeBatchSize,
         throttleMs: safeThrottleMs,
@@ -105,7 +116,7 @@ class SettingsCoordinator extends GetxController
   }
 
   void updatePreviewPrefetchCountDraft(int value) {
-    _draftSession.update(
+    _draftCoordinator.update(
       draftSettings.value.updatePreviewPrefetchCount(value < 0 ? 0 : value),
     );
   }
@@ -116,7 +127,7 @@ class SettingsCoordinator extends GetxController
     required String username,
     required String password,
   }) {
-    _draftSession.update(
+    _draftCoordinator.update(
       _connection.updateProxy(
         current: draftSettings.value,
         server: server,
@@ -128,7 +139,7 @@ class SettingsCoordinator extends GetxController
   }
 
   void addCategoryDraft(SelectableChat chat) {
-    _draftSession.update(
+    _draftCoordinator.update(
       _categories.addCategory(current: draftSettings.value, chat: chat),
     );
   }
@@ -137,7 +148,7 @@ class SettingsCoordinator extends GetxController
     required String key,
     required SelectableChat chat,
   }) {
-    _draftSession.update(
+    _draftCoordinator.update(
       _categories.updateCategory(
         current: draftSettings.value,
         key: key,
@@ -147,7 +158,7 @@ class SettingsCoordinator extends GetxController
   }
 
   void removeCategoryDraft(String key) {
-    _draftSession.update(
+    _draftCoordinator.update(
       _categories.removeCategory(current: draftSettings.value, key: key),
     );
   }
@@ -157,7 +168,7 @@ class SettingsCoordinator extends GetxController
     required ShortcutTrigger trigger,
     required bool ctrl,
   }) {
-    _draftSession.update(
+    _draftCoordinator.update(
       _shortcuts.updateShortcut(
         current: draftSettings.value,
         action: action,
@@ -168,10 +179,10 @@ class SettingsCoordinator extends GetxController
   }
 
   void resetShortcutDefaultsDraft() {
-    _draftSession.update(_shortcuts.resetDefaults(draftSettings.value));
+    _draftCoordinator.update(_shortcuts.resetDefaults(draftSettings.value));
   }
 
-  void discardDraft() => _draftSession.discard();
+  void discardDraft() => _draftCoordinator.discard();
 
   Future<void> addCategory(SelectableChat chat) async {
     addCategoryDraft(chat);
@@ -245,12 +256,8 @@ class SettingsCoordinator extends GetxController
   }
 
   Future<void> saveDraft({bool restartOnProxyChange = true}) async {
-    final previous = savedSettings.value;
-    final next = draftSettings.value;
-    final proxyChanged = previous.proxy != next.proxy;
-    await _repository.save(next);
-    _draftSession.commit();
-    if (proxyChanged && restartOnProxyChange && _auth != null) {
+    final shouldRestart = await _persistence.saveDraft(_draftCoordinator);
+    if (shouldRestart && restartOnProxyChange && _auth != null) {
       await _auth.restart();
     }
   }
@@ -259,7 +266,7 @@ class SettingsCoordinator extends GetxController
     chatsLoading.value = true;
     chatsError.value = null;
     try {
-      chats.assignAll(await _chats.loadChats());
+      chats.assignAll(await _chatLoader.loadChats());
     } catch (error) {
       chatsError.value = error.toString();
       rethrow;

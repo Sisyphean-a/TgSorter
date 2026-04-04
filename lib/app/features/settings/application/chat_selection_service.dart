@@ -1,12 +1,6 @@
-import 'session_query_gateway.dart';
+import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
 
-class ChatSelectionService {
-  ChatSelectionService({required SessionQueryGateway sessionQueryGateway})
-    : _sessionQueryGateway = sessionQueryGateway;
-
-  final SessionQueryGateway _sessionQueryGateway;
-
-  Future<List<SelectableChat>> loadChats() {
-    return _sessionQueryGateway.listSelectableChats();
-  }
+@Deprecated('Use SettingsChatLoader instead.')
+class ChatSelectionService extends SettingsChatLoader {
+  ChatSelectionService({required super.sessionQueryGateway});
 }
