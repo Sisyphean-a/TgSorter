@@ -257,6 +257,8 @@ void main() {
     );
 
     expect(find.byKey(const Key('message-preview-link-card')), findsOneWidget);
+    expect(find.byKey(const ValueKey('media-action-打开链接')), findsOneWidget);
+    expect(find.text('展开详情'), findsOneWidget);
     expect(find.text('AI research and products'), findsOneWidget);
   });
 
@@ -301,8 +303,47 @@ void main() {
       find.byKey(const Key('message-preview-audio-tracks')),
       findsOneWidget,
     );
+    expect(find.text('音频预览'), findsOneWidget);
     expect(find.text('Track A'), findsOneWidget);
     expect(find.text('Track B'), findsOneWidget);
+  });
+
+  testWidgets('photo preview renders unified image gallery shell', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: PipelineMessage(
+              id: 66,
+              messageIds: const [66],
+              sourceChatId: 100,
+              preview: MessagePreview(
+                kind: MessagePreviewKind.photo,
+                title: '[图片]',
+                mediaItems: const [
+                  MediaItemPreview(
+                    messageId: 66,
+                    kind: MediaItemKind.photo,
+                    previewPath: null,
+                    fullPath: null,
+                  ),
+                ],
+              ),
+            ),
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('图片预览'), findsOneWidget);
+    expect(find.byKey(const ValueKey('media-action-查看大图')), findsOneWidget);
+    expect(find.text('点击进入大图预览'), findsOneWidget);
   });
 
   testWidgets('video group shows all video items instead of a single page', (

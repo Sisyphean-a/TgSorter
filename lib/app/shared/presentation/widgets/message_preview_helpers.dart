@@ -8,6 +8,22 @@ typedef VideoControllerInitializer =
 
 const double previewMediaHeight = 240;
 
+Duration clampVideoSeekTarget({
+  required Duration target,
+  required Duration duration,
+}) {
+  if (duration <= Duration.zero) {
+    return Duration.zero;
+  }
+  if (target <= Duration.zero) {
+    return Duration.zero;
+  }
+  if (target >= duration) {
+    return duration;
+  }
+  return target;
+}
+
 String formatPreviewDuration(int totalSeconds) {
   final safe = totalSeconds < 0 ? 0 : totalSeconds;
   final minutes = safe ~/ 60;

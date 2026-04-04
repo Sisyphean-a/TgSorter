@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tgsorter/app/shared/presentation/widgets/message_preview_media.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
 
 void main() {
   group('clampVideoSeekTarget', () {

@@ -362,6 +362,80 @@ void main() {
       expect(find.text('第一条消息'), findsNothing);
     },
   );
+
+  testWidgets('mobile message area switches into media interaction shell', (
+    tester,
+  ) async {
+    Get.testMode = true;
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final settingsGateway = _FakeSettingsGateway();
+    final pipelineGateway = _FakePipelineGateway();
+    final settingsController = SettingsCoordinator(
+      SettingsRepository(prefs),
+      settingsGateway,
+      auth: settingsGateway,
+    );
+    settingsController.onInit();
+    final controller = PipelineCoordinator(
+      authStateGateway: pipelineGateway,
+      connectionStateGateway: pipelineGateway,
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      classifyGateway: pipelineGateway,
+      recoveryGateway: pipelineGateway,
+      settingsReader: settingsController,
+      journalRepository: OperationJournalRepository(prefs),
+      errorController: AppErrorController(),
+    );
+    controller.onInit();
+    controller.isOnline.value = true;
+    controller.currentMessage.value = PipelineMessage(
+      id: 10,
+      messageIds: const [10],
+      sourceChatId: 100,
+      preview: const MessagePreview(
+        kind: MessagePreviewKind.text,
+        title: '普通文本',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: PipelineMobileView(
+            pipeline: controller,
+            settings: settingsController,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    controller.currentMessage.value = PipelineMessage(
+      id: 11,
+      messageIds: const [11],
+      sourceChatId: 100,
+      preview: MessagePreview(
+        kind: MessagePreviewKind.photo,
+        title: '[图片]',
+        mediaItems: const [
+          MediaItemPreview(
+            messageId: 11,
+            kind: MediaItemKind.photo,
+            previewPath: null,
+            fullPath: null,
+          ),
+        ],
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('图片预览'), findsOneWidget);
+    expect(find.byKey(const ValueKey('media-action-查看大图')), findsOneWidget);
+    expect(find.text('普通文本'), findsNothing);
+  });
 }
 
 class _FakeSettingsGateway implements AuthGateway, SessionQueryGateway {

@@ -4,7 +4,62 @@ import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_media_actions.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_media_shell.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/platform_file_actions.dart';
+
+typedef AudioPreviewControllerFactory = AudioPreviewController Function();
+
+abstract interface class AudioPreviewController {
+  Stream<Duration> get positionStream;
+  Stream<Duration?> get durationStream;
+  bool get playing;
+  double get speed;
+
+  Future<void> setFilePath(String path);
+  Future<void> play();
+  Future<void> pause();
+  Future<void> seek(Duration position);
+  Future<void> setSpeed(double speed);
+  Future<void> dispose();
+}
+
+class JustAudioPreviewController implements AudioPreviewController {
+  JustAudioPreviewController() : _player = AudioPlayer();
+
+  final AudioPlayer _player;
+
+  @override
+  Stream<Duration?> get durationStream => _player.durationStream;
+
+  @override
+  bool get playing => _player.playing;
+
+  @override
+  Stream<Duration> get positionStream => _player.positionStream;
+
+  @override
+  double get speed => _player.speed;
+
+  @override
+  Future<void> dispose() => _player.dispose();
+
+  @override
+  Future<void> pause() => _player.pause();
+
+  @override
+  Future<void> play() => _player.play();
+
+  @override
+  Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
+  Future<void> setFilePath(String path) => _player.setFilePath(path);
+
+  @override
+  Future<void> setSpeed(double speed) => _player.setSpeed(speed);
+}
 
 class MessagePreviewAudio extends StatefulWidget {
   const MessagePreviewAudio({
@@ -13,22 +68,35 @@ class MessagePreviewAudio extends StatefulWidget {
     required this.preparing,
     required this.onRequestPlayback,
     required this.tracks,
+    this.controllerFactory = _defaultAudioPreviewControllerFactory,
+    this.fileActions = const PlatformFileActions(),
   });
 
   final String? audioPath;
   final bool preparing;
   final Future<void> Function([int? messageId]) onRequestPlayback;
   final List<AudioTrackPreview> tracks;
+  final AudioPreviewControllerFactory controllerFactory;
+  final PlatformFileActions fileActions;
+
+  static AudioPreviewController _defaultAudioPreviewControllerFactory() {
+    return JustAudioPreviewController();
+  }
 
   @override
   State<MessagePreviewAudio> createState() => _MessagePreviewAudioState();
 }
 
 class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
-  AudioPlayer? _player;
+  AudioPreviewController? _controller;
   String? _currentPath;
   int? _currentTrackMessageId;
   bool _initializing = false;
+  Duration _position = Duration.zero;
+  Duration? _duration;
+  double _speed = 1.0;
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration?>? _durationSubscription;
 
   @override
   void didUpdateWidget(covariant MessagePreviewAudio oldWidget) {
@@ -46,61 +114,63 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
   }
 
   Future<void> _disposePlayer() async {
-    final player = _player;
-    _player = null;
+    await _positionSubscription?.cancel();
+    await _durationSubscription?.cancel();
+    _positionSubscription = null;
+    _durationSubscription = null;
+    final controller = _controller;
+    _controller = null;
     _currentPath = null;
     _currentTrackMessageId = null;
-    if (player != null) {
-      await player.dispose();
+    _position = Duration.zero;
+    _duration = null;
+    _speed = 1.0;
+    if (controller != null) {
+      await controller.dispose();
     }
   }
 
-  Future<void> _togglePlayback(AudioTrackPreview track) async {
-    final path = track.localAudioPath;
-    if (path == null || path.isEmpty || !io.File(path).existsSync()) {
-      await widget.onRequestPlayback(track.messageId);
-      return;
+  AudioPreviewController _ensureController() {
+    final current = _controller;
+    if (current != null) {
+      return current;
     }
-    if (_player == null || _currentPath != path) {
+    final next = widget.controllerFactory();
+    _positionSubscription = next.positionStream.listen((value) {
+      if (!mounted) {
+        return;
+      }
       setState(() {
-        _initializing = true;
+        _position = value;
       });
-      await _disposePlayer();
-      final player = AudioPlayer();
-      try {
-        await player.setFilePath(path);
-        if (!mounted) {
-          await player.dispose();
-          return;
-        }
-        _player = player;
-        _currentPath = path;
-        _currentTrackMessageId = track.messageId;
-      } finally {
-        if (mounted) {
-          setState(() {
-            _initializing = false;
-          });
-        }
+    });
+    _durationSubscription = next.durationStream.listen((value) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _duration = value;
+      });
+    });
+    _controller = next;
+    _speed = next.speed;
+    return next;
+  }
+
+  AudioTrackPreview? _findTrackById(int? messageId) {
+    if (messageId == null) {
+      return null;
+    }
+    for (final track in _effectiveTracks) {
+      if (track.messageId == messageId) {
+        return track;
       }
     }
-    final player = _player;
-    if (player == null) {
-      return;
-    }
-    if (player.playing) {
-      await player.pause();
-    } else {
-      await player.play();
-    }
-    if (mounted) {
-      setState(() {});
-    }
+    return null;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final tracks = widget.tracks.isEmpty
+  List<AudioTrackPreview> get _effectiveTracks {
+    return widget.tracks.isEmpty
         ? [
             AudioTrackPreview(
               messageId: 0,
@@ -109,26 +179,152 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
             ),
           ]
         : widget.tracks;
-    return DecoratedBox(
+  }
+
+  Future<void> _togglePlayback(AudioTrackPreview track) async {
+    final path = track.localAudioPath;
+    if (path == null || path.isEmpty || !io.File(path).existsSync()) {
+      if (mounted) {
+        setState(() {
+          _currentTrackMessageId = track.messageId;
+        });
+      }
+      await widget.onRequestPlayback(track.messageId);
+      return;
+    }
+    final controller = _ensureController();
+    final switchingTrack = _currentPath != path;
+    if (switchingTrack) {
+      setState(() {
+        _initializing = true;
+        _currentTrackMessageId = track.messageId;
+      });
+      try {
+        await controller.setFilePath(path);
+        _currentPath = path;
+        _position = Duration.zero;
+        _duration = track.audioDurationSeconds == null
+            ? null
+            : Duration(seconds: track.audioDurationSeconds!);
+        _speed = controller.speed;
+      } finally {
+        if (mounted) {
+          setState(() {
+            _initializing = false;
+          });
+        }
+      }
+    }
+    final activeController = _controller;
+    if (activeController == null) {
+      return;
+    }
+    if (_currentTrackMessageId != track.messageId) {
+      _currentTrackMessageId = track.messageId;
+    }
+    if (activeController.playing && !switchingTrack) {
+      await activeController.pause();
+    } else {
+      await activeController.play();
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _seekTo(Duration target) async {
+    final controller = _controller;
+    final duration = _resolvedDuration;
+    if (controller == null || duration <= Duration.zero) {
+      return;
+    }
+    final clamped = clampVideoSeekTarget(target: target, duration: duration);
+    await controller.seek(clamped);
+    if (mounted) {
+      setState(() {
+        _position = clamped;
+      });
+    }
+  }
+
+  Future<void> _setSpeed(double speed) async {
+    final controller = _controller;
+    if (controller == null) {
+      return;
+    }
+    await controller.setSpeed(speed);
+    if (mounted) {
+      setState(() {
+        _speed = speed;
+      });
+    }
+  }
+
+  AudioTrackPreview? get _selectedTrack {
+    return _findTrackById(_currentTrackMessageId) ??
+        _effectiveTracks.firstOrNull;
+  }
+
+  Duration get _resolvedDuration {
+    final trackDuration = _selectedTrack?.audioDurationSeconds;
+    return _duration ??
+        (trackDuration == null
+            ? Duration.zero
+            : Duration(seconds: trackDuration));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tracks = _effectiveTracks;
+    return MessageMediaShell(
       key: const Key('message-preview-audio-tracks'),
-      decoration: BoxDecoration(
-        color: Colors.black12,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      header: _AudioHeader(trackCount: tracks.length),
+      moreActions: _buildMoreActions(_selectedTrack),
+      footer: _buildFooter(context),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [for (final track in tracks) _buildTrackRow(context, track)],
       ),
     );
+  }
+
+  List<MessageMediaAction> _buildMoreActions(AudioTrackPreview? track) {
+    final path = track?.localAudioPath;
+    return [
+      if (widget.fileActions.canOpenFile(path))
+        MessageMediaAction(
+          icon: Icons.open_in_new_rounded,
+          label: '打开原文件',
+          onPressed: (context) => widget.fileActions.openFile(context, path!),
+        ),
+      if (widget.fileActions.canRevealInFolder(path))
+        MessageMediaAction(
+          icon: Icons.folder_open_rounded,
+          label: '定位文件',
+          onPressed: (context) =>
+              widget.fileActions.revealInFolder(context, path!),
+        ),
+      if (widget.fileActions.canCopyPath(path))
+        MessageMediaAction(
+          icon: Icons.copy_rounded,
+          label: '复制路径',
+          onPressed: (context) => widget.fileActions.copyPath(context, path!),
+        ),
+    ];
   }
 
   Widget _buildTrackRow(BuildContext context, AudioTrackPreview track) {
     final path = track.localAudioPath;
     final hasLocalFile =
         path != null && path.isNotEmpty && io.File(path).existsSync();
-    final isPlaying =
-        _player?.playing == true && _currentTrackMessageId == track.messageId;
+    final isCurrentTrack = _currentTrackMessageId == track.messageId;
+    final isPlaying = _controller?.playing == true && isCurrentTrack;
     final label = _initializing && _currentTrackMessageId == track.messageId
         ? '音频加载中...'
+        : hasLocalFile && isCurrentTrack && isPlaying
+        ? '播放中'
+        : hasLocalFile && isCurrentTrack
+        ? '已暂停，可调整进度和倍速'
         : hasLocalFile
         ? '点击播放音频'
         : widget.preparing && _currentTrackMessageId == track.messageId
@@ -174,12 +370,120 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
               ],
             ),
           ),
-          if (track.audioDurationSeconds != null)
+          if (isCurrentTrack && _resolvedDuration > Duration.zero)
+            PreviewMetaText(
+              text:
+                  '${formatPreviewDuration(_position.inSeconds)} / ${formatPreviewDuration(_resolvedDuration.inSeconds)}',
+            )
+          else if (track.audioDurationSeconds != null)
             PreviewMetaText(
               text: formatPreviewDuration(track.audioDurationSeconds!),
             ),
         ],
       ),
+    );
+  }
+
+  Widget? _buildFooter(BuildContext context) {
+    final selectedTrack = _selectedTrack;
+    final duration = _resolvedDuration;
+    final hasDuration = duration > Duration.zero;
+    if (selectedTrack == null || _currentTrackMessageId == null) {
+      return const Text('支持播放、进度拖动、倍速和多轨切换', style: TextStyle(fontSize: 12));
+    }
+    final safePosition = hasDuration
+        ? clampVideoSeekTarget(target: _position, duration: duration)
+        : Duration.zero;
+    final maxMilliseconds = hasDuration
+        ? duration.inMilliseconds.toDouble()
+        : 1.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Slider(
+                value: hasDuration
+                    ? safePosition.inMilliseconds.toDouble().clamp(
+                        0.0,
+                        maxMilliseconds,
+                      )
+                    : 0.0,
+                min: 0,
+                max: maxMilliseconds,
+                onChanged: hasDuration
+                    ? (value) {
+                        unawaited(
+                          _seekTo(Duration(milliseconds: value.round())),
+                        );
+                      }
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 8),
+            PopupMenuButton<double>(
+              key: const Key('message-preview-audio-speed-menu'),
+              tooltip: '播放速度',
+              initialValue: _speed,
+              onSelected: _setSpeed,
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 0.5, child: Text('0.5x')),
+                PopupMenuItem(value: 1.0, child: Text('1.0x')),
+                PopupMenuItem(value: 1.5, child: Text('1.5x')),
+                PopupMenuItem(value: 2.0, child: Text('2.0x')),
+              ],
+              child: _AudioFooterChip(
+                label:
+                    '${_speed.toStringAsFixed(_speed == _speed.roundToDouble() ? 0 : 1)}x',
+              ),
+            ),
+          ],
+        ),
+        Text(
+          '${formatPreviewDuration(safePosition.inSeconds)} / ${formatPreviewDuration(duration.inSeconds)}',
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
+      ],
+    );
+  }
+}
+
+class _AudioFooterChip extends StatelessWidget {
+  const _AudioFooterChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Text(label),
+      ),
+    );
+  }
+}
+
+class _AudioHeader extends StatelessWidget {
+  const _AudioHeader({required this.trackCount});
+
+  final int trackCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = trackCount > 1 ? '支持多轨切换和倍速' : '支持进度拖动和倍速';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('音频预览'),
+        const SizedBox(height: 2),
+        Text(subtitle, style: const TextStyle(fontSize: 12)),
+      ],
     );
   }
 }
