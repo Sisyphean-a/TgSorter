@@ -1,12 +1,13 @@
 import 'dart:async';
 
 import 'package:tdlib/td_api.dart';
-import 'package:tgsorter/app/features/auth/application/auth_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/application/classify_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/application/media_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/application/message_read_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/application/recovery_gateway.dart';
-import 'package:tgsorter/app/features/settings/application/session_query_gateway.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -27,6 +28,7 @@ class TelegramService
     implements
         AuthGateway,
         SessionQueryGateway,
+        ConnectionStateGateway,
         MessageReadGateway,
         MediaGateway,
         ClassifyGateway,

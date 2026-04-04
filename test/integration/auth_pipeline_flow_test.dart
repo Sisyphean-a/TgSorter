@@ -5,11 +5,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/core/di/pipeline_module.dart';
+import 'package:tgsorter/app/core/di/settings_module.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
@@ -34,7 +43,12 @@ void main() {
       auth: service,
     );
     final pipeline = PipelineCoordinator(
-      service: service,
+      authGateway: service,
+      connectionStateGateway: service,
+      messageReadGateway: service,
+      mediaGateway: service,
+      classifyGateway: service,
+      recoveryGateway: service,
       settingsReader: settings,
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
@@ -103,7 +117,12 @@ void main() {
       auth: service,
     );
     final pipeline = PipelineCoordinator(
-      service: service,
+      authGateway: service,
+      connectionStateGateway: service,
+      messageReadGateway: service,
+      mediaGateway: service,
+      classifyGateway: service,
+      recoveryGateway: service,
       settingsReader: settings,
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
@@ -148,9 +167,43 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
   });
+
+  test('settings/pipeline DI modules resolve by capability ports', () async {
+    Get.reset();
+    Get.testMode = true;
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final service = _IntegrationFakeGateway();
+
+    Get.put<SettingsRepository>(SettingsRepository(prefs));
+    Get.put<AuthGateway>(service);
+    Get.put<SessionQueryGateway>(service);
+
+    expect(registerSettingsModule, returnsNormally);
+    expect(Get.isRegistered<SettingsCoordinator>(), isTrue);
+
+    Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
+    Get.put<AppErrorController>(AppErrorController());
+    Get.put<ConnectionStateGateway>(service);
+    Get.put<MessageReadGateway>(service);
+    Get.put<MediaGateway>(service);
+    Get.put<ClassifyGateway>(service);
+    Get.put<RecoveryGateway>(service);
+
+    expect(registerPipelineModule, returnsNormally);
+    expect(Get.isRegistered<PipelineCoordinator>(), isTrue);
+  });
 }
 
-class _IntegrationFakeGateway implements TelegramGateway {
+class _IntegrationFakeGateway
+    implements
+        AuthGateway,
+        SessionQueryGateway,
+        ConnectionStateGateway,
+        MessageReadGateway,
+        MediaGateway,
+        ClassifyGateway,
+        RecoveryGateway {
   final _authController = StreamController<TdAuthState>.broadcast();
   final _connectionController = StreamController<TdConnectionState>.broadcast();
   int restartCalls = 0;
@@ -159,8 +212,7 @@ class _IntegrationFakeGateway implements TelegramGateway {
   Stream<TdAuthState> get authStates => _authController.stream;
 
   @override
-  Stream<TdConnectionState> get connectionStates =>
-      _connectionController.stream;
+  Stream<TdConnectionState> get connectionStates => _connectionController.stream;
 
   void emitAuthState(TdAuthState state) {
     _authController.add(state);
@@ -193,9 +245,7 @@ class _IntegrationFakeGateway implements TelegramGateway {
   Future<void> submitPhoneNumber(String phoneNumber) async {}
 
   @override
-  Future<List<SelectableChat>> listSelectableChats() async {
-    return const [];
-  }
+  Future<List<SelectableChat>> listSelectableChats() async => const [];
 
   @override
   Future<int> countRemainingMessages({required int? sourceChatId}) async => 0;

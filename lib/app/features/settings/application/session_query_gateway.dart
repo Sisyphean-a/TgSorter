@@ -1,5 +1,1 @@
-import 'package:tgsorter/app/services/telegram_gateway.dart';
-
-abstract class SessionQueryGateway {
-  Future<List<SelectableChat>> listSelectableChats();
-}
+export '../ports/session_query_gateway.dart';

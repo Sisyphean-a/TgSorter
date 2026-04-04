@@ -1,9 +1,10 @@
 import 'package:get/get.dart';
-import 'package:tgsorter/app/features/auth/application/auth_gateway.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/category_settings_service.dart';
 import 'package:tgsorter/app/features/settings/application/chat_selection_service.dart';
 import 'package:tgsorter/app/features/settings/application/connection_settings_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_draft_session.dart';
 import 'package:tgsorter/app/features/settings/application/shortcut_settings_service.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
@@ -11,8 +12,6 @@ import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
-
-import 'session_query_gateway.dart';
 
 class SettingsCoordinator extends GetxController
     implements PipelineSettingsReader {

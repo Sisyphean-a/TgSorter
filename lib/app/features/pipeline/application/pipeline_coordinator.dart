@@ -6,20 +6,22 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 
-import 'media_gateway.dart';
-import 'message_read_gateway.dart';
 import 'pipeline_action_service.dart';
 import 'pipeline_error_mapper.dart';
 import 'pipeline_feed_controller.dart';
-import 'pipeline_gateway_adapters.dart';
 import 'pipeline_lifecycle_coordinator.dart';
 import 'pipeline_media_controller.dart';
 import 'pipeline_media_refresh_service.dart';
@@ -33,8 +35,12 @@ class PipelineCoordinator extends GetxController {
   static const Duration _videoRefreshInterval = Duration(seconds: 1);
 
   PipelineCoordinator({
-    required TelegramGateway service,
-    ConnectionStateGateway? connectionStateGateway,
+    required AuthGateway authGateway,
+    required ConnectionStateGateway connectionStateGateway,
+    required MessageReadGateway messageReadGateway,
+    required MediaGateway mediaGateway,
+    required ClassifyGateway classifyGateway,
+    RecoveryGateway? recoveryGateway,
     required PipelineSettingsReader settingsReader,
     required OperationJournalRepository journalRepository,
     required AppErrorController errorController,
@@ -46,15 +52,17 @@ class PipelineCoordinator extends GetxController {
     PipelineFeedController? feedController,
     PipelineLifecycleCoordinator? lifecycle,
     RemainingCountService? remainingCountService,
-  }) : _service = service,
+  }) : _authGateway = authGateway,
        _connectionStateGateway = connectionStateGateway,
        _settingsReader = settingsReader,
        _journalRepository = journalRepository,
        _errorController = errorController,
        _errorMapper = const PipelineErrorMapper(),
+       _messageReadGateway = messageReadGateway,
+       _mediaGateway = mediaGateway,
+       _classifyGateway = classifyGateway,
+       _recoveryGateway = recoveryGateway,
        runtimeState = runtimeState ?? PipelineRuntimeState() {
-    _messageReadGateway = TelegramMessageReadGatewayAdapter(service);
-    _mediaGateway = TelegramMediaGatewayAdapter(service);
     final resolvedNavigation =
         navigation ?? PipelineNavigationService(state: this.runtimeState);
     final resolvedActions =
@@ -62,7 +70,7 @@ class PipelineCoordinator extends GetxController {
         PipelineActionService(
           state: this.runtimeState,
           navigation: resolvedNavigation,
-          classifyGateway: TelegramClassifyGatewayAdapter(service),
+          classifyGateway: _classifyGateway,
           settings: settingsReader,
           journalRepository: journalRepository,
           logs: logs,
@@ -71,11 +79,7 @@ class PipelineCoordinator extends GetxController {
     final resolvedRecovery =
         recovery ??
         PipelineRecoveryService(
-          recoveryGateway: service is RecoverableClassifyGateway
-              ? TelegramRecoveryGatewayAdapter(
-                  service as RecoverableClassifyGateway,
-                )
-              : null,
+          recoveryGateway: _recoveryGateway,
           errors: errorController,
         );
     final resolvedMediaRefresh =
@@ -119,15 +123,17 @@ class PipelineCoordinator extends GetxController {
         );
   }
 
-  final TelegramGateway _service;
-  final ConnectionStateGateway? _connectionStateGateway;
+  final AuthGateway _authGateway;
+  final ConnectionStateGateway _connectionStateGateway;
   final PipelineSettingsReader _settingsReader;
   final OperationJournalRepository _journalRepository;
   final AppErrorController _errorController;
   final PipelineErrorMapper _errorMapper;
   final PipelineRuntimeState runtimeState;
-  late final MessageReadGateway _messageReadGateway;
-  late final MediaGateway _mediaGateway;
+  final MessageReadGateway _messageReadGateway;
+  final MediaGateway _mediaGateway;
+  final ClassifyGateway _classifyGateway;
+  final RecoveryGateway? _recoveryGateway;
   late final PipelineNavigationService navigation;
   late final PipelineActionService actions;
   late final PipelineRecoveryService recovery;
@@ -161,12 +167,10 @@ class PipelineCoordinator extends GetxController {
     super.onInit();
     logs.assignAll(_journalRepository.loadLogs());
     retryQueue.assignAll(_journalRepository.loadRetryQueue());
-    final connectionStream =
-        _connectionStateGateway?.connectionStates ?? _service.connectionStates;
-    _connectionSub = connectionStream.listen((state) {
+    _connectionSub = _connectionStateGateway.connectionStates.listen((state) {
       lifecycle.updateConnection(state.isReady);
     });
-    _authSub = _service.authStates.listen((state) {
+    _authSub = _authGateway.authStates.listen((state) {
       lifecycle.updateAuthorization(state.isReady);
     });
     _settingsWorker = ever<AppSettings>(

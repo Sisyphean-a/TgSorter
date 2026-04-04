@@ -4,6 +4,13 @@ import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
@@ -62,6 +69,14 @@ Future<void> registerAppBindings() async {
   Get.put(transport, permanent: true);
   Get.put(credentials, permanent: true);
   Get.put(adapter, permanent: true);
+  Get.put<AuthGateway>(telegram, permanent: true);
+  Get.put<SessionQueryGateway>(telegram, permanent: true);
+  Get.put<ConnectionStateGateway>(telegram, permanent: true);
+  Get.put<MessageReadGateway>(telegram, permanent: true);
+  Get.put<MediaGateway>(telegram, permanent: true);
+  Get.put<ClassifyGateway>(telegram, permanent: true);
+  Get.put<RecoveryGateway>(telegram, permanent: true);
+  // 过渡期保留：方便未迁移模块继续按聚合接口取能力。
   Get.put<TelegramGateway>(telegram, permanent: true);
 
   registerSettingsModule();

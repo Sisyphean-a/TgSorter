@@ -5,14 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
+import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
-import 'package:tgsorter/app/models/app_settings.dart';
-import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
-import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_gateway.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
@@ -64,6 +64,26 @@ void main() {
 
     expect(find.text('输入验证码'), findsOneWidget);
   });
+
+  test('auth DI module resolves by capability ports (no TelegramGateway)', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final authGateway = _FakeAuthGateway();
+    final errors = AppErrorController();
+    final settings = SettingsCoordinator(
+      SettingsRepository(prefs),
+      authGateway,
+      auth: authGateway,
+    );
+
+    Get.put<AuthGateway>(authGateway);
+    Get.put<AppErrorController>(errors);
+    Get.put<SettingsCoordinator>(settings);
+
+    expect(registerAuthModule, returnsNormally);
+    final coordinator = Get.find<AuthCoordinator>();
+    expect(coordinator.auth, same(authGateway));
+  });
 }
 
 Future<void> _pumpAuthPage(
@@ -96,14 +116,11 @@ Future<void> _pumpAuthPage(
   await tester.pump();
 }
 
-class _FakeAuthGateway implements TelegramGateway {
+class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
   final _authController = StreamController<TdAuthState>.broadcast();
 
   @override
   Stream<TdAuthState> get authStates => _authController.stream;
-
-  @override
-  Stream<TdConnectionState> get connectionStates => const Stream.empty();
 
   void emitState(TdAuthState state) {
     _authController.add(state);
@@ -126,69 +143,4 @@ class _FakeAuthGateway implements TelegramGateway {
 
   @override
   Future<List<SelectableChat>> listSelectableChats() async => const [];
-
-  @override
-  Future<int> countRemainingMessages({required int? sourceChatId}) async => 0;
-
-  @override
-  Future<List<PipelineMessage>> fetchMessagePage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-    required int? fromMessageId,
-    required int limit,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<PipelineMessage?> fetchNextMessage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<PipelineMessage> prepareMediaPlayback({
-    required int sourceChatId,
-    required int messageId,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> prepareMediaPreview({
-    required int sourceChatId,
-    required int messageId,
-  }) async {}
-
-  @override
-  Future<PipelineMessage> refreshMessage({
-    required int sourceChatId,
-    required int messageId,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<ClassifyReceipt> classifyMessage({
-    required int? sourceChatId,
-    required List<int> messageIds,
-    required int targetChatId,
-    required bool asCopy,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> undoClassify({
-    required int sourceChatId,
-    required int targetChatId,
-    required List<int> targetMessageIds,
-  }) async {}
-
-  @override
-  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
-    return ClassifyRecoverySummary.empty;
-  }
 }

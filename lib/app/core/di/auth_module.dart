@@ -1,13 +1,13 @@
 import 'package:get/get.dart';
 import 'package:tgsorter/app/controllers/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
-import 'package:tgsorter/app/services/telegram_gateway.dart';
 
 void registerAuthModule() {
   Get.put(
     AuthCoordinator(
-      Get.find<TelegramGateway>(),
+      Get.find<AuthGateway>(),
       Get.find<AppErrorController>(),
       Get.find<SettingsCoordinator>(),
     ),

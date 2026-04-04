@@ -9,8 +9,7 @@ import 'package:tgsorter/app/domain/td_error_classifier.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
-
-import 'auth_gateway.dart';
+import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 
 enum AuthStage {
   loading,
