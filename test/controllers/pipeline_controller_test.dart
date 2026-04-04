@@ -143,6 +143,25 @@ void main() {
       },
     );
 
+    test(
+      'fetchNext clears loading once first message is visible even if preview prefetch is still running',
+      () async {
+        service.previewPreparationCompleter = Completer<void>();
+        service.blockedPreviewMessageId = 11;
+        service.pages.add([_message(10, 'first'), _message(11, 'second')]);
+
+        final fetchFuture = controller.fetchNext();
+
+        await _waitFor(() => controller.currentMessage.value?.id == 10);
+
+        expect(controller.currentMessage.value?.id, 10);
+        expect(controller.loading.value, isFalse);
+
+        service.previewPreparationCompleter!.complete();
+        await fetchFuture;
+      },
+    );
+
     test('showPreviousMessage returns to prior cached message', () async {
       service.pages.add([_message(31, 'a'), _message(32, 'b')]);
       await controller.fetchNext();
@@ -449,6 +468,7 @@ void main() {
 
         await controller.fetchNext();
 
+        await _waitFor(() => service.previewPreparedMessageIds.length == 3);
         expect(service.previewPreparedMessageIds, [2, 3, 4]);
 
         await controller.showNextMessage();
@@ -503,6 +523,8 @@ class _FakePipelineGateway
   int remainingCount = 0;
   int remainingCountCalls = 0;
   Completer<int>? remainingCountCompleter;
+  int? blockedPreviewMessageId;
+  Completer<void>? previewPreparationCompleter;
   int recoveryCalls = 0;
   Completer<ClassifyRecoverySummary>? recoveryCompleter;
 
@@ -571,6 +593,10 @@ class _FakePipelineGateway
     required int messageId,
   }) async {
     previewPreparedMessageIds.add(messageId);
+    if (blockedPreviewMessageId == messageId &&
+        previewPreparationCompleter != null) {
+      await previewPreparationCompleter!.future;
+    }
   }
 
   @override

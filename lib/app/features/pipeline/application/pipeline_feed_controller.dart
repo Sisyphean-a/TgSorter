@@ -60,7 +60,7 @@ class PipelineFeedController {
     _navigation.replaceMessages(page);
     tailMessageId = page.isEmpty ? null : page.last.id;
     if (page.isNotEmpty) {
-      await prepareUpcomingPreviews();
+      _startBackgroundPreviewPrefetch();
     }
   }
 
@@ -139,6 +139,18 @@ class PipelineFeedController {
           messageId: messageId,
         );
       }
+    }
+  }
+
+  void _startBackgroundPreviewPrefetch() {
+    unawaited(_prepareUpcomingPreviewsSafely());
+  }
+
+  Future<void> _prepareUpcomingPreviewsSafely() async {
+    try {
+      await prepareUpcomingPreviews();
+    } catch (error) {
+      _reportGeneralError(error);
     }
   }
 
