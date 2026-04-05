@@ -1,8 +1,49 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
 import 'package:video_player/video_player.dart';
+
+List<DeviceOrientation> preferredOrientationsForVideoAspectRatio(
+  double aspectRatio,
+) {
+  if (aspectRatio >= 1) {
+    return const <DeviceOrientation>[
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ];
+  }
+  return const <DeviceOrientation>[
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ];
+}
+
+Future<T?> showAdaptiveVideoFullscreenDialog<T>({
+  required BuildContext context,
+  required double aspectRatio,
+  required WidgetBuilder builder,
+}) async {
+  await SystemChrome.setPreferredOrientations(
+    preferredOrientationsForVideoAspectRatio(aspectRatio),
+  );
+  if (!context.mounted) {
+    await SystemChrome.setPreferredOrientations(const <DeviceOrientation>[]);
+    return null;
+  }
+  try {
+    return await showGeneralDialog<T>(
+      context: context,
+      barrierLabel: 'fullscreen-video',
+      barrierDismissible: true,
+      barrierColor: Colors.black87,
+      pageBuilder: (dialogContext, _, _) => builder(dialogContext),
+    );
+  } finally {
+    await SystemChrome.setPreferredOrientations(const <DeviceOrientation>[]);
+  }
+}
 
 class MessagePreviewVideoFullscreen extends StatefulWidget {
   const MessagePreviewVideoFullscreen({
@@ -13,9 +54,7 @@ class MessagePreviewVideoFullscreen extends StatefulWidget {
     required this.onTogglePlayback,
     required this.onToggleLooping,
     required this.onSetPlaybackSpeed,
-    required this.onSetVolume,
     required this.currentSpeed,
-    required this.currentVolume,
     required this.looping,
     required this.trailingActions,
   });
@@ -26,9 +65,7 @@ class MessagePreviewVideoFullscreen extends StatefulWidget {
   final VoidCallback onTogglePlayback;
   final VoidCallback onToggleLooping;
   final Future<void> Function(double speed) onSetPlaybackSpeed;
-  final Future<void> Function(double volume) onSetVolume;
   final double currentSpeed;
-  final double currentVolume;
   final bool looping;
   final List<Widget> trailingActions;
 
@@ -106,10 +143,14 @@ class _MessagePreviewVideoFullscreenState
         onTap: _toggleOverlay,
         child: Stack(
           children: [
-            Center(
-              child: AspectRatio(
-                aspectRatio: value.aspectRatio == 0 ? 16 / 9 : value.aspectRatio,
-                child: VideoPlayer(widget.controller),
+            Positioned.fill(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: value.size.width == 0 ? 16 : value.size.width,
+                  height: value.size.height == 0 ? 9 : value.size.height,
+                  child: VideoPlayer(widget.controller),
+                ),
               ),
             ),
             if (_controlsVisible)
@@ -210,23 +251,6 @@ class _MessagePreviewVideoFullscreenState
                                 ],
                                 child: _FullscreenChip(
                                   label: '${widget.currentSpeed.toStringAsFixed(widget.currentSpeed == widget.currentSpeed.roundToDouble() ? 0 : 1)}x',
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              PopupMenuButton<double>(
-                                tooltip: '音量',
-                                initialValue: widget.currentVolume,
-                                onSelected: widget.onSetVolume,
-                                itemBuilder: (context) => const [
-                                  PopupMenuItem(value: 0.0, child: Text('静音')),
-                                  PopupMenuItem(value: 0.3, child: Text('30%')),
-                                  PopupMenuItem(value: 0.6, child: Text('60%')),
-                                  PopupMenuItem(value: 1.0, child: Text('100%')),
-                                ],
-                                child: _FullscreenChip(
-                                  label: widget.currentVolume == 0
-                                      ? '静音'
-                                      : '音量 ${(widget.currentVolume * 100).round()}%',
                                 ),
                               ),
                               const SizedBox(width: 8),

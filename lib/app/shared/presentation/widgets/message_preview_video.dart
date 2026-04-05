@@ -44,7 +44,6 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   bool _scrubbing = false;
   double? _scrubMilliseconds;
   double _speed = 1.0;
-  double _volume = 1.0;
   bool _looping = true;
 
   @override
@@ -114,7 +113,6 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
           (VideoPlayerController c) => c.initialize();
       await initialize(next).timeout(initializeTimeout);
       await next.setLooping(_looping);
-      await next.setVolume(_volume);
       await next.setPlaybackSpeed(_speed);
       next.addListener(_handleControllerTick);
       if (!mounted) {
@@ -213,19 +211,6 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
     }
   }
 
-  Future<void> _setVolume(double volume) async {
-    final controller = _controller;
-    if (controller == null) {
-      return;
-    }
-    await controller.setVolume(volume);
-    if (mounted) {
-      setState(() {
-        _volume = volume;
-      });
-    }
-  }
-
   Future<void> _toggleLooping() async {
     final controller = _controller;
     if (controller == null) {
@@ -263,12 +248,10 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
     if (controller == null || !controller.value.isInitialized) {
       return;
     }
-    await showGeneralDialog<void>(
+    await showAdaptiveVideoFullscreenDialog<void>(
       context: context,
-      barrierLabel: 'fullscreen-video',
-      barrierDismissible: true,
-      barrierColor: Colors.black87,
-      pageBuilder: (context, _, _) {
+      aspectRatio: controller.value.aspectRatio,
+      builder: (context) {
         return MessagePreviewVideoFullscreen(
           controller: controller,
           onClose: () => Navigator.of(context).pop(),
@@ -278,9 +261,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
             unawaited(_toggleLooping());
           },
           onSetPlaybackSpeed: _setPlaybackSpeed,
-          onSetVolume: _setVolume,
           currentSpeed: _speed,
-          currentVolume: _volume,
           looping: _looping,
           trailingActions: _buildFullscreenActions(context),
         );
@@ -338,14 +319,6 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
           icon: Icons.fullscreen_rounded,
           label: '全屏',
           onPressed: (_) => _openFullscreen(),
-        ),
-      if (controller != null && controller.value.isInitialized)
-        MessageMediaAction(
-          icon: _volume == 0
-              ? Icons.volume_off_rounded
-              : Icons.volume_up_rounded,
-          label: _volume == 0 ? '取消静音' : '静音',
-          onPressed: (_) => _setVolume(_volume == 0 ? 1 : 0),
         ),
     ];
   }
@@ -421,21 +394,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   Widget? _buildFooter(BuildContext context) {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) {
-      return Row(
-        children: [
-          if (widget.preparing)
-            const Text('正在准备视频...', style: TextStyle(fontSize: 12))
-          else
-            const Text('点击播放后可进入更完整的预览与控制', style: TextStyle(fontSize: 12)),
-          const Spacer(),
-          PopupMenuButton<double>(
-            tooltip: '播放速度',
-            enabled: false,
-            itemBuilder: (_) => const [],
-            child: _FooterChip(label: '${_speed.toStringAsFixed(1)}x'),
-          ),
-        ],
-      );
+      return null;
     }
     final value = controller.value;
     final duration = value.duration;
@@ -541,22 +500,6 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
               ),
             ),
             const SizedBox(width: 8),
-            PopupMenuButton<double>(
-              key: const Key('message-preview-video-volume-menu'),
-              tooltip: '音量',
-              initialValue: _volume,
-              onSelected: _setVolume,
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 0.0, child: Text('静音')),
-                PopupMenuItem(value: 0.3, child: Text('30%')),
-                PopupMenuItem(value: 0.6, child: Text('60%')),
-                PopupMenuItem(value: 1.0, child: Text('100%')),
-              ],
-              child: _FooterChip(
-                label: _volume == 0 ? '静音' : '音量 ${(100 * _volume).round()}%',
-              ),
-            ),
-            const SizedBox(width: 8),
             FilterChip(
               key: const Key('message-preview-video-loop-chip'),
               label: const Text('循环'),
@@ -583,7 +526,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   Widget _buildPendingPreview({String? thumbnailPath}) {
     final body = thumbnailPath == null
         ? PreviewPlaceholder(
-            text: widget.preparing ? '视频下载中...' : '视频已识别（点击播放开始下载）',
+            text: widget.preparing ? '视频下载中...' : '点击播放',
           )
         : Stack(
             fit: StackFit.expand,
@@ -671,13 +614,6 @@ class _VideoHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('视频预览'),
-        SizedBox(height: 2),
-        Text('支持全屏、倍速、循环和文件动作', style: TextStyle(fontSize: 12)),
-      ],
-    );
+    return const Text('视频预览');
   }
 }

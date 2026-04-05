@@ -37,11 +37,11 @@ void main() {
       ),
     );
 
-    expect(find.text('音频预览'), findsOneWidget);
-    expect(find.text('支持多轨切换和倍速'), findsOneWidget);
+    expect(find.text('音频列表'), findsOneWidget);
+    expect(find.text('支持多轨切换和倍速'), findsNothing);
     expect(find.text('Track A'), findsOneWidget);
     expect(find.text('Track B'), findsOneWidget);
-    expect(find.text('支持播放、进度拖动、倍速和多轨切换'), findsOneWidget);
+    expect(find.text('支持播放、进度拖动、倍速和多轨切换'), findsNothing);
     expect(find.byKey(const Key('media-actions-more-menu')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('media-actions-more-menu')));

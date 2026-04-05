@@ -151,7 +151,7 @@ void main() {
     );
 
     expect(find.text('视频加载中...'), findsNothing);
-    expect(find.text('视频已识别（点击播放开始下载）'), findsOneWidget);
+    expect(find.text('点击播放'), findsOneWidget);
   });
 
   testWidgets(
@@ -303,7 +303,7 @@ void main() {
       find.byKey(const Key('message-preview-audio-tracks')),
       findsOneWidget,
     );
-    expect(find.text('音频预览'), findsOneWidget);
+    expect(find.text('音频列表'), findsOneWidget);
     expect(find.text('Track A'), findsOneWidget);
     expect(find.text('Track B'), findsOneWidget);
   });
@@ -343,7 +343,7 @@ void main() {
 
     expect(find.text('图片预览'), findsOneWidget);
     expect(find.byKey(const ValueKey('media-action-查看大图')), findsOneWidget);
-    expect(find.text('点击进入大图预览'), findsOneWidget);
+    expect(find.text('点击进入大图预览'), findsNothing);
   });
 
   testWidgets('video group shows all video items instead of a single page', (

@@ -46,9 +46,6 @@ class MessagePreviewImageGallery extends StatelessWidget {
         ),
       ],
       moreActions: _buildMoreActions(current),
-      footer: items.length > 1
-          ? Text('共 ${items.length} 张，点击进入画廊查看')
-          : const Text('点击进入大图预览'),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => _openGallery(context),
@@ -257,13 +254,6 @@ class _ImageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('图片预览'),
-        SizedBox(height: 2),
-        Text('支持大图查看、切换和文件动作', style: TextStyle(fontSize: 12)),
-      ],
-    );
+    return const Text('图片预览');
   }
 }

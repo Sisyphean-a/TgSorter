@@ -389,7 +389,7 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
     final duration = _resolvedDuration;
     final hasDuration = duration > Duration.zero;
     if (selectedTrack == null || _currentTrackMessageId == null) {
-      return const Text('支持播放、进度拖动、倍速和多轨切换', style: TextStyle(fontSize: 12));
+      return null;
     }
     final safePosition = hasDuration
         ? clampVideoSeekTarget(target: _position, duration: duration)
@@ -476,14 +476,7 @@ class _AudioHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = trackCount > 1 ? '支持多轨切换和倍速' : '支持进度拖动和倍速';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('音频预览'),
-        const SizedBox(height: 2),
-        Text(subtitle, style: const TextStyle(fontSize: 12)),
-      ],
-    );
+    final title = trackCount > 1 ? '音频列表' : '音频预览';
+    return Text(title);
   }
 }
