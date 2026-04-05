@@ -161,6 +161,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
   StreamSubscription<TdAuthState>? _authSub;
   Worker? _settingsWorker;
   ClassifyReceipt? _lastSuccessReceipt;
+  Future<void>? _showNextTask;
 
   List<PipelineMessage> get _messageCache => runtimeState.cache;
   int get _currentIndex => runtimeState.currentIndex;
@@ -276,6 +277,23 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
   }
 
   Future<void> showNextMessage() async {
+    final inFlight = _showNextTask;
+    if (inFlight != null) {
+      await inFlight;
+      return;
+    }
+    final task = _showNextMessageInternal();
+    _showNextTask = task;
+    try {
+      await task;
+    } finally {
+      if (identical(_showNextTask, task)) {
+        _showNextTask = null;
+      }
+    }
+  }
+
+  Future<void> _showNextMessageInternal() async {
     if (processing.value || currentMessage.value == null) {
       return;
     }

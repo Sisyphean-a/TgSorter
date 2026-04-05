@@ -354,6 +354,30 @@ void main() {
       },
     );
 
+    test(
+      'showNextMessage coalesces tail-page fetch when invoked twice quickly',
+      () async {
+        service.pages.add([_message(1, 'first')]);
+        await controller.fetchNext();
+        final fetchCallsBeforeRapidNext = service.fetchNextCalls;
+
+        final firstPage = Completer<List<PipelineMessage>>();
+        final secondPage = Completer<List<PipelineMessage>>();
+        service.pageCompleters.addAll([firstPage, secondPage]);
+
+        final firstAdvance = controller.showNextMessage();
+        final secondAdvance = controller.showNextMessage();
+        await Future<void>.delayed(Duration.zero);
+
+        firstPage.complete([_message(2, 'second'), _message(3, 'third')]);
+        secondPage.complete([_message(4, 'fourth'), _message(5, 'fifth')]);
+        await Future.wait(<Future<void>>[firstAdvance, secondAdvance]);
+
+        expect(service.fetchNextCalls, fetchCallsBeforeRapidNext + 2);
+        expect(controller.currentMessage.value?.id, 2);
+      },
+    );
+
     test('classify decrements remaining count by one pipeline item', () async {
       service.remainingCount = 3;
       service.pages.add([_message(1, '1'), _message(2, '2')]);
@@ -562,6 +586,8 @@ class _FakePipelineGateway
   int remainingCountCalls = 0;
   Completer<int>? remainingCountCompleter;
   Completer<List<PipelineMessage>>? pageCompleter;
+  final List<Completer<List<PipelineMessage>>> pageCompleters =
+      <Completer<List<PipelineMessage>>>[];
   int? blockedPreviewMessageId;
   Completer<void>? previewPreparationCompleter;
   int recoveryCalls = 0;
@@ -616,6 +642,9 @@ class _FakePipelineGateway
     if (completer != null) {
       pageCompleter = null;
       return completer.future;
+    }
+    if (pageCompleters.isNotEmpty) {
+      return pageCompleters.removeAt(0).future;
     }
     if (pages.isEmpty) {
       return const [];

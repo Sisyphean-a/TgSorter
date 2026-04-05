@@ -64,23 +64,28 @@ class PipelineMediaController {
     _syncPreparingState(message.preview);
     _videoRefreshTimer?.cancel();
     _videoRefreshTimer = Timer.periodic(_videoRefreshInterval, (_) async {
-      final current = _state.currentMessage.value;
-      if (current == null ||
-          !_currentMessageContainsTarget() ||
-          !_needsMediaRefresh(current.preview)) {
-        stop();
-        return;
-      }
-      final refreshMessageId = _refreshTargetMessageId ?? current.id;
-      final refreshed = await _mediaRefresh.refreshCurrentMedia(
-        sourceChatId: current.sourceChatId,
-        messageId: refreshMessageId,
-      );
-      final base = _messageById(refreshed.id) ?? current;
-      final merged = mergePreparedMessage(base, refreshed);
-      _replaceMessage(merged);
-      _syncPreparingState(merged.preview);
-      if (!_needsMediaRefresh(merged.preview)) {
+      try {
+        final current = _state.currentMessage.value;
+        if (current == null ||
+            !_currentMessageContainsTarget() ||
+            !_needsMediaRefresh(current.preview)) {
+          stop();
+          return;
+        }
+        final refreshMessageId = _refreshTargetMessageId ?? current.id;
+        final refreshed = await _mediaRefresh.refreshCurrentMedia(
+          sourceChatId: current.sourceChatId,
+          messageId: refreshMessageId,
+        );
+        final base = _messageById(refreshed.id) ?? current;
+        final merged = mergePreparedMessage(base, refreshed);
+        _replaceMessage(merged);
+        _syncPreparingState(merged.preview);
+        if (!_needsMediaRefresh(merged.preview)) {
+          stop();
+        }
+      } catch (error) {
+        _reportGeneralError?.call(error);
         stop();
       }
     });

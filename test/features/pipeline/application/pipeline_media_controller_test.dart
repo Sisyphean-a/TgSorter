@@ -194,6 +194,43 @@ void main() {
       expect(state.videoPreparing.value, isFalse);
     },
   );
+
+  test(
+    'refreshCurrentMediaIfNeeded reports refresh failure and stops retry timer',
+    () async {
+      final state = PipelineRuntimeState();
+      state.currentMessage.value = PipelineMessage(
+        id: 21,
+        messageIds: const <int>[21],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.video,
+          title: 'video-1',
+        ),
+      );
+      final errors = <Object>[];
+      final uncaughtErrors = <Object>[];
+      final mediaRefresh = _FailingRefreshMediaService();
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: mediaRefresh,
+        reportGeneralError: errors.add,
+        videoRefreshInterval: const Duration(milliseconds: 5),
+      );
+
+      await runZonedGuarded(() async {
+        await controller.refreshCurrentMediaIfNeeded();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }, (error, _) {
+        uncaughtErrors.add(error);
+      });
+
+      expect(errors, hasLength(1));
+      expect(uncaughtErrors, isEmpty);
+      expect(mediaRefresh.refreshCalls, [21]);
+      expect(state.videoPreparing.value, isFalse);
+    },
+  );
 }
 
 class _FakeMediaRefreshService extends PipelineMediaRefreshService {
@@ -254,6 +291,33 @@ class _BlockingMediaRefreshService extends PipelineMediaRefreshService {
         title: 'refreshed',
       ),
     );
+  }
+}
+
+class _FailingRefreshMediaService extends PipelineMediaRefreshService {
+  _FailingRefreshMediaService()
+    : super(
+        mediaGateway: _NoopMediaGateway(),
+        messageGateway: _NoopMessageReadGateway(),
+      );
+
+  final List<int> refreshCalls = <int>[];
+
+  @override
+  Future<PipelineMessage> prepareCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PipelineMessage> refreshCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    refreshCalls.add(messageId);
+    throw StateError('refresh failed');
   }
 }
 
