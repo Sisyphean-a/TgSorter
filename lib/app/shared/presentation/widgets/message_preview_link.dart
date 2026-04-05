@@ -21,8 +21,6 @@ class MessagePreviewLinkCard extends StatefulWidget {
 }
 
 class _MessagePreviewLinkCardState extends State<MessagePreviewLinkCard> {
-  bool _expanded = false;
-
   @override
   Widget build(BuildContext context) {
     final link = widget.link;
@@ -31,18 +29,8 @@ class _MessagePreviewLinkCardState extends State<MessagePreviewLinkCard> {
     return KeyedSubtree(
       key: const Key('message-preview-link-card'),
       child: MessageMediaShell(
-        header: _LinkHeader(link: link),
         actions: _buildPrimaryActions(link),
         moreActions: _buildMoreActions(link),
-        footer: _LinkFooter(
-          expanded: _expanded,
-          link: link,
-          onToggleExpanded: () {
-            setState(() {
-              _expanded = !_expanded;
-            });
-          },
-        ),
         child: Material(
           color: Theme.of(context).colorScheme.surfaceContainerLow,
           child: InkWell(
@@ -95,10 +83,8 @@ class _MessagePreviewLinkCardState extends State<MessagePreviewLinkCard> {
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
                               link.description,
-                              maxLines: _expanded ? null : 3,
-                              overflow: _expanded
-                                  ? TextOverflow.visible
-                                  : TextOverflow.ellipsis,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         const SizedBox(height: 6),
@@ -148,97 +134,5 @@ class _MessagePreviewLinkCardState extends State<MessagePreviewLinkCard> {
         ),
       ),
     ];
-  }
-}
-
-class _LinkHeader extends StatelessWidget {
-  const _LinkHeader({required this.link});
-
-  final LinkCardPreview link;
-
-  @override
-  Widget build(BuildContext context) {
-    final site = link.siteName.isEmpty ? '网页卡片' : link.siteName;
-    final subtitle = link.title.isEmpty ? link.displayUrl : link.title;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(site),
-        if (subtitle.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Text(subtitle, style: const TextStyle(fontSize: 12)),
-        ],
-      ],
-    );
-  }
-}
-
-class _LinkFooter extends StatelessWidget {
-  const _LinkFooter({
-    required this.expanded,
-    required this.link,
-    required this.onToggleExpanded,
-  });
-
-  final bool expanded;
-  final LinkCardPreview link;
-  final VoidCallback onToggleExpanded;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: onToggleExpanded,
-            icon: Icon(
-              expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-            ),
-            label: Text(expanded ? '收起详情' : '展开详情'),
-          ),
-        ),
-        if (expanded) ...[
-          _LinkDetailLine(label: '完整链接', value: link.url),
-          if (link.displayUrl.isNotEmpty)
-            _LinkDetailLine(label: '展示链接', value: link.displayUrl),
-          if (link.siteName.isNotEmpty)
-            _LinkDetailLine(label: '站点', value: link.siteName),
-          if (link.title.isNotEmpty)
-            _LinkDetailLine(label: '标题', value: link.title),
-          if (link.description.isNotEmpty)
-            _LinkDetailLine(label: '描述', value: link.description),
-        ],
-      ],
-    );
-  }
-}
-
-class _LinkDetailLine extends StatelessWidget {
-  const _LinkDetailLine({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 2),
-          SelectableText(value),
-        ],
-      ),
-    );
   }
 }

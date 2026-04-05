@@ -65,8 +65,9 @@ void main() {
       ),
     );
 
-    expect(find.text('当前消息'), findsOneWidget);
-    expect(find.text('待分类内容预览'), findsOneWidget);
+    expect(find.text('当前消息'), findsNothing);
+    expect(find.text('待分类内容预览'), findsNothing);
+    expect(find.text('当前需要处理的文本消息'), findsOneWidget);
   });
 
   testWidgets('renders empty state inside dedicated preview shell', (
@@ -258,7 +259,7 @@ void main() {
 
     expect(find.byKey(const Key('message-preview-link-card')), findsOneWidget);
     expect(find.byKey(const ValueKey('media-action-打开链接')), findsOneWidget);
-    expect(find.text('展开详情'), findsOneWidget);
+    expect(find.text('展开详情'), findsNothing);
     expect(find.text('AI research and products'), findsOneWidget);
   });
 
@@ -303,7 +304,7 @@ void main() {
       find.byKey(const Key('message-preview-audio-tracks')),
       findsOneWidget,
     );
-    expect(find.text('音频列表'), findsOneWidget);
+    expect(find.text('音频列表'), findsNothing);
     expect(find.text('Track A'), findsOneWidget);
     expect(find.text('Track B'), findsOneWidget);
   });
@@ -341,7 +342,7 @@ void main() {
       ),
     );
 
-    expect(find.text('图片预览'), findsOneWidget);
+    expect(find.text('图片预览'), findsNothing);
     expect(find.byKey(const ValueKey('media-action-查看大图')), findsOneWidget);
     expect(find.text('点击进入大图预览'), findsNothing);
   });

@@ -26,7 +26,7 @@ void main() {
       ),
     );
 
-    expect(find.text('视频预览'), findsOneWidget);
+    expect(find.text('视频预览'), findsNothing);
     expect(find.text('支持全屏、倍速、循环和文件动作'), findsNothing);
     expect(find.text('点击播放后可进入更完整的预览与控制'), findsNothing);
     expect(find.text('静音'), findsNothing);

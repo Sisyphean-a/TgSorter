@@ -28,7 +28,7 @@ void main() {
     );
 
     expect(find.byKey(const Key('message-preview-link-card')), findsOneWidget);
-    expect(find.text('展开详情'), findsOneWidget);
+    expect(find.text('展开详情'), findsNothing);
     expect(find.text('完整链接'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('media-action-打开链接')));
@@ -42,12 +42,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(fileActions.copiedTexts, ['https://openai.com/research']);
-
-    await tester.tap(find.text('展开详情'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('完整链接'), findsOneWidget);
-    expect(find.text('https://openai.com/research'), findsOneWidget);
+    expect(find.text('https://openai.com/research'), findsNothing);
   });
 }
 

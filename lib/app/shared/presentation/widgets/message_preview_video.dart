@@ -303,7 +303,6 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   @override
   Widget build(BuildContext context) {
     return MessageMediaShell(
-      header: const _VideoHeader(),
       actions: _buildPrimaryActions(),
       moreActions: _buildMoreActions(),
       footer: _buildFooter(context),
@@ -606,14 +605,5 @@ class _FooterChip extends StatelessWidget {
         child: Text(label),
       ),
     );
-  }
-}
-
-class _VideoHeader extends StatelessWidget {
-  const _VideoHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Text('视频预览');
   }
 }

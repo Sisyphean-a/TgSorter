@@ -432,7 +432,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('图片预览'), findsOneWidget);
+    expect(find.text('图片预览'), findsNothing);
     expect(find.byKey(const ValueKey('media-action-查看大图')), findsOneWidget);
     expect(find.text('普通文本'), findsNothing);
   });

@@ -37,7 +37,7 @@ void main() {
       ),
     );
 
-    expect(find.text('音频列表'), findsOneWidget);
+    expect(find.text('音频列表'), findsNothing);
     expect(find.text('支持多轨切换和倍速'), findsNothing);
     expect(find.text('Track A'), findsOneWidget);
     expect(find.text('Track B'), findsOneWidget);

@@ -278,7 +278,6 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
     final tracks = _effectiveTracks;
     return MessageMediaShell(
       key: const Key('message-preview-audio-tracks'),
-      header: _AudioHeader(trackCount: tracks.length),
       moreActions: _buildMoreActions(_selectedTrack),
       footer: _buildFooter(context),
       child: Column(
@@ -466,17 +465,5 @@ class _AudioFooterChip extends StatelessWidget {
         child: Text(label),
       ),
     );
-  }
-}
-
-class _AudioHeader extends StatelessWidget {
-  const _AudioHeader({required this.trackCount});
-
-  final int trackCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = trackCount > 1 ? '音频列表' : '音频预览';
-    return Text(title);
   }
 }

@@ -44,18 +44,11 @@ class MessageViewerCard extends StatelessWidget {
           Positioned.fill(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(AppTokens.spaceLg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _MessageViewerHeader(),
-                  const SizedBox(height: AppTokens.spaceMd),
-                  MessagePreviewContent(
-                    message: message,
-                    videoPreparing: videoPreparing,
-                    onRequestMediaPlayback: onRequestMediaPlayback,
-                    videoControllerInitializer: videoControllerInitializer,
-                  ),
-                ],
+              child: MessagePreviewContent(
+                message: message,
+                videoPreparing: videoPreparing,
+                onRequestMediaPlayback: onRequestMediaPlayback,
+                videoControllerInitializer: videoControllerInitializer,
               ),
             ),
           ),
@@ -68,33 +61,6 @@ class MessageViewerCard extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _MessageViewerHeader extends StatelessWidget {
-  const _MessageViewerHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '当前消息',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '待分类内容预览',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: AppTokens.textMuted,
-          ),
-        ),
-      ],
     );
   }
 }
