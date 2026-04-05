@@ -36,7 +36,7 @@ void main() {
       ),
     );
 
-    expect(find.text('图片预览'), findsOneWidget);
+    expect(find.text('图片预览'), findsNothing);
     expect(find.text('支持大图查看、切换和文件动作'), findsNothing);
     expect(find.text('共 2 张，点击进入画廊查看'), findsNothing);
     expect(find.byKey(const ValueKey('media-action-查看大图')), findsOneWidget);

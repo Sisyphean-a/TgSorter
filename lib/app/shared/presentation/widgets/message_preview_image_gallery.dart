@@ -37,7 +37,6 @@ class MessagePreviewImageGallery extends StatelessWidget {
     final current = items[safeIndex];
     final previewPath = current.previewPath ?? current.fullPath;
     return MessageMediaShell(
-      header: const _ImageHeader(),
       actions: [
         MessageMediaAction(
           icon: Icons.zoom_out_map_rounded,
@@ -246,14 +245,5 @@ class _ImageGalleryDialogState extends State<_ImageGalleryDialog> {
         ),
       ),
     );
-  }
-}
-
-class _ImageHeader extends StatelessWidget {
-  const _ImageHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Text('图片预览');
   }
 }
