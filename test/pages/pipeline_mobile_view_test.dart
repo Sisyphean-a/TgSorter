@@ -176,7 +176,8 @@ void main() {
 
       expect(find.text('分类操作'), findsNothing);
       expect(find.text('操作区固定在底部，便于连续分类'), findsNothing);
-      expect(find.text('当前网络不可用，分类按钮已禁用'), findsOneWidget);
+      expect(find.text('离线，分类已禁用'), findsOneWidget);
+      expect(find.text('当前网络不可用，分类按钮已禁用'), findsNothing);
       expect(find.text('艺术'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

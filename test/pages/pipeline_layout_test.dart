@@ -151,6 +151,8 @@ void main() {
       );
       expect(find.byKey(const Key('desktop-message-panel')), findsOneWidget);
       expect(find.byKey(const Key('desktop-action-panel')), findsOneWidget);
+      expect(find.text('快捷键映射'), findsNothing);
+      expect(find.text('查看状态、快捷键与辅助操作'), findsNothing);
       expect(find.byType(AnimatedSwitcher), findsWidgets);
       await tester.binding.setSurfaceSize(null);
     });

@@ -44,7 +44,7 @@ class MobileActionTray extends StatelessWidget {
           children: [
             if (!online) ...[
               Text(
-                '当前网络不可用，分类按钮已禁用',
+                '离线，分类已禁用',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppTokens.danger,
                 ),

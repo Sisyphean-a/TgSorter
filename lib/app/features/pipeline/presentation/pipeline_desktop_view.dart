@@ -53,7 +53,6 @@ class PipelineDesktopView extends StatelessWidget {
     return WorkspacePanel(
       key: const Key('desktop-message-panel'),
       title: '消息工作区',
-      subtitle: '阅读消息并直接完成分类',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -88,7 +87,6 @@ class PipelineDesktopView extends StatelessWidget {
     return WorkspacePanel(
       key: const Key('desktop-action-panel'),
       title: '操作面板',
-      subtitle: '查看状态、快捷键与辅助操作',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -99,10 +97,6 @@ class PipelineDesktopView extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           DesktopActionButtons(pipeline: pipeline, canClick: canClick),
-          const SizedBox(height: 12),
-          DesktopShortcutCard(
-            bindings: settings.settingsStream.value.shortcutBindings,
-          ),
         ],
       ),
     );
