@@ -52,7 +52,6 @@ class PipelineDesktopView extends StatelessWidget {
     final categories = settings.settingsStream.value.categories;
     return WorkspacePanel(
       key: const Key('desktop-message-panel'),
-      title: '消息工作区',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -86,7 +85,6 @@ class PipelineDesktopView extends StatelessWidget {
   Widget _buildRightPane(bool canClick) {
     return WorkspacePanel(
       key: const Key('desktop-action-panel'),
-      title: '操作面板',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

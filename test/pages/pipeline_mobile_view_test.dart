@@ -220,6 +220,27 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('mobile empty category state keeps copy minimal', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: MobileActionTray(
+            categories: const [],
+            canClick: false,
+            online: true,
+            onClassify: (_) {},
+            secondaryActions: const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('暂无分类'), findsOneWidget);
+    expect(find.text('暂无分类，请先到设置页新增'), findsNothing);
+  });
+
   testWidgets(
     'mobile bottom actions stay fully visible without tray scrolling',
     (tester) async {

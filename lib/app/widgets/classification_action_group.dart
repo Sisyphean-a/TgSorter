@@ -19,7 +19,7 @@ class ClassificationActionGroup extends StatelessWidget {
     final theme = Theme.of(context);
     if (categories.isEmpty) {
       return Text(
-        '暂无分类，请先到设置页新增',
+        '暂无分类',
         style: theme.textTheme.bodyMedium?.copyWith(color: AppTokens.textMuted),
       );
     }

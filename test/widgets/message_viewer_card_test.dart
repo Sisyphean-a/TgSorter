@@ -91,7 +91,8 @@ void main() {
       find.byKey(const Key('message-preview-empty-state')),
       findsOneWidget,
     );
-    expect(find.text('收藏夹已清空，干得漂亮！'), findsOneWidget);
+    expect(find.text('暂无消息'), findsOneWidget);
+    expect(find.text('收藏夹已清空，干得漂亮！'), findsNothing);
   });
 
   testWidgets('uses high contrast text color on dark theme', (tester) async {

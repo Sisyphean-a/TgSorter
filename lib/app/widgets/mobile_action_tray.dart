@@ -53,7 +53,7 @@ class MobileActionTray extends StatelessWidget {
             ],
             if (categories.isEmpty)
               Text(
-                '暂无分类，请先到设置页新增',
+                '暂无分类',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: AppTokens.textMuted,
                 ),

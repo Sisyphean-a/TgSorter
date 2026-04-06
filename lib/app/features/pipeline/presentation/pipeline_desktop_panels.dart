@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
-import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 
 class DesktopStatusBar extends StatelessWidget {
@@ -38,32 +37,6 @@ class DesktopStatusBar extends StatelessWidget {
   }
 }
 
-class DesktopShortcutCard extends StatelessWidget {
-  const DesktopShortcutCard({super.key, required this.bindings});
-
-  final Map<ShortcutAction, ShortcutBinding> bindings;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('快捷键映射', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            for (final action in ShortcutAction.values)
-              Text(
-                '${labelShortcutAction(action)}: ${labelShortcutBinding(bindings[action])}',
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class DesktopActionButtons extends StatelessWidget {
   const DesktopActionButtons({
     super.key,
@@ -83,8 +56,6 @@ class DesktopActionButtons extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('控制台', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -131,33 +102,4 @@ class DesktopActionButtons extends StatelessWidget {
       ),
     );
   }
-}
-
-String labelShortcutAction(ShortcutAction action) {
-  switch (action) {
-    case ShortcutAction.previousMessage:
-      return '上一条';
-    case ShortcutAction.nextMessage:
-      return '下一条';
-    case ShortcutAction.skipCurrent:
-      return '略过此条';
-    case ShortcutAction.undoLastStep:
-      return '撤销上一步';
-    case ShortcutAction.retryNextFailed:
-      return '重试下一条';
-  }
-}
-
-String labelShortcutBinding(ShortcutBinding? binding) {
-  if (binding == null) {
-    return '-';
-  }
-  final key = binding.trigger.name
-      .replaceFirst('digit', '')
-      .replaceFirst('key', '')
-      .toUpperCase();
-  if (binding.ctrl) {
-    return 'Ctrl+$key';
-  }
-  return key;
 }

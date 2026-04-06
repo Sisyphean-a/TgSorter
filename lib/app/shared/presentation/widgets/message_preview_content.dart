@@ -32,7 +32,7 @@ class MessagePreviewContent extends StatelessWidget {
           SizedBox(height: 100),
           Icon(Icons.check_circle, color: Colors.green, size: 96),
           SizedBox(height: 16),
-          Text('收藏夹已清空，干得漂亮！', style: TextStyle(fontSize: 18)),
+          Text('暂无消息', style: TextStyle(fontSize: 18)),
         ],
       );
     }
