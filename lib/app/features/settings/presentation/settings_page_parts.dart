@@ -30,15 +30,19 @@ class SettingsCategoryContent extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: FilledButton.tonalIcon(
             onPressed: chats.isEmpty ? null : onAdd,
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
             icon: const Icon(Icons.add),
             label: const Text('新增分类'),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         if (categories.isEmpty) const Text('当前没有分类'),
         for (final item in categories)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: 6),
             child: _CategoryRow(
               category: item,
               statusLabel: _statusLabel(item, savedCategories),
@@ -155,7 +159,7 @@ class _CategoryRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Row(
           children: [
             Expanded(
@@ -167,8 +171,8 @@ class _CategoryRow extends StatelessWidget {
                 decoration: const InputDecoration(
                   hintText: '目标会话',
                   contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
+                    horizontal: 10,
+                    vertical: 8,
                   ),
                 ),
                 items: options

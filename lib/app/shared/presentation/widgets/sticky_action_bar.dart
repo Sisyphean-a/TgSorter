@@ -19,63 +19,55 @@ class StickyActionBar extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: isDirty
-                ? AppTokens.surfaceRaised
-                : AppTokens.panelBackground,
-            borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
-            border: Border.all(
-              color: isDirty ? AppTokens.brandAccent : AppTokens.borderSubtle,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppTokens.spaceMd),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        isDirty ? '当前有未保存更改' : '设置已同步',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                Expanded(
+                  child: Text(
+                    isDirty ? '当前有未保存更改' : '设置已同步',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
-                    Text(
-                      isDirty ? '等待保存' : '已保存',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: isDirty
-                            ? AppTokens.brandAccent
-                            : AppTokens.textMuted,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: AppTokens.spaceMd),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: isDirty ? onDiscard : null,
-                        child: const Text('放弃更改'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: isDirty ? onSave : null,
-                        child: const Text('保存更改'),
-                      ),
-                    ),
-                  ],
+                Text(
+                  isDirty ? '等待保存' : '已保存',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: isDirty ? AppTokens.brandAccent : AppTokens.textMuted,
+                  ),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: AppTokens.spaceSm),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: isDirty ? onDiscard : null,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(40),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('放弃更改'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: isDirty ? onSave : null,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(40),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('保存更改'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

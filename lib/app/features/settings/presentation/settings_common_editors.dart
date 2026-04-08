@@ -26,7 +26,10 @@ class SourceChatDraftEditor extends StatelessWidget {
       key: ValueKey(sourceChatId),
       initialValue: sourceChatId,
       isExpanded: true,
-      decoration: const InputDecoration(labelText: '来源会话'),
+      decoration: const InputDecoration(
+        labelText: '来源会话',
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+      ),
       items: [
         const DropdownMenuItem<int?>(
           value: null,
@@ -93,9 +96,10 @@ class ForwardModeDraftEditor extends StatelessWidget {
   Widget build(BuildContext context) {
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
+      dense: true,
+      visualDensity: VisualDensity.compact,
       value: value,
       title: const Text('无引用转发'),
-      subtitle: const Text('开启后使用复制转发，不携带原始群组或频道来源信息'),
       onChanged: onChanged,
     );
   }

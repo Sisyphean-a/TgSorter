@@ -234,6 +234,53 @@ void main() {
     expect(find.text('星空'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('sticky action bar uses flat layout instead of card shell', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StickyActionBar(
+            isDirty: false,
+            onDiscard: () async {},
+            onSave: () async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final outerPadding = tester.widget<Padding>(
+      find.descendant(
+        of: find.byType(StickyActionBar),
+        matching: find.byType(Padding),
+      ).first,
+    );
+    expect(outerPadding.child, isNot(isA<DecoratedBox>()));
+  });
+
+  testWidgets('workflow section keeps compact copy and stable source label', (
+    tester,
+  ) async {
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    expect(find.textContaining('开启后使用复制转发'), findsNothing);
+    final sourceField = tester.widget<DropdownButtonFormField<int?>>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is DropdownButtonFormField<int?> &&
+            widget.decoration?.labelText == '来源会话',
+      ),
+    );
+    expect(
+      sourceField.decoration?.floatingLabelBehavior,
+      FloatingLabelBehavior.always,
+    );
+  });
 }
 
 Future<SettingsCoordinator> _pumpSettingsPage(
