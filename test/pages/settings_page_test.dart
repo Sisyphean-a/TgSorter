@@ -23,7 +23,7 @@ void main() {
 
   tearDown(Get.reset);
 
-  testWidgets('renders grouped settings page with page-level actions', (
+  testWidgets('renders collapsible settings groups without inline logs', (
     tester,
   ) async {
     final controller = await _pumpSettingsPage(
@@ -34,29 +34,29 @@ void main() {
       ],
     );
 
-    expect(find.text('基础流程'), findsOneWidget);
+    expect(find.text('工作流'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('分类管理'),
+      find.text('分类'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('分类管理'), findsOneWidget);
+    expect(find.text('分类'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('连接设置'),
-      300,
+      find.text('连接与代理'),
+      200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('连接设置'), findsOneWidget);
+    expect(find.text('连接与代理'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('操作与工具'),
-      300,
+      find.text('快捷键与工具'),
+      200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('操作与工具'), findsOneWidget);
-    expect(find.text('最近操作'), findsOneWidget);
+    expect(find.text('快捷键与工具'), findsOneWidget);
+    expect(find.text('最近操作'), findsNothing);
     expect(find.text('保存更改'), findsOneWidget);
     expect(find.text('放弃更改'), findsOneWidget);
     expect(find.text('分类设置'), findsOneWidget);
@@ -66,18 +66,12 @@ void main() {
     expect(find.text('保存'), findsNothing);
     await tester.scrollUntilVisible(
       find.text('新增分类'),
-      -300,
+      -200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
     expect(find.text('新增分类'), findsOneWidget);
     expect(controller.draftSettings.value.categories, isEmpty);
-    await tester.scrollUntilVisible(
-      find.text('预加载后续预览'),
-      -300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
     expect(find.text('预加载后续预览'), findsOneWidget);
   });
 

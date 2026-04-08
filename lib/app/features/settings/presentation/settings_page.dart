@@ -26,11 +26,13 @@ class SettingsCompactAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const SettingsCompactAppBar({
     required this.controller,
+    this.title = '分类设置',
     this.leading,
     super.key,
   });
 
   final SettingsCoordinator controller;
+  final String title;
   final Widget? leading;
 
   @override
@@ -52,7 +54,7 @@ class SettingsCompactAppBar extends StatelessWidget
                 if (leading != null) ...[leading!, const SizedBox(width: 4)],
                 Expanded(
                   child: Text(
-                    '分类设置',
+                    title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleLarge?.copyWith(

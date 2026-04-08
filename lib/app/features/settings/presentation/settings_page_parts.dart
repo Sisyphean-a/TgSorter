@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
-import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/shared/presentation/formatters/pipeline_log_formatter.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
-import 'package:tgsorter/app/widgets/settings_section_card.dart';
 
-class SettingsCategorySection extends StatelessWidget {
-  const SettingsCategorySection({
+class SettingsCategoryContent extends StatelessWidget {
+  const SettingsCategoryContent({
     super.key,
     required this.categories,
     required this.savedCategories,
@@ -26,31 +23,31 @@ class SettingsCategorySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsSectionCard(
-      title: '分类管理',
-      highlighted: !_sameCategories(categories, savedCategories),
-      trailing: FilledButton.tonalIcon(
-        onPressed: chats.isEmpty ? null : onAdd,
-        icon: const Icon(Icons.add),
-        label: const Text('新增分类'),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (categories.isEmpty) const Text('当前没有分类'),
-          for (final item in categories)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _CategoryRow(
-                category: item,
-                statusLabel: _statusLabel(item, savedCategories),
-                chats: chats,
-                onChanged: onChanged,
-                onRemove: onRemove,
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.tonalIcon(
+            onPressed: chats.isEmpty ? null : onAdd,
+            icon: const Icon(Icons.add),
+            label: const Text('新增分类'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (categories.isEmpty) const Text('当前没有分类'),
+        for (final item in categories)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _CategoryRow(
+              category: item,
+              statusLabel: _statusLabel(item, savedCategories),
+              chats: chats,
+              onChanged: onChanged,
+              onRemove: onRemove,
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -75,18 +72,6 @@ class SettingsCategorySection extends StatelessWidget {
       }
     }
     return null;
-  }
-
-  bool _sameCategories(List<CategoryConfig> left, List<CategoryConfig> right) {
-    if (left.length != right.length) {
-      return false;
-    }
-    for (var index = 0; index < left.length; index++) {
-      if (left[index] != right[index]) {
-        return false;
-      }
-    }
-    return true;
   }
 }
 
@@ -133,42 +118,6 @@ class SettingsChatListRow extends StatelessWidget {
           child: Text(loading ? '加载中...' : '刷新会话'),
         ),
       ],
-    );
-  }
-}
-
-class SettingsRecentLogsPanel extends StatelessWidget {
-  const SettingsRecentLogsPanel({super.key, required this.logs});
-
-  final List<ClassifyOperationLog> logs;
-
-  @override
-  Widget build(BuildContext context) {
-    if (logs.isEmpty) {
-      return const Text('最近还没有操作记录。');
-    }
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 260),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppTokens.surfaceBase,
-          borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
-          border: Border.all(color: AppTokens.borderSubtle),
-        ),
-        child: ListView.builder(
-          shrinkWrap: true,
-          itemCount: logs.length,
-          itemBuilder: (context, index) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Text(
-                formatPipelineLog(logs[index]),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            );
-          },
-        ),
-      ),
     );
   }
 }

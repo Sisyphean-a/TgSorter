@@ -26,7 +26,7 @@ import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
-  testWidgets('main shell defaults to workspace and switches to settings', (
+  testWidgets('main shell exposes workspace settings and logs destinations', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
@@ -86,6 +86,7 @@ void main() {
           pipelineSettings: settingsController,
           errors: errors,
           settings: settingsController,
+          pipelineLogs: pipeline,
         ),
       ),
     );
@@ -99,12 +100,21 @@ void main() {
 
     expect(find.text('工作台'), findsOneWidget);
     expect(find.text('设置'), findsOneWidget);
+    expect(find.text('日志'), findsOneWidget);
 
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
 
     expect(find.text('分类设置'), findsOneWidget);
     expect(find.byTooltip('打开导航'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('打开导航'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('日志'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('操作日志'), findsAtLeastNWidgets(1));
+    expect(find.text('失败中'), findsOneWidget);
 
     await tester.tap(find.byTooltip('打开导航'));
     await tester.pumpAndSettle();

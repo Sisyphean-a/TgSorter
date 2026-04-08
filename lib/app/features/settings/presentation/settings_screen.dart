@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
+import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_category_dialog.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_group_section.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_sections.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/sticky_action_bar.dart';
@@ -22,7 +25,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   SettingsCoordinator get controller => widget.controller;
-  PipelineLogsPort? get pipeline => widget.pipeline;
 
   @override
   void initState() {
@@ -49,38 +51,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       padding: EdgeInsets.only(bottom: 8),
                       child: SettingsUnsavedChangesBanner(),
                     ),
-                  SettingsWorkflowSection(
-                    controller: controller,
-                    draft: draft,
-                    saved: saved,
+                  SettingsGroupSection(
+                    title: '工作流',
+                    subtitle: '消息来源、拉取方向和批处理节奏。',
+                    highlighted: _workflowDirty(draft, saved),
+                    initiallyExpanded: true,
+                    child: SettingsWorkflowContent(
+                      controller: controller,
+                      draft: draft,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  SettingsCategorySection(
-                    categories: draft.categories,
-                    savedCategories: saved.categories,
-                    chats: controller.chats.toList(growable: false),
-                    onAdd: _showAddCategoryDialog,
-                    onChanged: (key, chat) =>
-                        controller.updateCategoryDraft(key: key, chat: chat),
-                    onRemove: _removeCategoryDraft,
+                  SettingsGroupSection(
+                    title: '分类',
+                    subtitle: '维护分类目标与目标会话映射。',
+                    highlighted: !_sameCategories(
+                      draft.categories,
+                      saved.categories,
+                    ),
+                    initiallyExpanded: true,
+                    child: SettingsCategoryContent(
+                      categories: draft.categories,
+                      savedCategories: saved.categories,
+                      chats: controller.chats.toList(growable: false),
+                      onAdd: _showAddCategoryDialog,
+                      onChanged: (key, chat) =>
+                          controller.updateCategoryDraft(key: key, chat: chat),
+                      onRemove: _removeCategoryDraft,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  SettingsConnectionSection(
-                    controller: controller,
-                    draft: draft,
-                    saved: saved,
+                  SettingsGroupSection(
+                    title: '连接与代理',
+                    subtitle: '代理配置保存后统一生效，并在必要时重启连接。',
+                    highlighted: draft.proxy != saved.proxy,
+                    child: SettingsConnectionContent(
+                      controller: controller,
+                      draft: draft,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  SettingsToolsSection(
-                    controller: controller,
-                    draft: draft,
-                    saved: saved,
-                    recentLogs:
-                        pipeline?.logsSnapshot
-                            .take(20)
-                            .toList(growable: false) ??
-                        const [],
-                    onReloadChats: _loadChats,
+                  SettingsGroupSection(
+                    title: '快捷键与工具',
+                    subtitle: '刷新会话列表并维护桌面端快捷键。',
+                    highlighted: draft.shortcutBindings != saved.shortcutBindings,
+                    child: SettingsToolsContent(
+                      controller: controller,
+                      draft: draft,
+                      onReloadChats: _loadChats,
+                    ),
                   ),
                 ],
               ),
@@ -240,5 +259,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  bool _sameCategories(
+    List<CategoryConfig> left,
+    List<CategoryConfig> right,
+  ) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _workflowDirty(AppSettings current, AppSettings original) {
+    return current.sourceChatId != original.sourceChatId ||
+        current.fetchDirection != original.fetchDirection ||
+        current.forwardAsCopy != original.forwardAsCopy ||
+        current.batchSize != original.batchSize ||
+        current.throttleMs != original.throttleMs ||
+        current.previewPrefetchCount != original.previewPrefetchCount;
   }
 }

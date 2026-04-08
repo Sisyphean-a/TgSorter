@@ -4,6 +4,7 @@ import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.da
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
+import 'package:tgsorter/app/features/settings/presentation/logs_screen.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_screen.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_destination.dart';
@@ -56,6 +57,7 @@ class _MainShellPageState extends State<MainShellPage> {
             controller: widget.settings,
             pipeline: widget.pipelineLogs,
           ),
+          LogsScreen(pipeline: widget.pipelineLogs),
         ],
       ),
     );
@@ -72,6 +74,12 @@ class _MainShellPageState extends State<MainShellPage> {
       case MainShellDestination.settings:
         return SettingsCompactAppBar(
           controller: widget.settings,
+          leading: leading,
+        );
+      case MainShellDestination.logs:
+        return SettingsCompactAppBar(
+          controller: widget.settings,
+          title: '操作日志',
           leading: leading,
         );
     }
