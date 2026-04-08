@@ -249,5 +249,5 @@ class _SpyAuthLifecycleCoordinator extends AuthLifecycleCoordinator {
 
 class _FakeAuthNavigationPort implements AuthNavigationPort {
   @override
-  void goToPipeline() {}
+  void goToApp() {}
 }

@@ -1,3 +1,3 @@
 abstract class AuthNavigationPort {
-  void goToPipeline();
+  void goToApp();
 }

@@ -23,7 +23,7 @@ import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
+import 'package:tgsorter/app/features/shell/presentation/main_shell_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
@@ -35,7 +35,7 @@ import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 
 void main() {
-  testWidgets('Auth ready navigates to pipeline page', (tester) async {
+  testWidgets('Auth ready navigates to app shell', (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1280, 2200);
     Get.reset();
@@ -81,11 +81,12 @@ void main() {
             page: () => AuthPage(auth: auth, errors: errors),
           ),
           GetPage(
-            name: '/pipeline',
-            page: () => PipelinePage(
+            name: '/app',
+            page: () => MainShellPage(
               pipeline: pipeline,
-              settings: settings,
+              pipelineSettings: settings,
               errors: errors,
+              settings: settings,
             ),
           ),
         ],
@@ -255,7 +256,7 @@ class _IntegrationSettingsGateway implements SessionQueryGateway {
 
 class _NoopAuthNavigationPort implements AuthNavigationPort {
   @override
-  void goToPipeline() {}
+  void goToApp() {}
 }
 
 class _IntegrationPipelineGateway

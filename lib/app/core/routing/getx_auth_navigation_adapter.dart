@@ -6,7 +6,7 @@ class GetxAuthNavigationAdapter implements AuthNavigationPort {
   const GetxAuthNavigationAdapter();
 
   @override
-  void goToPipeline() {
-    Get.offNamed(AppRoutes.pipeline);
+  void goToApp() {
+    Get.offNamed(AppRoutes.app);
   }
 }

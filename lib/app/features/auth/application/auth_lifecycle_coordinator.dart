@@ -80,7 +80,7 @@ class AuthLifecycleCoordinator {
       return AuthStage.waitPassword;
     }
     if (state.kind == TdAuthStateKind.ready) {
-      _navigation.goToPipeline();
+      _navigation.goToApp();
       return AuthStage.ready;
     }
     return AuthStage.loading;

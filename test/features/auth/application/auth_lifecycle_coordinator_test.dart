@@ -91,7 +91,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(emittedStages, [AuthStage.waitPhone, AuthStage.ready]);
-    expect(harness.navigation.goToPipelineCalls, 1);
+    expect(harness.navigation.goToAppCalls, 1);
   });
 }
 
@@ -169,10 +169,10 @@ class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
 }
 
 class _FakeAuthNavigationPort implements AuthNavigationPort {
-  int goToPipelineCalls = 0;
+  int goToAppCalls = 0;
 
   @override
-  void goToPipeline() {
-    goToPipelineCalls++;
+  void goToApp() {
+    goToAppCalls++;
   }
 }

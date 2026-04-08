@@ -21,11 +21,10 @@ import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
-import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
+import 'package:tgsorter/app/features/shell/presentation/main_shell_page.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
@@ -42,35 +41,38 @@ void main() {
     Get.testMode = true;
   });
 
-  test('auth and pipeline modules resolve only through cross-feature ports', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final authGateway = _ModuleAuthGateway();
-    final authSettings = _ModuleAuthSettingsPort();
-    final pipelineSettings = _ModulePipelineSettingsReader();
-    final pipelineGateway = _ModulePipelineGateway();
+  test(
+    'auth and pipeline modules resolve only through cross-feature ports',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final authGateway = _ModuleAuthGateway();
+      final authSettings = _ModuleAuthSettingsPort();
+      final pipelineSettings = _ModulePipelineSettingsReader();
+      final pipelineGateway = _ModulePipelineGateway();
 
-    Get.put<AppErrorController>(AppErrorController());
-    Get.put<AuthGateway>(authGateway);
-    Get.put<AuthSettingsPort>(authSettings);
-    Get.put<AuthNavigationPort>(_NoopAuthNavigationPort());
+      Get.put<AppErrorController>(AppErrorController());
+      Get.put<AuthGateway>(authGateway);
+      Get.put<AuthSettingsPort>(authSettings);
+      Get.put<AuthNavigationPort>(_NoopAuthNavigationPort());
 
-    expect(registerAuthModule, returnsNormally);
-    expect(Get.find<AuthCoordinator>().auth, same(authGateway));
+      expect(registerAuthModule, returnsNormally);
+      expect(Get.find<AuthCoordinator>().auth, same(authGateway));
 
-    Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
-    Get.put<AuthStateGateway>(authGateway);
-    Get.put<ConnectionStateGateway>(pipelineGateway);
-    Get.put<MessageReadGateway>(pipelineGateway);
-    Get.put<MediaGateway>(pipelineGateway);
-    Get.put<ClassifyGateway>(pipelineGateway);
-    Get.put<RecoveryGateway>(pipelineGateway);
-    Get.put<PipelineSettingsReader>(pipelineSettings);
+      Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
+      Get.put<AuthStateGateway>(authGateway);
+      Get.put<ConnectionStateGateway>(pipelineGateway);
+      Get.put<MessageReadGateway>(pipelineGateway);
+      Get.put<MediaGateway>(pipelineGateway);
+      Get.put<ClassifyGateway>(pipelineGateway);
+      Get.put<RecoveryGateway>(pipelineGateway);
+      Get.put<PipelineSettingsReader>(pipelineSettings);
 
-    expect(registerPipelineModule, returnsNormally);
-    expect(Get.find<PipelineCoordinator>(), isNotNull);
-    expect(Get.find<PipelineLogsPort>(), isA<PipelineLogsPort>());
-  });
+      expect(registerPipelineModule, returnsNormally);
+      expect(Get.find<PipelineCoordinator>(), isNotNull);
+      expect(Get.find<PipelineLogsPort>(), isA<PipelineLogsPort>());
+    },
+  );
 
   test('app routes resolve pages through registered ports', () async {
     SharedPreferences.setMockInitialValues({});
@@ -106,17 +108,16 @@ void main() {
     Get.replace<PipelineLogsPort>(fakeRouteLogsPort);
 
     final pages = buildAppPages();
-    final authPage = pages.firstWhere((page) => page.name == AppRoutes.auth).page();
-    final pipelinePage = pages
-        .firstWhere((page) => page.name == AppRoutes.pipeline)
-        .page() as PipelinePage;
-    final settingsPage = pages
-        .firstWhere((page) => page.name == AppRoutes.settings)
-        .page() as SettingsPage;
+    final authPage = pages
+        .firstWhere((page) => page.name == AppRoutes.auth)
+        .page();
+    final appPage =
+        pages.firstWhere((page) => page.name == AppRoutes.app).page()
+            as MainShellPage;
 
     expect(authPage, isA<AuthPage>());
-    expect(pipelinePage.settings, same(fakeRouteSettingsReader));
-    expect(settingsPage.pipeline, same(fakeRouteLogsPort));
+    expect(appPage.pipelineSettings, same(fakeRouteSettingsReader));
+    expect(appPage.pipelineLogs, same(fakeRouteLogsPort));
   });
 }
 
@@ -257,5 +258,5 @@ class _ModulePipelineGateway
 
 class _NoopAuthNavigationPort implements AuthNavigationPort {
   @override
-  void goToPipeline() {}
+  void goToApp() {}
 }

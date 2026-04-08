@@ -162,5 +162,5 @@ class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
 
 class _FakeAuthNavigationPort implements AuthNavigationPort {
   @override
-  void goToPipeline() {}
+  void goToApp() {}
 }
