@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 
@@ -49,57 +50,59 @@ class DesktopActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canBrowse = !pipeline.processing.value;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: canBrowse && pipeline.canShowPrevious.value
-                        ? pipeline.showPreviousMessage
-                        : null,
-                    child: const Text('上一条'),
+    return Obx(() {
+      final canBrowse = !pipeline.processing.value;
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: canBrowse && pipeline.canShowPrevious.value
+                          ? pipeline.showPreviousMessage
+                          : null,
+                      child: const Text('上一条'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: canBrowse && pipeline.canShowNext.value
-                        ? pipeline.showNextMessage
-                        : null,
-                    child: const Text('下一条'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: canBrowse && pipeline.canShowNext.value
+                          ? pipeline.showNextMessage
+                          : null,
+                      child: const Text('下一条'),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: canClick
-                        ? () => pipeline.skipCurrent('desktop_button')
-                        : null,
-                    child: const Text('略过此条'),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: canClick
+                          ? () => pipeline.skipCurrent('desktop_button')
+                          : null,
+                      child: const Text('略过此条'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: canClick ? pipeline.undoLastStep : null,
-                    child: const Text('撤销上一步'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: canClick ? pipeline.undoLastStep : null,
+                      child: const Text('撤销上一步'),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }

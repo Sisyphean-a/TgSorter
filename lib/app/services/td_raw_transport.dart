@@ -7,6 +7,7 @@ import 'package:tdlib/td_client.dart';
 import 'td_json_logger.dart';
 
 typedef TdPluginProvider = TdPlugin Function();
+typedef TdNowMicros = int Function();
 
 class TdRawTransport {
   TdRawTransport({
@@ -14,9 +15,11 @@ class TdRawTransport {
     TdPluginProvider? pluginProvider,
     TdJsonLogger? logger,
     Duration pollInterval = _defaultPollInterval,
+    TdNowMicros? nowMicros,
   }) : _pluginProvider = pluginProvider ?? (() => plugin ?? TdPlugin.instance),
        _logger = logger ?? TdJsonLogger(),
-       _pollInterval = pollInterval;
+       _pollInterval = pollInterval,
+       _nowMicros = nowMicros ?? _defaultNowMicros;
 
   static const Duration _defaultPollInterval = Duration(milliseconds: 16);
   static const Duration _defaultTimeout = Duration(seconds: 20);
@@ -26,15 +29,19 @@ class TdRawTransport {
   final TdPluginProvider _pluginProvider;
   final TdJsonLogger _logger;
   final Duration _pollInterval;
+  final TdNowMicros _nowMicros;
   final StreamController<Map<String, dynamic>> _updatesController =
       StreamController<Map<String, dynamic>>.broadcast();
   final Map<String, Completer<Map<String, dynamic>>> _pending =
       <String, Completer<Map<String, dynamic>>>{};
 
+  static int _defaultNowMicros() => DateTime.now().microsecondsSinceEpoch;
+
   bool _running = false;
   bool _polling = false;
   int? _clientId;
   Timer? _pollTimer;
+  int _requestSequence = 0;
 
   Stream<Map<String, dynamic>> get updates => _updatesController.stream;
 
@@ -70,6 +77,9 @@ class TdRawTransport {
   }) {
     final clientId = _requireClientId();
     final extra = _nextExtra();
+    if (_pending.containsKey(extra)) {
+      throw StateError('TDLib request extra collision: $extra');
+    }
     final payload = _buildPayload(function, extra);
     final completer = Completer<Map<String, dynamic>>();
     _pending[extra] = completer;
@@ -111,7 +121,10 @@ class TdRawTransport {
     return Map<String, dynamic>.from(function.toJson(extra));
   }
 
-  String _nextExtra() => DateTime.now().microsecondsSinceEpoch.toString();
+  String _nextExtra() {
+    _requestSequence++;
+    return '${_nowMicros()}-$_requestSequence';
+  }
 
   TdPlugin get _plugin => _pluginProvider();
 

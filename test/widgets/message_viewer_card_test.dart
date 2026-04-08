@@ -207,6 +207,15 @@ void main() {
                   subtitle: 'Artist',
                   localAudioPath: null,
                   audioDurationSeconds: 180,
+                  audioTracks: [
+                    AudioTrackPreview(
+                      messageId: 5,
+                      title: 'Song',
+                      subtitle: 'Artist',
+                      localAudioPath: null,
+                      audioDurationSeconds: 180,
+                    ),
+                  ],
                 ),
               ),
               processing: false,
@@ -310,6 +319,46 @@ void main() {
     expect(find.text('Track B'), findsOneWidget);
   });
 
+  testWidgets('audio album does not render redundant group title text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: PipelineMessage(
+              id: 79,
+              messageIds: const [79, 80],
+              sourceChatId: 100,
+              preview: MessagePreview(
+                kind: MessagePreviewKind.audio,
+                title: '音频组 (2 条)',
+                audioTracks: const [
+                  AudioTrackPreview(
+                    messageId: 79,
+                    title: 'Track A',
+                    localAudioPath: null,
+                  ),
+                  AudioTrackPreview(
+                    messageId: 80,
+                    title: 'Track B',
+                    localAudioPath: null,
+                  ),
+                ],
+              ),
+            ),
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('音频组 (2 条)'), findsNothing);
+  });
+
   testWidgets('photo preview renders unified image gallery shell', (
     tester,
   ) async {
@@ -392,6 +441,7 @@ void main() {
     expect(find.byIcon(Icons.play_arrow_rounded), findsNWidgets(2));
     expect(find.text('时长 00:11'), findsOneWidget);
     expect(find.text('时长 00:22'), findsOneWidget);
+    expect(find.byType(PageView), findsNothing);
   });
 
   testWidgets('video group does not duplicate duration text', (tester) async {
@@ -435,5 +485,108 @@ void main() {
     );
 
     expect(find.text('时长 00:11'), findsNWidgets(2));
+  });
+
+  testWidgets('mixed media group renders all tiles without carousel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: PipelineMessage(
+              id: 81,
+              messageIds: const [81, 82, 83],
+              sourceChatId: 100,
+              preview: MessagePreview(
+                kind: MessagePreviewKind.video,
+                title: '媒体组 (3 项)',
+                mediaItems: const [
+                  MediaItemPreview(
+                    messageId: 81,
+                    kind: MediaItemKind.video,
+                    previewPath: null,
+                    fullPath: null,
+                  ),
+                  MediaItemPreview(
+                    messageId: 82,
+                    kind: MediaItemKind.photo,
+                    previewPath: null,
+                    fullPath: null,
+                  ),
+                  MediaItemPreview(
+                    messageId: 83,
+                    kind: MediaItemKind.video,
+                    previewPath: null,
+                    fullPath: null,
+                  ),
+                ],
+              ),
+            ),
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(PageView), findsNothing);
+    expect(
+      find.byKey(const ValueKey('message-preview-media-tile-81')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('message-preview-media-tile-82')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('message-preview-media-tile-83')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('grouped video preparing spinner is scoped to selected item', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: PipelineMessage(
+              id: 91,
+              messageIds: const [91, 92],
+              sourceChatId: 100,
+              preview: MessagePreview(
+                kind: MessagePreviewKind.video,
+                title: '媒体组 (2 项)',
+                mediaItems: const [
+                  MediaItemPreview(
+                    messageId: 91,
+                    kind: MediaItemKind.video,
+                    previewPath: null,
+                    fullPath: null,
+                  ),
+                  MediaItemPreview(
+                    messageId: 92,
+                    kind: MediaItemKind.video,
+                    previewPath: null,
+                    fullPath: null,
+                  ),
+                ],
+              ),
+            ),
+            processing: false,
+            videoPreparing: true,
+            onRequestMediaPlayback: ([messageId]) async {},
+            isMediaPreparing: (messageId) => messageId == 91,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 }

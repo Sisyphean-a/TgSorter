@@ -116,9 +116,11 @@ class PipelineFeedController {
       },
       onSuccess: (nextCount) {
         _state.remainingCount.value = nextCount;
+        _navigation.syncNavigationState();
       },
       onError: (error) {
         _state.remainingCount.value = null;
+        _navigation.syncNavigationState();
         _reportGeneralError('剩余统计失败：$error');
       },
       onComplete: () {
@@ -192,6 +194,7 @@ class PipelineFeedController {
       return;
     }
     _state.remainingCount.value = math.max(0, current - delta);
+    _navigation.syncNavigationState();
   }
 
   void incrementRemainingCount(int delta) {
@@ -200,6 +203,7 @@ class PipelineFeedController {
       return;
     }
     _state.remainingCount.value = current + delta;
+    _navigation.syncNavigationState();
   }
 
   bool _shouldAppendMoreMessages() {

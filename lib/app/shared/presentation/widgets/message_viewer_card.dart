@@ -12,6 +12,7 @@ class MessageViewerCard extends StatelessWidget {
     required this.videoPreparing,
     required this.onRequestMediaPlayback,
     this.videoControllerInitializer,
+    this.isMediaPreparing = _defaultIsMediaPreparing,
   });
 
   final PipelineMessage? message;
@@ -19,6 +20,9 @@ class MessageViewerCard extends StatelessWidget {
   final bool videoPreparing;
   final Future<void> Function([int? messageId]) onRequestMediaPlayback;
   final VideoControllerInitializer? videoControllerInitializer;
+  final bool Function(int? messageId) isMediaPreparing;
+
+  static bool _defaultIsMediaPreparing(int? messageId) => false;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +53,7 @@ class MessageViewerCard extends StatelessWidget {
                 videoPreparing: videoPreparing,
                 onRequestMediaPlayback: onRequestMediaPlayback,
                 videoControllerInitializer: videoControllerInitializer,
+                isMediaPreparing: isMediaPreparing,
               ),
             ),
           ),

@@ -147,12 +147,53 @@ void main() {
         contains('payload={"@type":"ok"'),
       );
     });
+
+    test('uses unique extras even when clock value repeats', () async {
+      final plugin = _FakeTdPlugin();
+      final transport = TdRawTransport(
+        plugin: plugin,
+        logger: TdJsonLogger(isEnabled: false),
+        pollInterval: const Duration(milliseconds: 1),
+        nowMicros: () => 42,
+      );
+
+      await transport.start();
+      final first = transport.send(
+        const GetMe(),
+        timeout: const Duration(milliseconds: 50),
+      );
+      final second = transport.send(
+        const GetAuthorizationState(),
+        timeout: const Duration(milliseconds: 50),
+      );
+      final requestPayloads = plugin.sentPayloads
+          .where((payload) => payload['@extra'] != null)
+          .toList(growable: false);
+      final firstExtra = requestPayloads[0]['@extra'] as String;
+      final secondExtra = requestPayloads[1]['@extra'] as String;
+
+      plugin.enqueueReceive(
+        '{"@type":"ok","@extra":"$firstExtra","@client_id":1}',
+      );
+      plugin.enqueueReceive(
+        '{"@type":"ok","@extra":"$secondExtra","@client_id":1}',
+      );
+
+      final firstPayload = await first;
+      final secondPayload = await second;
+      await transport.stop();
+
+      expect(firstExtra, isNot(equals(secondExtra)));
+      expect(firstPayload['@extra'], firstExtra);
+      expect(secondPayload['@extra'], secondExtra);
+    });
   });
 }
 
 class _FakeTdPlugin extends TdPlugin {
   final Queue<String> _receiveQueue = Queue<String>();
 
+  final List<Map<String, dynamic>> sentPayloads = <Map<String, dynamic>>[];
   Map<String, dynamic>? lastSentPayload;
   int _nextClientId = 1;
   int createCallCount = 0;
@@ -176,6 +217,7 @@ class _FakeTdPlugin extends TdPlugin {
     lastSentPayload = Map<String, dynamic>.from(
       (jsonDecode(event) as Map).cast<String, dynamic>(),
     );
+    sentPayloads.add(lastSentPayload!);
   }
 
   void enqueueReceive(String event) {

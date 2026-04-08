@@ -40,6 +40,111 @@ void main() {
   );
 
   test(
+    'prepareCurrentMedia tracks preparing state for target message only',
+    () async {
+      final state = PipelineRuntimeState();
+      state.currentMessage.value = PipelineMessage(
+        id: 21,
+        messageIds: const <int>[21, 22],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.video,
+          title: 'album',
+          mediaItems: [
+            MediaItemPreview(
+              messageId: 21,
+              kind: MediaItemKind.video,
+              previewPath: null,
+              fullPath: null,
+            ),
+            MediaItemPreview(
+              messageId: 22,
+              kind: MediaItemKind.video,
+              previewPath: null,
+              fullPath: null,
+            ),
+          ],
+        ),
+      );
+      final completer = Completer<PipelineMessage>();
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: _BlockingMediaRefreshService(completer),
+      );
+
+      final future = controller.prepareCurrentMedia(22);
+
+      expect(controller.isPreparingMessageId(22), isTrue);
+      expect(controller.isPreparingMessageId(21), isFalse);
+
+      completer.complete(
+        PipelineMessage(
+          id: 22,
+          messageIds: const <int>[22],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.video,
+            title: 'video-2',
+            localVideoPath: 'C:/video-2.mp4',
+            mediaItems: [
+              MediaItemPreview(
+                messageId: 22,
+                kind: MediaItemKind.video,
+                previewPath: 'C:/thumb-2.jpg',
+                fullPath: 'C:/video-2.mp4',
+              ),
+            ],
+          ),
+        ),
+      );
+      await future;
+
+      expect(controller.isPreparingMessageId(22), isFalse);
+    },
+  );
+
+  test(
+    'refreshCurrentMediaIfNeeded refreshes missing grouped item previews',
+    () async {
+      final state = PipelineRuntimeState();
+      state.currentMessage.value = PipelineMessage(
+        id: 21,
+        messageIds: const <int>[21, 22],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.video,
+          title: 'album',
+          mediaItems: [
+            MediaItemPreview(
+              messageId: 21,
+              kind: MediaItemKind.video,
+              previewPath: 'C:/thumb-1.jpg',
+              fullPath: null,
+            ),
+            MediaItemPreview(
+              messageId: 22,
+              kind: MediaItemKind.video,
+              previewPath: null,
+              fullPath: null,
+            ),
+          ],
+        ),
+      );
+      final mediaRefresh = _RecordingRefreshMediaService();
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: mediaRefresh,
+        videoRefreshInterval: const Duration(milliseconds: 5),
+      );
+
+      await controller.refreshCurrentMediaIfNeeded();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(mediaRefresh.refreshCalls, contains(22));
+    },
+  );
+
+  test(
     'prepareCurrentMedia keeps prepared payload when navigating away and back',
     () async {
       final state = PipelineRuntimeState();
@@ -218,12 +323,15 @@ void main() {
         videoRefreshInterval: const Duration(milliseconds: 5),
       );
 
-      await runZonedGuarded(() async {
-        await controller.refreshCurrentMediaIfNeeded();
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-      }, (error, _) {
-        uncaughtErrors.add(error);
-      });
+      await runZonedGuarded(
+        () async {
+          await controller.refreshCurrentMediaIfNeeded();
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        },
+        (error, _) {
+          uncaughtErrors.add(error);
+        },
+      );
 
       expect(errors, hasLength(1));
       expect(uncaughtErrors, isEmpty);
@@ -318,6 +426,49 @@ class _FailingRefreshMediaService extends PipelineMediaRefreshService {
   }) async {
     refreshCalls.add(messageId);
     throw StateError('refresh failed');
+  }
+}
+
+class _RecordingRefreshMediaService extends PipelineMediaRefreshService {
+  _RecordingRefreshMediaService()
+    : super(
+        mediaGateway: _NoopMediaGateway(),
+        messageGateway: _NoopMessageReadGateway(),
+      );
+
+  final List<int> refreshCalls = <int>[];
+
+  @override
+  Future<PipelineMessage> prepareCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PipelineMessage> refreshCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    refreshCalls.add(messageId);
+    return PipelineMessage(
+      id: messageId,
+      messageIds: <int>[messageId],
+      sourceChatId: sourceChatId,
+      preview: MessagePreview(
+        kind: MessagePreviewKind.video,
+        title: 'refreshed-$messageId',
+        mediaItems: <MediaItemPreview>[
+          MediaItemPreview(
+            messageId: messageId,
+            kind: MediaItemKind.video,
+            previewPath: 'C:/thumb-$messageId.jpg',
+            fullPath: null,
+          ),
+        ],
+      ),
+    );
   }
 }
 

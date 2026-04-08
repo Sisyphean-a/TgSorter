@@ -68,6 +68,7 @@ class PipelineDesktopView extends StatelessWidget {
                 processing: pipeline.loading.value || processing,
                 videoPreparing: pipeline.videoPreparing.value,
                 onRequestMediaPlayback: pipeline.prepareCurrentMedia,
+                isMediaPreparing: pipeline.isPreparingMedia,
               ),
             ),
           ),

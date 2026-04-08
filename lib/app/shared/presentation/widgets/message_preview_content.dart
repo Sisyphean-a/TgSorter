@@ -14,12 +14,16 @@ class MessagePreviewContent extends StatelessWidget {
     required this.videoPreparing,
     required this.onRequestMediaPlayback,
     required this.videoControllerInitializer,
+    this.isMediaPreparing = _defaultIsMediaPreparing,
   });
 
   final PipelineMessage? message;
   final bool videoPreparing;
   final Future<void> Function([int? messageId]) onRequestMediaPlayback;
   final VideoControllerInitializer? videoControllerInitializer;
+  final bool Function(int? messageId) isMediaPreparing;
+
+  static bool _defaultIsMediaPreparing(int? messageId) => false;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +54,7 @@ class MessagePreviewContent extends StatelessWidget {
             onRequestPlayback: onRequestMediaPlayback,
             controllerInitializer: videoControllerInitializer,
             fallbackImagePath: preview.localImagePath,
+            isMediaPreparing: isMediaPreparing,
           ),
           const SizedBox(height: 12),
           MessagePreviewText(
@@ -73,6 +78,7 @@ class MessagePreviewContent extends StatelessWidget {
             preferVideoFallback: true,
             fallbackVideoPath: preview.localVideoPath,
             fallbackThumbnailPath: preview.localVideoThumbnailPath,
+            isMediaPreparing: isMediaPreparing,
           ),
           if (mediaItems.isEmpty) ...[
             const SizedBox(height: 12),
@@ -102,31 +108,9 @@ class MessagePreviewContent extends StatelessWidget {
             preparing: videoPreparing,
             onRequestPlayback: onRequestMediaPlayback,
             tracks: preview.audioTracks,
+            isPreparingTrack: isMediaPreparing,
           ),
           const SizedBox(height: 12),
-          if (preview.subtitle case final text? when text.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          if (preview.audioDurationSeconds != null)
-            PreviewMetaText(
-              text:
-                  '时长 ${formatPreviewDuration(preview.audioDurationSeconds!)}',
-            ),
-          const SizedBox(height: 8),
-          Text(
-            preview.title,
-            style: TextStyle(
-              fontSize: 18,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
         ],
       );
     }

@@ -87,8 +87,18 @@ class PipelineNavigationService {
 
   void syncNavigationState() {
     _state.canShowPrevious.value = _state.currentIndex > 0;
-    _state.canShowNext.value =
-        _state.currentIndex >= 0 &&
-        _state.currentIndex + 1 < _state.cache.length;
+    _state.canShowNext.value = _hasCachedNext() || _hasUnloadedNext();
+  }
+
+  bool _hasCachedNext() {
+    return _state.currentIndex >= 0 && _state.currentIndex + 1 < _state.cache.length;
+  }
+
+  bool _hasUnloadedNext() {
+    final remainingCount = _state.remainingCount.value;
+    if (remainingCount == null || _state.currentIndex < 0) {
+      return false;
+    }
+    return _state.currentIndex + 1 < remainingCount;
   }
 }

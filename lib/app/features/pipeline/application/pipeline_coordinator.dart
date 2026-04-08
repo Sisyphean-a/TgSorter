@@ -209,6 +209,10 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
     await mediaController.prepareCurrentMedia(targetMessageId);
   }
 
+  bool isPreparingMedia(int? messageId) {
+    return mediaController.isPreparingMessageId(messageId);
+  }
+
   Future<void> skipCurrent([String source = 'unknown']) async {
     final skipped = await actions.skipCurrent(
       source: source,

@@ -49,17 +49,19 @@ class PreviewPlaceholder extends StatelessWidget {
   const PreviewPlaceholder({
     super.key,
     required this.text,
+    this.height = previewMediaHeight,
     this.textColor = Colors.white,
   });
 
   final String text;
+  final double height;
   final Color textColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: previewMediaHeight,
+      height: height,
       color: Colors.black12,
       alignment: Alignment.center,
       child: Text(text, style: TextStyle(color: textColor)),
@@ -72,10 +74,12 @@ class PreviewImage extends StatelessWidget {
     super.key,
     required this.imagePath,
     required this.fallbackText,
+    this.height = previewMediaHeight,
   });
 
   final String? imagePath;
   final String fallbackText;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +89,7 @@ class PreviewImage extends StatelessWidget {
     return Image.file(
       io.File(imagePath!),
       width: double.infinity,
-      height: previewMediaHeight,
+      height: height,
       fit: BoxFit.cover,
       errorBuilder: (_, _, _) => const PreviewPlaceholder(text: '图片加载失败'),
     );

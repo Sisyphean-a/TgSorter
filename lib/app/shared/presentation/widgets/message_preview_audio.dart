@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:io' as io;
 
 import 'package:flutter/material.dart';
@@ -68,6 +69,7 @@ class MessagePreviewAudio extends StatefulWidget {
     required this.preparing,
     required this.onRequestPlayback,
     required this.tracks,
+    this.isPreparingTrack,
     this.controllerFactory = _defaultAudioPreviewControllerFactory,
     this.fileActions = const PlatformFileActions(),
   });
@@ -76,6 +78,7 @@ class MessagePreviewAudio extends StatefulWidget {
   final bool preparing;
   final Future<void> Function([int? messageId]) onRequestPlayback;
   final List<AudioTrackPreview> tracks;
+  final bool Function(int? messageId)? isPreparingTrack;
   final AudioPreviewControllerFactory controllerFactory;
   final PlatformFileActions fileActions;
 
@@ -95,6 +98,7 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
   Duration _position = Duration.zero;
   Duration? _duration;
   double _speed = 1.0;
+  String? _errorText;
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration?>? _durationSubscription;
 
@@ -125,6 +129,7 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
     _position = Duration.zero;
     _duration = null;
     _speed = 1.0;
+    _errorText = null;
     if (controller != null) {
       await controller.dispose();
     }
@@ -198,6 +203,7 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
       setState(() {
         _initializing = true;
         _currentTrackMessageId = track.messageId;
+        _errorText = null;
       });
       try {
         await controller.setFilePath(path);
@@ -207,6 +213,19 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
             ? null
             : Duration(seconds: track.audioDurationSeconds!);
         _speed = controller.speed;
+      } catch (error, stackTrace) {
+        developer.log(
+          'audio setFilePath failed path=$path',
+          name: 'AudioPreview',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        if (mounted) {
+          setState(() {
+            _errorText = '音频加载失败：$error';
+          });
+        }
+        return;
       } finally {
         if (mounted) {
           setState(() {
@@ -224,8 +243,33 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
     }
     if (activeController.playing && !switchingTrack) {
       await activeController.pause();
+      if (mounted) {
+        setState(() {
+          _errorText = null;
+        });
+      }
     } else {
-      await activeController.play();
+      unawaited(
+        activeController.play().catchError((Object error, StackTrace stackTrace) {
+          developer.log(
+            'audio play failed path=$path',
+            name: 'AudioPreview',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _errorText = '音频播放失败：$error';
+          });
+        }),
+      );
+      if (mounted) {
+        setState(() {
+          _errorText = null;
+        });
+      }
     }
     if (mounted) {
       setState(() {});
@@ -317,8 +361,13 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
     final hasLocalFile =
         path != null && path.isNotEmpty && io.File(path).existsSync();
     final isCurrentTrack = _currentTrackMessageId == track.messageId;
+    final trackPreparing =
+        widget.isPreparingTrack?.call(track.messageId) ??
+        (widget.preparing && isCurrentTrack);
     final isPlaying = _controller?.playing == true && isCurrentTrack;
-    final label = _initializing && _currentTrackMessageId == track.messageId
+    final label = _errorText != null && isCurrentTrack
+        ? _errorText!
+        : _initializing && _currentTrackMessageId == track.messageId
         ? '音频加载中...'
         : hasLocalFile && isCurrentTrack && isPlaying
         ? '播放中'
@@ -326,7 +375,7 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
         ? '已暂停，可调整进度和倍速'
         : hasLocalFile
         ? '点击播放音频'
-        : widget.preparing && _currentTrackMessageId == track.messageId
+        : trackPreparing
         ? '音频下载中...'
         : '音频已识别（点击播放开始下载）';
     return Padding(
@@ -334,7 +383,7 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
       child: Row(
         children: [
           IconButton.filled(
-            onPressed: widget.preparing || _initializing
+            onPressed: trackPreparing || _initializing
                 ? null
                 : () => _togglePlayback(track),
             icon: Icon(

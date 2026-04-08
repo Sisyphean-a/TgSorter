@@ -8,6 +8,7 @@ class PipelineRuntimeState {
   final loading = false.obs;
   final processing = false.obs;
   final videoPreparing = false.obs;
+  final preparingMessageIds = <int>{}.obs;
   final isOnline = false.obs;
   final remainingCount = RxnInt();
   final remainingCountLoading = false.obs;

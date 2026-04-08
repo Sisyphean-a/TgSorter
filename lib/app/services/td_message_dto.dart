@@ -113,6 +113,8 @@ class TdMessageContentDto {
     required this.kind,
     required this.messageId,
     this.text,
+    this.mediaWidth,
+    this.mediaHeight,
     this.localImagePath,
     this.localVideoPath,
     this.localVideoThumbnailPath,
@@ -135,6 +137,8 @@ class TdMessageContentDto {
   final TdMessageContentKind kind;
   final int messageId;
   final TdFormattedTextDto? text;
+  final int? mediaWidth;
+  final int? mediaHeight;
   final String? localImagePath;
   final String? localVideoPath;
   final String? localVideoThumbnailPath;
@@ -243,6 +247,8 @@ class TdMessageDto {
       text: TdFormattedTextDto.fromJson(
         TdResponseReader.readMap(content, 'caption'),
       ),
+      mediaWidth: preview.width,
+      mediaHeight: preview.height,
       photoSizes: parsedSizes,
       localImagePath: preview.localPath,
       remoteImageFileId: preview.remoteFileId,
@@ -272,6 +278,8 @@ class TdMessageDto {
       text: TdFormattedTextDto.fromJson(
         TdResponseReader.readMap(content, 'caption'),
       ),
+      mediaWidth: _readOptionalInt(video['width']),
+      mediaHeight: _readOptionalInt(video['height']),
       localVideoPath: _readLocalPath(videoFile),
       localVideoThumbnailPath: thumbnailFile == null
           ? null
@@ -391,6 +399,12 @@ class TdMessageDto {
       text: TdFormattedTextDto.fromJson(
         TdResponseReader.readMap(content, 'caption'),
       ),
+      mediaWidth: _readOptionalInt(document['width']) > 0
+          ? _readOptionalInt(document['width'])
+          : _readOptionalInt(thumbnail?['width']),
+      mediaHeight: _readOptionalInt(document['height']) > 0
+          ? _readOptionalInt(document['height'])
+          : _readOptionalInt(thumbnail?['height']),
       localVideoPath: _readLocalPath(documentFile),
       localVideoThumbnailPath: thumbnailFile == null
           ? null
@@ -408,10 +422,9 @@ class TdMessageDto {
     if (raw == null) {
       return null;
     }
-    final webPage = TdResponseReader.readMap(
-      <String, dynamic>{'web_page': raw},
-      'web_page',
-    );
+    final webPage = TdResponseReader.readMap(<String, dynamic>{
+      'web_page': raw,
+    }, 'web_page');
     final photo = webPage['photo'];
     final image = photo == null ? null : _parsePreviewPhoto(photo);
     return TdLinkPreviewDto(
@@ -426,10 +439,9 @@ class TdMessageDto {
   }
 
   static TdPhotoSizeDto? _parsePreviewPhoto(dynamic photoRaw) {
-    final photo = TdResponseReader.readMap(
-      <String, dynamic>{'photo': photoRaw},
-      'photo',
-    );
+    final photo = TdResponseReader.readMap(<String, dynamic>{
+      'photo': photoRaw,
+    }, 'photo');
     final sizes = TdResponseReader.readList(photo, 'sizes');
     if (sizes.isEmpty) {
       return null;

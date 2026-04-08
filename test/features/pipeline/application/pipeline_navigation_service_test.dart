@@ -58,6 +58,22 @@ void main() {
       expect(state.canShowNext.value, isFalse);
     },
   );
+
+  test(
+    'syncNavigationState keeps next enabled when remaining messages are not cached yet',
+    () {
+      final state = PipelineRuntimeState();
+      final service = PipelineNavigationService(state: state);
+      final first = fakePipelineMessage(id: 101);
+
+      state.remainingCount.value = 5;
+      service.replaceMessages(<PipelineMessage>[first]);
+
+      expect(state.currentMessage.value?.id, 101);
+      expect(state.canShowPrevious.value, isFalse);
+      expect(state.canShowNext.value, isTrue);
+    },
+  );
 }
 
 PipelineMessage fakePipelineMessage({required int id}) {

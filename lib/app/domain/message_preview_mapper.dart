@@ -7,6 +7,8 @@ class MediaItemPreview {
   const MediaItemPreview({
     required this.messageId,
     required this.kind,
+    this.width,
+    this.height,
     this.previewPath,
     this.fullPath,
     this.previewFileId,
@@ -17,6 +19,8 @@ class MediaItemPreview {
 
   final int messageId;
   final MediaItemKind kind;
+  final int? width;
+  final int? height;
   final String? previewPath;
   final String? fullPath;
   final int? previewFileId;
@@ -28,9 +32,20 @@ class MediaItemPreview {
       (previewPath != null && previewPath!.isNotEmpty) ||
       (fullPath != null && fullPath!.isNotEmpty);
 
+  double get aspectRatio {
+    final safeWidth = width ?? 0;
+    final safeHeight = height ?? 0;
+    if (safeWidth <= 0 || safeHeight <= 0) {
+      return 1;
+    }
+    return safeWidth / safeHeight;
+  }
+
   MediaItemPreview copyWith({
     int? messageId,
     MediaItemKind? kind,
+    int? width,
+    int? height,
     String? previewPath,
     String? fullPath,
     int? previewFileId,
@@ -41,6 +56,8 @@ class MediaItemPreview {
     return MediaItemPreview(
       messageId: messageId ?? this.messageId,
       kind: kind ?? this.kind,
+      width: width ?? this.width,
+      height: height ?? this.height,
       previewPath: previewPath ?? this.previewPath,
       fullPath: fullPath ?? this.fullPath,
       previewFileId: previewFileId ?? this.previewFileId,
@@ -193,6 +210,8 @@ MessagePreview mapMessagePreview(TdMessageContentDto content) {
         MediaItemPreview(
           messageId: content.messageId,
           kind: MediaItemKind.photo,
+          width: content.mediaWidth,
+          height: content.mediaHeight,
           previewPath: content.localImagePath,
           fullPath: content.fullImagePath,
           previewFileId: content.remoteImageFileId,
@@ -216,6 +235,8 @@ MessagePreview mapMessagePreview(TdMessageContentDto content) {
         MediaItemPreview(
           messageId: content.messageId,
           kind: MediaItemKind.video,
+          width: content.mediaWidth,
+          height: content.mediaHeight,
           previewPath: content.localVideoThumbnailPath,
           fullPath: content.localVideoPath,
           previewFileId: content.remoteVideoThumbnailFileId,
@@ -256,12 +277,17 @@ LinkCardPreview? mapLinkCardPreview(TdMessageContentDto content) {
   final title = preview.title.trim();
   final site = preview.siteName.trim();
   final description = preview.description.trim();
-  if (title.isEmpty && site.isEmpty && description.isEmpty) {
+  final url = preview.url.trim();
+  final hasImage =
+      preview.localImagePath?.trim().isNotEmpty == true ||
+      preview.remoteImageFileId != null;
+  if (url.isEmpty ||
+      (title.isEmpty && site.isEmpty && description.isEmpty && !hasImage)) {
     return null;
   }
   return LinkCardPreview(
-    url: preview.url,
-    displayUrl: preview.displayUrl,
+    url: url,
+    displayUrl: preview.displayUrl.trim(),
     siteName: site,
     title: title,
     description: description,

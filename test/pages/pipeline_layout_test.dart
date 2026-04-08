@@ -159,6 +159,34 @@ void main() {
       expect(find.byType(AnimatedSwitcher), findsWidgets);
       await tester.binding.setSurfaceSize(null);
     });
+
+    testWidgets('desktop next button reacts when navigation state changes', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        GetMaterialApp(
+          theme: AppTheme.dark(),
+          home: PipelinePage(
+            pipeline: pipelineController,
+            settings: settingsController,
+            errors: errorController,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final nextFinder = find.widgetWithText(OutlinedButton, '下一条');
+      final disabled = tester.widget<OutlinedButton>(nextFinder);
+      expect(disabled.onPressed, isNull);
+
+      pipelineController.canShowNext.value = true;
+      await tester.pump();
+
+      final enabled = tester.widget<OutlinedButton>(nextFinder);
+      expect(enabled.onPressed, isNotNull);
+    });
   });
 
   testWidgets('pipeline page keeps compact mobile header with remaining only', (

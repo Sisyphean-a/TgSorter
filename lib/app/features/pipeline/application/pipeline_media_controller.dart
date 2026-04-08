@@ -24,6 +24,13 @@ class PipelineMediaController {
   Timer? _videoRefreshTimer;
   int? _refreshTargetMessageId;
 
+  bool isPreparingMessageId(int? messageId) {
+    if (messageId == null) {
+      return _state.videoPreparing.value;
+    }
+    return _state.preparingMessageIds.contains(messageId);
+  }
+
   Future<void> prepareCurrentMedia([int? targetMessageId]) async {
     final message = _state.currentMessage.value;
     if (message == null ||
@@ -34,6 +41,9 @@ class PipelineMediaController {
     }
     final requestedMessageId = targetMessageId ?? message.id;
     _refreshTargetMessageId = requestedMessageId;
+    _state.preparingMessageIds
+      ..clear()
+      ..add(requestedMessageId);
     _state.videoPreparing.value = true;
     try {
       final prepared = await _mediaRefresh.prepareCurrentMedia(
@@ -50,7 +60,7 @@ class PipelineMediaController {
       await refreshCurrentMediaIfNeeded();
     } catch (error) {
       _reportGeneralError?.call(error);
-      _state.videoPreparing.value = false;
+      stop();
     }
   }
 
@@ -72,7 +82,7 @@ class PipelineMediaController {
           stop();
           return;
         }
-        final refreshMessageId = _refreshTargetMessageId ?? current.id;
+        final refreshMessageId = _nextRefreshMessageId(current) ?? current.id;
         final refreshed = await _mediaRefresh.refreshCurrentMedia(
           sourceChatId: current.sourceChatId,
           messageId: refreshMessageId,
@@ -115,9 +125,13 @@ class PipelineMediaController {
             .toList(growable: false);
         final preview = current.preview.copyWith(
           mediaItems: items,
-          localVideoPath: prepared.preview.localVideoPath,
-          localVideoThumbnailPath: prepared.preview.localVideoThumbnailPath,
-          localImagePath: prepared.preview.localImagePath,
+          localVideoPath:
+              current.preview.localVideoPath ?? prepared.preview.localVideoPath,
+          localVideoThumbnailPath:
+              current.preview.localVideoThumbnailPath ??
+              prepared.preview.localVideoThumbnailPath,
+          localImagePath:
+              current.preview.localImagePath ?? prepared.preview.localImagePath,
         );
         return current.copyWith(preview: preview);
       }
@@ -189,6 +203,7 @@ class PipelineMediaController {
     _videoRefreshTimer?.cancel();
     _videoRefreshTimer = null;
     _refreshTargetMessageId = null;
+    _state.preparingMessageIds.clear();
     _state.videoPreparing.value = false;
   }
 
@@ -196,51 +211,80 @@ class PipelineMediaController {
     if (preview.kind == MessagePreviewKind.video) {
       if (preview.mediaItems.isNotEmpty) {
         return preview.mediaItems.any((item) {
-          if (item.kind != MediaItemKind.video) {
-            return item.previewPath == null;
+          if (!_hasPath(item.previewPath)) {
+            return true;
           }
           final waitingForPlayback =
               _state.videoPreparing.value &&
               (_refreshTargetMessageId == null ||
                   _refreshTargetMessageId == item.messageId);
-          return item.previewPath == null ||
-              (waitingForPlayback && item.fullPath == null);
+          return item.kind == MediaItemKind.video &&
+              waitingForPlayback &&
+              !_hasPath(item.fullPath);
         });
       }
-      return preview.localVideoThumbnailPath == null ||
-          (_state.videoPreparing.value && preview.localVideoPath == null);
+      return !_hasPath(preview.localVideoThumbnailPath) ||
+          (_state.videoPreparing.value && !_hasPath(preview.localVideoPath));
     }
     if (preview.kind == MessagePreviewKind.audio) {
-      return _state.videoPreparing.value && preview.localAudioPath == null;
+      return _state.videoPreparing.value && !_hasPath(preview.localAudioPath);
     }
     return false;
   }
 
   void _syncPreparingState(MessagePreview preview) {
+    final targetId = _refreshTargetMessageId;
     if (preview.kind == MessagePreviewKind.video) {
-      if (preview.mediaItems.isNotEmpty) {
-        final targetId = _refreshTargetMessageId;
+      if (preview.mediaItems.isNotEmpty && targetId != null) {
         final waiting = preview.mediaItems.any((item) {
           if (item.kind != MediaItemKind.video) {
             return false;
           }
-          if (targetId != null && item.messageId != targetId) {
+          if (item.messageId != targetId) {
             return false;
           }
-          return item.fullPath == null;
+          return !_hasPath(item.fullPath);
         });
         _state.videoPreparing.value = waiting && _state.videoPreparing.value;
+        if (!waiting) {
+          _state.preparingMessageIds.remove(targetId);
+        }
         return;
       }
       _state.videoPreparing.value =
-          preview.localVideoPath == null && _state.videoPreparing.value;
+          !_hasPath(preview.localVideoPath) && _state.videoPreparing.value;
       return;
     }
     if (preview.kind == MessagePreviewKind.audio) {
       _state.videoPreparing.value =
-          preview.localAudioPath == null && _state.videoPreparing.value;
+          !_hasPath(preview.localAudioPath) && _state.videoPreparing.value;
+      if (!_state.videoPreparing.value && targetId != null) {
+        _state.preparingMessageIds.remove(targetId);
+      }
       return;
     }
     _state.videoPreparing.value = false;
+  }
+
+  int? _nextRefreshMessageId(PipelineMessage current) {
+    final targetId = _refreshTargetMessageId;
+    if (targetId != null) {
+      return targetId;
+    }
+    final preview = current.preview;
+    if (preview.kind != MessagePreviewKind.video ||
+        preview.mediaItems.isEmpty) {
+      return current.id;
+    }
+    for (final item in preview.mediaItems) {
+      if (!_hasPath(item.previewPath) && !_hasPath(item.fullPath)) {
+        return item.messageId;
+      }
+    }
+    return current.id;
+  }
+
+  bool _hasPath(String? path) {
+    return path != null && path.isNotEmpty;
   }
 }

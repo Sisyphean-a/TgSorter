@@ -18,6 +18,8 @@ class MessagePreviewVideo extends StatefulWidget {
     required this.preparing,
     required this.onRequestPlayback,
     required this.controllerInitializer,
+    this.compact = false,
+    this.height = previewMediaHeight,
     this.fileActions = const PlatformFileActions(),
   });
 
@@ -26,6 +28,8 @@ class MessagePreviewVideo extends StatefulWidget {
   final bool preparing;
   final Future<void> Function([int? messageId]) onRequestPlayback;
   final VideoControllerInitializer? controllerInitializer;
+  final bool compact;
+  final double height;
   final PlatformFileActions fileActions;
 
   @override
@@ -302,6 +306,9 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.compact) {
+      return _buildBody(context);
+    }
     return MessageMediaShell(
       actions: _buildPrimaryActions(),
       moreActions: _buildMoreActions(),
@@ -311,6 +318,9 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   }
 
   List<MessageMediaAction> _buildPrimaryActions() {
+    if (widget.compact) {
+      return const <MessageMediaAction>[];
+    }
     final controller = _controller;
     return [
       if (controller != null && controller.value.isInitialized)
@@ -323,6 +333,9 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   }
 
   List<MessageMediaAction> _buildMoreActions() {
+    if (widget.compact) {
+      return const <MessageMediaAction>[];
+    }
     final path = widget.videoPath;
     return [
       if (widget.fileActions.canOpenFile(path))
@@ -367,7 +380,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
       children: [
         SizedBox(
           width: double.infinity,
-          height: previewMediaHeight,
+          height: widget.height,
           child: FittedBox(
             fit: BoxFit.cover,
             child: SizedBox(
@@ -391,6 +404,9 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   }
 
   Widget? _buildFooter(BuildContext context) {
+    if (widget.compact) {
+      return null;
+    }
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) {
       return null;
@@ -515,7 +531,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
     return Image.file(
       io.File(path),
       width: double.infinity,
-      height: previewMediaHeight,
+      height: widget.height,
       fit: BoxFit.cover,
       errorBuilder: (_, error, stackTrace) =>
           const PreviewPlaceholder(text: '视频缩略图加载失败'),
@@ -526,6 +542,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
     final body = thumbnailPath == null
         ? PreviewPlaceholder(
             text: widget.preparing ? '视频下载中...' : '点击播放',
+            height: widget.height,
           )
         : Stack(
             fit: StackFit.expand,
@@ -536,7 +553,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
           );
     return SizedBox(
       width: double.infinity,
-      height: previewMediaHeight,
+      height: widget.height,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -568,11 +585,11 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   Widget _buildErrorState(String text) {
     return SizedBox(
       width: double.infinity,
-      height: previewMediaHeight,
+      height: widget.height,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          PreviewPlaceholder(text: text),
+          PreviewPlaceholder(text: text, height: widget.height),
           Positioned(
             bottom: 16,
             child: IconButton.filled(

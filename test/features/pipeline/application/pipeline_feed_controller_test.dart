@@ -39,6 +39,40 @@ void main() {
   );
 
   test(
+    'loadInitialMessages recomputes next navigation after remaining count arrives later',
+    () async {
+      final state = PipelineRuntimeState();
+      final navigation = PipelineNavigationService(state: state);
+      final messages = _DelayedRemainingMessageReadGateway(
+        messages: <PipelineMessage>[_singleMessage(1, 'first')],
+        remainingCount: 8,
+      );
+      final controller = PipelineFeedController(
+        state: state,
+        navigation: navigation,
+        messages: messages,
+        media: _FakeMediaGateway(),
+        settings: _FakeSettingsReader(),
+        remainingCount: RemainingCountService(),
+        reportGeneralError: (_) {},
+      );
+
+      final loadTask = controller.loadInitialMessages();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(state.currentMessage.value?.id, 1);
+      expect(state.canShowNext.value, isFalse);
+
+      messages.completeRemainingCount();
+      await loadTask;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(state.remainingCount.value, 8);
+      expect(state.canShowNext.value, isTrue);
+    },
+  );
+
+  test(
     'prepareUpcomingPreviews retries message after previous preview warmup failure',
     () async {
       final state = PipelineRuntimeState();
@@ -128,6 +162,15 @@ PipelineMessage _message(int id, String title) {
   );
 }
 
+PipelineMessage _singleMessage(int id, String title) {
+  return PipelineMessage(
+    id: id,
+    messageIds: <int>[id],
+    sourceChatId: 8888,
+    preview: MessagePreview(kind: MessagePreviewKind.text, title: title),
+  );
+}
+
 class _FakeMessageReadGateway implements MessageReadGateway {
   @override
   Future<int> countRemainingMessages({required int? sourceChatId}) async => 8;
@@ -159,6 +202,52 @@ class _FakeMessageReadGateway implements MessageReadGateway {
         ),
       ),
     ];
+  }
+
+  @override
+  Future<PipelineMessage?> fetchNextMessage({
+    required MessageFetchDirection direction,
+    required int? sourceChatId,
+  }) async => null;
+
+  @override
+  Future<PipelineMessage> refreshMessage({
+    required int sourceChatId,
+    required int messageId,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _DelayedRemainingMessageReadGateway implements MessageReadGateway {
+  _DelayedRemainingMessageReadGateway({
+    required this.messages,
+    required this.remainingCount,
+  });
+
+  final List<PipelineMessage> messages;
+  final int remainingCount;
+  final Completer<int> _remainingCountCompleter = Completer<int>();
+
+  @override
+  Future<int> countRemainingMessages({required int? sourceChatId}) {
+    return _remainingCountCompleter.future;
+  }
+
+  void completeRemainingCount() {
+    if (!_remainingCountCompleter.isCompleted) {
+      _remainingCountCompleter.complete(remainingCount);
+    }
+  }
+
+  @override
+  Future<List<PipelineMessage>> fetchMessagePage({
+    required MessageFetchDirection direction,
+    required int? sourceChatId,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    return messages;
   }
 
   @override

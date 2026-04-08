@@ -4,10 +4,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/bootstrap_app.dart';
 import 'package:tgsorter/app/core/di/app_bindings.dart';
+import 'package:tgsorter/app/services/audio_playback_initializer.dart';
 import 'package:tgsorter/app/services/video_playback_initializer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeAudioPlayback();
   await initializeVideoPlayback();
   FlutterError.onError = (details) {
     FlutterError.presentError(details);

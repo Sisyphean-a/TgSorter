@@ -46,6 +46,7 @@ class PipelineMobileView extends StatelessWidget {
                       processing: pipeline.loading.value || processing,
                       videoPreparing: videoPreparing,
                       onRequestMediaPlayback: pipeline.prepareCurrentMedia,
+                      isMediaPreparing: pipeline.isPreparingMedia,
                     ),
                   ),
                   const SizedBox(height: 8),
