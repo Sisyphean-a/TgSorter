@@ -36,7 +36,9 @@ class StickyActionBar extends StatelessWidget {
                 Text(
                   isDirty ? '等待保存' : '已保存',
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: isDirty ? AppTokens.brandAccent : AppTokens.textMuted,
+                    color: isDirty
+                        ? AppTokens.brandAccent
+                        : AppTokens.textMuted,
                   ),
                 ),
               ],

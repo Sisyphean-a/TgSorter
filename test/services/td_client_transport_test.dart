@@ -8,61 +8,68 @@ import 'package:tgsorter/app/services/td_raw_transport.dart';
 
 void main() {
   group('TdClientTransport', () {
-    test('does not decode raw updates until typed update stream is listened to', () async {
-      final logs = <String>[];
-      final rawTransport = _FakeRawTransport();
-      final transport = TdClientTransport(
-        rawTransport: rawTransport,
-        logger: TdJsonLogger(
-          isEnabled: true,
-          sink: ({
-            required String message,
-            required String name,
-            Object? error,
-            StackTrace? stackTrace,
-          }) {
-            logs.add(message);
-          },
-        ),
-      );
+    test(
+      'does not decode raw updates until typed update stream is listened to',
+      () async {
+        final logs = <String>[];
+        final rawTransport = _FakeRawTransport();
+        final transport = TdClientTransport(
+          rawTransport: rawTransport,
+          logger: TdJsonLogger(
+            isEnabled: true,
+            sink:
+                ({
+                  required String message,
+                  required String name,
+                  Object? error,
+                  StackTrace? stackTrace,
+                }) {
+                  logs.add(message);
+                },
+          ),
+        );
 
-      await transport.start();
-      rawTransport.emitUpdate(<String, dynamic>{
-        '@type': 'addedProxy',
-        'proxy': <String, dynamic>{'@type': 'proxy', 'id': 1},
-      });
-      await Future<void>.delayed(Duration.zero);
-      await transport.stop();
+        await transport.start();
+        rawTransport.emitUpdate(<String, dynamic>{
+          '@type': 'addedProxy',
+          'proxy': <String, dynamic>{'@type': 'proxy', 'id': 1},
+        });
+        await Future<void>.delayed(Duration.zero);
+        await transport.stop();
 
-      expect(
-        logs.where((entry) => entry.contains('[TD PARSE ERROR]')),
-        isEmpty,
-      );
-    });
+        expect(
+          logs.where((entry) => entry.contains('[TD PARSE ERROR]')),
+          isEmpty,
+        );
+      },
+    );
 
-    test('forwards known typed updates when compatibility stream is used', () async {
-      final rawTransport = _FakeRawTransport();
-      final transport = TdClientTransport(
-        rawTransport: rawTransport,
-        logger: TdJsonLogger(isEnabled: false),
-      );
+    test(
+      'forwards known typed updates when compatibility stream is used',
+      () async {
+        final rawTransport = _FakeRawTransport();
+        final transport = TdClientTransport(
+          rawTransport: rawTransport,
+          logger: TdJsonLogger(isEnabled: false),
+        );
 
-      await transport.start();
-      final updateFuture = transport.updates.first;
-      rawTransport.emitUpdate(<String, dynamic>{
-        '@type': 'updateConnectionState',
-        'state': <String, dynamic>{'@type': 'connectionStateReady'},
-      });
+        await transport.start();
+        final updateFuture = transport.updates.first;
+        rawTransport.emitUpdate(<String, dynamic>{
+          '@type': 'updateConnectionState',
+          'state': <String, dynamic>{'@type': 'connectionStateReady'},
+        });
 
-      final update = await updateFuture.timeout(const Duration(seconds: 1));
-      await transport.stop();
+        final update = await updateFuture.timeout(const Duration(seconds: 1));
+        await transport.stop();
 
-      expect(update, isA<UpdateConnectionState>());
-      expect(
-        (update as UpdateConnectionState).state,
-        isA<ConnectionStateReady>(),
-      );
-    });
+        expect(update, isA<UpdateConnectionState>());
+        expect(
+          (update as UpdateConnectionState).state,
+          isA<ConnectionStateReady>(),
+        );
+      },
+    );
 
     test('ignores unknown raw-only updates on compatibility stream', () async {
       final logs = <String>[];
@@ -71,14 +78,15 @@ void main() {
         rawTransport: rawTransport,
         logger: TdJsonLogger(
           isEnabled: true,
-          sink: ({
-            required String message,
-            required String name,
-            Object? error,
-            StackTrace? stackTrace,
-          }) {
-            logs.add(message);
-          },
+          sink:
+              ({
+                required String message,
+                required String name,
+                Object? error,
+                StackTrace? stackTrace,
+              }) {
+                logs.add(message);
+              },
         ),
       );
 

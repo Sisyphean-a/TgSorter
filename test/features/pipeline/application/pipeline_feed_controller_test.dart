@@ -155,10 +155,7 @@ PipelineMessage _message(int id, String title) {
     id: id,
     messageIds: <int>[id],
     sourceChatId: 8888,
-    preview: MessagePreview(
-      kind: MessagePreviewKind.video,
-      title: title,
-    ),
+    preview: MessagePreview(kind: MessagePreviewKind.video, title: title),
   );
 }
 

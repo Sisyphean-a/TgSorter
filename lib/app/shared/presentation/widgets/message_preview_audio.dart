@@ -250,7 +250,10 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
       }
     } else {
       unawaited(
-        activeController.play().catchError((Object error, StackTrace stackTrace) {
+        activeController.play().catchError((
+          Object error,
+          StackTrace stackTrace,
+        ) {
           developer.log(
             'audio play failed path=$path',
             name: 'AudioPreview',

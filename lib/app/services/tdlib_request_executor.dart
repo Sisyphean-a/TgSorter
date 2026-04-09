@@ -92,7 +92,9 @@ class TdlibRequestExecutor {
           ? TdWireEnvelope.fromTdObject(
               await _transport.sendWithTimeout(function, timeout),
             )
-          : TdWireEnvelope.fromJson(await transport.send(function, timeout: timeout));
+          : TdWireEnvelope.fromJson(
+              await transport.send(function, timeout: timeout),
+            );
       _assertNoWireError(envelope, request: request, phase: phase);
       return envelope;
     } on TimeoutException catch (error, stackTrace) {

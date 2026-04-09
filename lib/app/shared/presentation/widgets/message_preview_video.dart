@@ -560,6 +560,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
           Positioned.fill(child: body),
           if (widget.preparing) const CircularProgressIndicator(),
           IconButton.filled(
+            key: const Key('message-video-play'),
             onPressed: widget.preparing
                 ? null
                 : () async {

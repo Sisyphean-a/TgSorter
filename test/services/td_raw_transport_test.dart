@@ -9,24 +9,27 @@ import 'package:tgsorter/app/services/td_raw_transport.dart';
 
 void main() {
   group('TdRawTransport', () {
-    test('resolves TdPlugin at start time instead of constructor time', () async {
-      final original = TdPlugin.instance;
-      final first = _FakeTdPlugin();
-      final second = _FakeTdPlugin();
-      TdPlugin.instance = first;
-      final transport = TdRawTransport(
-        logger: TdJsonLogger(isEnabled: false),
-        pollInterval: const Duration(milliseconds: 1),
-      );
+    test(
+      'resolves TdPlugin at start time instead of constructor time',
+      () async {
+        final original = TdPlugin.instance;
+        final first = _FakeTdPlugin();
+        final second = _FakeTdPlugin();
+        TdPlugin.instance = first;
+        final transport = TdRawTransport(
+          logger: TdJsonLogger(isEnabled: false),
+          pollInterval: const Duration(milliseconds: 1),
+        );
 
-      TdPlugin.instance = second;
-      await transport.start();
-      await transport.stop();
+        TdPlugin.instance = second;
+        await transport.start();
+        await transport.stop();
 
-      expect(first.createCallCount, 0);
-      expect(second.createCallCount, 1);
-      TdPlugin.instance = original;
-    });
+        expect(first.createCallCount, 0);
+        expect(second.createCallCount, 1);
+        TdPlugin.instance = original;
+      },
+    );
 
     test('logs full request payload with constructor and extra', () async {
       final logs = <String>[];
@@ -35,14 +38,15 @@ void main() {
         plugin: plugin,
         logger: TdJsonLogger(
           isEnabled: true,
-          sink: ({
-            required String message,
-            required String name,
-            Object? error,
-            StackTrace? stackTrace,
-          }) {
-            logs.add(message);
-          },
+          sink:
+              ({
+                required String message,
+                required String name,
+                Object? error,
+                StackTrace? stackTrace,
+              }) {
+                logs.add(message);
+              },
         ),
         pollInterval: const Duration(milliseconds: 1),
       );
@@ -53,15 +57,16 @@ void main() {
         timeout: const Duration(milliseconds: 50),
       );
       final extra = plugin.lastSentPayload!['@extra'] as String;
-      plugin.enqueueReceive(
-        '{"@type":"ok","@extra":"$extra","@client_id":1}',
-      );
+      plugin.enqueueReceive('{"@type":"ok","@extra":"$extra","@client_id":1}');
 
       await response;
       await transport.stop();
 
       expect(logs.any((entry) => entry.contains('[TD SEND]')), isTrue);
-      expect(logs.singleWhere((entry) => entry.contains('[TD SEND]')), contains('request=getMe'));
+      expect(
+        logs.singleWhere((entry) => entry.contains('[TD SEND]')),
+        contains('request=getMe'),
+      );
       expect(
         logs.singleWhere((entry) => entry.contains('[TD SEND]')),
         contains('"@type":"getMe"'),
@@ -79,14 +84,15 @@ void main() {
         plugin: plugin,
         logger: TdJsonLogger(
           isEnabled: true,
-          sink: ({
-            required String message,
-            required String name,
-            Object? error,
-            StackTrace? stackTrace,
-          }) {
-            logs.add(message);
-          },
+          sink:
+              ({
+                required String message,
+                required String name,
+                Object? error,
+                StackTrace? stackTrace,
+              }) {
+                logs.add(message);
+              },
         ),
         pollInterval: const Duration(milliseconds: 1),
       );
@@ -97,17 +103,21 @@ void main() {
         timeout: const Duration(milliseconds: 50),
       );
       final extra = plugin.lastSentPayload!['@extra'] as String;
-      plugin.enqueueReceive(
-        '{"@type":"ok","@extra":"$extra","@client_id":1}',
-      );
+      plugin.enqueueReceive('{"@type":"ok","@extra":"$extra","@client_id":1}');
 
       final payload = await response;
       await transport.stop();
 
       expect(payload['@type'], 'ok');
       expect(logs.any((entry) => entry.contains('[TD RECV]')), isTrue);
-      expect(logs.singleWhere((entry) => entry.contains('[TD RECV]')), contains('type=ok'));
-      expect(logs.singleWhere((entry) => entry.contains('[TD RECV]')), contains('extra=$extra'));
+      expect(
+        logs.singleWhere((entry) => entry.contains('[TD RECV]')),
+        contains('type=ok'),
+      );
+      expect(
+        logs.singleWhere((entry) => entry.contains('[TD RECV]')),
+        contains('extra=$extra'),
+      );
       expect(
         logs.singleWhere((entry) => entry.contains('[TD RECV]')),
         contains('"@type":"ok"'),
@@ -121,14 +131,15 @@ void main() {
         plugin: plugin,
         logger: TdJsonLogger(
           isEnabled: true,
-          sink: ({
-            required String message,
-            required String name,
-            Object? error,
-            StackTrace? stackTrace,
-          }) {
-            logs.add(message);
-          },
+          sink:
+              ({
+                required String message,
+                required String name,
+                Object? error,
+                StackTrace? stackTrace,
+              }) {
+                logs.add(message);
+              },
         ),
         pollInterval: const Duration(milliseconds: 1),
       );

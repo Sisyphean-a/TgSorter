@@ -82,7 +82,9 @@ class TdClientTransport implements TdTransport {
   }
 
   void _ensureUpdateBridge() {
-    if (!_started || !_updatesController.hasListener || _updatesSubscription != null) {
+    if (!_started ||
+        !_updatesController.hasListener ||
+        _updatesSubscription != null) {
       return;
     }
     _updatesSubscription = _rawTransport.updates.listen(_forwardUpdate);

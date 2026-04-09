@@ -24,7 +24,9 @@ class ProxySettings {
     final normalizedPort = port;
     return ProxySettings(
       server: server.trim(),
-      port: normalizedPort != null && normalizedPort > 0 ? normalizedPort : null,
+      port: normalizedPort != null && normalizedPort > 0
+          ? normalizedPort
+          : null,
       username: username.trim(),
       password: password,
     );

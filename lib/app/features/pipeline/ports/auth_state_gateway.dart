@@ -7,4 +7,3 @@ import 'package:tgsorter/app/services/td_auth_state.dart';
 abstract class AuthStateGateway {
   Stream<TdAuthState> get authStates;
 }
-

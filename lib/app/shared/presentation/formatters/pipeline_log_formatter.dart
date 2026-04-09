@@ -2,7 +2,12 @@ import 'package:tgsorter/app/models/classify_operation_log.dart';
 
 enum PipelineLogFilter { all, failedInProgress, recovered, skippedOrUndone }
 
-enum PipelineLogChainState { completed, failedInProgress, recovered, skippedOrUndone }
+enum PipelineLogChainState {
+  completed,
+  failedInProgress,
+  recovered,
+  skippedOrUndone,
+}
 
 class PipelineLogEventViewModel {
   const PipelineLogEventViewModel({
@@ -49,7 +54,9 @@ List<PipelineLogChainViewModel> buildPipelineLogChains(
 ) {
   final groups = <String, List<ClassifyOperationLog>>{};
   for (final log in logs) {
-    groups.putIfAbsent(_chainKeyOf(log), () => <ClassifyOperationLog>[]).add(log);
+    groups
+        .putIfAbsent(_chainKeyOf(log), () => <ClassifyOperationLog>[])
+        .add(log);
   }
   final chains = groups.entries
       .map((entry) => _toChain(entry.key, entry.value))
@@ -71,9 +78,9 @@ List<PipelineLogChainViewModel> filterPipelineLogChains(
   if (filter == PipelineLogFilter.all) {
     return chains;
   }
-  return chains.where((chain) => _matchesFilter(chain.state, filter)).toList(
-    growable: false,
-  );
+  return chains
+      .where((chain) => _matchesFilter(chain.state, filter))
+      .toList(growable: false);
 }
 
 String formatPipelineLog(ClassifyOperationLog log) {
@@ -85,7 +92,10 @@ String formatPipelineLog(ClassifyOperationLog log) {
   return '[$hh:$mm:$ss] ${_labelStatus(log.status)} m:${log.messageId} -> ${log.targetChatId}$suffix';
 }
 
-PipelineLogChainViewModel _toChain(String key, List<ClassifyOperationLog> logs) {
+PipelineLogChainViewModel _toChain(
+  String key,
+  List<ClassifyOperationLog> logs,
+) {
   logs.sort((left, right) => left.createdAtMs.compareTo(right.createdAtMs));
   final first = logs.first;
   final last = logs.last;

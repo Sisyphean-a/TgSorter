@@ -45,10 +45,7 @@ abstract final class TdResponseReader {
     throw TdResponseReadError('Missing required list at $key');
   }
 
-  static Map<String, dynamic> readMap(
-    Map<String, dynamic> source,
-    String key,
-  ) {
+  static Map<String, dynamic> readMap(Map<String, dynamic> source, String key) {
     final value = source[key];
     if (value is Map<String, dynamic>) {
       return Map<String, dynamic>.unmodifiable(value);

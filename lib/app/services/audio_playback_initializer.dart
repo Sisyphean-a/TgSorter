@@ -4,10 +4,7 @@ import 'dart:io';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 typedef AudioBackendInitializer =
-    FutureOr<void> Function({
-      required bool windows,
-      required bool linux,
-    });
+    FutureOr<void> Function({required bool windows, required bool linux});
 
 class AudioBackendPlatform {
   const AudioBackendPlatform({this.isWindows = false, this.isLinux = false});
@@ -27,7 +24,8 @@ Future<void> initializeAudioPlayback({
   AudioBackendPlatform? targetPlatform,
   AudioBackendInitializer initializer = _ensureAudioBackend,
 }) async {
-  final platform = targetPlatform ??
+  final platform =
+      targetPlatform ??
       AudioBackendPlatform(
         isWindows: Platform.isWindows,
         isLinux: Platform.isLinux,

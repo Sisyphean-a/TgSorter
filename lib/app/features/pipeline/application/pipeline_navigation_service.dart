@@ -1,3 +1,4 @@
+import 'package:tgsorter/app/features/pipeline/application/pipeline_session_state.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 
@@ -86,12 +87,18 @@ class PipelineNavigationService {
   }
 
   void syncNavigationState() {
-    _state.canShowPrevious.value = _state.currentIndex > 0;
-    _state.canShowNext.value = _hasCachedNext() || _hasUnloadedNext();
+    final navigation = NavigationAvailability(
+      canShowPrevious: _state.currentIndex > 0,
+      next: _resolveNextAvailability(),
+    );
+    _state.navigation.value = navigation;
+    _state.canShowPrevious.value = navigation.canShowPrevious;
+    _state.canShowNext.value = navigation.canShowNext;
   }
 
   bool _hasCachedNext() {
-    return _state.currentIndex >= 0 && _state.currentIndex + 1 < _state.cache.length;
+    return _state.currentIndex >= 0 &&
+        _state.currentIndex + 1 < _state.cache.length;
   }
 
   bool _hasUnloadedNext() {
@@ -100,5 +107,15 @@ class PipelineNavigationService {
       return false;
     }
     return _state.currentIndex + 1 < remainingCount;
+  }
+
+  NextAvailability _resolveNextAvailability() {
+    if (_hasCachedNext()) {
+      return NextAvailability.cached;
+    }
+    if (_hasUnloadedNext()) {
+      return NextAvailability.fetchable;
+    }
+    return NextAvailability.none;
   }
 }

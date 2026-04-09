@@ -13,7 +13,9 @@ void main() {
       );
 
       expect(
-        TdAuthState.fromTdObject(const AuthorizationStateWaitPhoneNumber()).kind,
+        TdAuthState.fromTdObject(
+          const AuthorizationStateWaitPhoneNumber(),
+        ).kind,
         TdAuthStateKind.waitPhoneNumber,
       );
       expect(

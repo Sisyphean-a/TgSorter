@@ -144,12 +144,8 @@ TdlibAdapter _buildAdapter(_LifecycleFakeTransport transport) {
       databaseDirectory: 'db',
       filesDirectory: 'files',
     ),
-    readProxySettings: () => const ProxySettings(
-      server: '',
-      port: null,
-      username: '',
-      password: '',
-    ),
+    readProxySettings: () =>
+        const ProxySettings(server: '', port: null, username: '', password: ''),
     detectCapabilities: () async =>
         const TdlibSchemaCapabilities(addProxyMode: TdlibAddProxyMode.flatArgs),
     initializeTdlib: (_) async {},

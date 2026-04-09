@@ -44,7 +44,8 @@ class AppSettings {
 
   ConnectionSettings get connection => ConnectionSettings(proxy: proxy);
 
-  ShortcutSettings get shortcuts => ShortcutSettings(bindings: shortcutBindings);
+  ShortcutSettings get shortcuts =>
+      ShortcutSettings(bindings: shortcutBindings);
 
   static AppSettings defaults() {
     return const AppSettings(
@@ -102,14 +103,15 @@ class AppSettings {
   }) {
     return AppSettings(
       categories: categories ?? this.categories,
-      sourceChatId: clearSourceChatId ? null : sourceChatId ?? this.sourceChatId,
+      sourceChatId: clearSourceChatId
+          ? null
+          : sourceChatId ?? this.sourceChatId,
       fetchDirection: fetchDirection ?? this.fetchDirection,
       forwardAsCopy: forwardAsCopy ?? this.forwardAsCopy,
       batchSize: batchSize ?? this.batchSize,
       throttleMs: throttleMs ?? this.throttleMs,
       proxy: proxy ?? this.proxy,
-      previewPrefetchCount:
-          previewPrefetchCount ?? this.previewPrefetchCount,
+      previewPrefetchCount: previewPrefetchCount ?? this.previewPrefetchCount,
       shortcutBindings: shortcutBindings ?? this.shortcutBindings,
     );
   }
@@ -134,10 +136,7 @@ class AppSettings {
   }
 
   AppSettings updateSourceChatId(int? chatId) {
-    return copyWith(
-      sourceChatId: chatId,
-      clearSourceChatId: chatId == null,
-    );
+    return copyWith(sourceChatId: chatId, clearSourceChatId: chatId == null);
   }
 
   AppSettings updateFetchDirection(MessageFetchDirection direction) {

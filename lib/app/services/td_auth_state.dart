@@ -17,8 +17,7 @@ class TdAuthState {
     final rawType = payload['@type']?.toString() ?? 'unknown';
     return TdAuthState(
       kind: switch (rawType) {
-        'authorizationStateWaitPhoneNumber' =>
-          TdAuthStateKind.waitPhoneNumber,
+        'authorizationStateWaitPhoneNumber' => TdAuthStateKind.waitPhoneNumber,
         'authorizationStateWaitCode' => TdAuthStateKind.waitCode,
         'authorizationStateWaitPassword' => TdAuthStateKind.waitPassword,
         'authorizationStateWaitTdlibParameters' =>

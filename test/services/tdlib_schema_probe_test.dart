@@ -55,8 +55,9 @@ void main() {
 
     test('throws TdlibFailure for unexpected td error', () async {
       final probe = TdlibSchemaProbe(
-        send: (_) async =>
-            TdWireEnvelope.fromTdObject(TdError(code: 500, message: 'INTERNAL')),
+        send: (_) async => TdWireEnvelope.fromTdObject(
+          TdError(code: 500, message: 'INTERNAL'),
+        ),
       );
 
       expect(

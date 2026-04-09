@@ -56,7 +56,8 @@ class SettingsRepository {
       final parsed = _parseShortcutBinding(action, raw);
       settings = settings.updateShortcutBinding(parsed.action, parsed);
     }
-    final categoryKeys = _prefs.getStringList(_categoryKeysKey) ?? const <String>[];
+    final categoryKeys =
+        _prefs.getStringList(_categoryKeysKey) ?? const <String>[];
     for (final key in categoryKeys) {
       final chatId = _prefs.getInt('$_chatIdPrefix$key');
       final chatTitle = _prefs.getString('$_chatTitlePrefix$key') ?? '';
@@ -103,7 +104,8 @@ class SettingsRepository {
   }
 
   Future<void> _saveCategories(List<CategoryConfig> categories) async {
-    final previousKeys = _prefs.getStringList(_categoryKeysKey) ?? const <String>[];
+    final previousKeys =
+        _prefs.getStringList(_categoryKeysKey) ?? const <String>[];
     final nextKeys = categories.map((item) => item.key).toList(growable: false);
     await _prefs.setStringList(_categoryKeysKey, nextKeys);
     for (final key in previousKeys) {

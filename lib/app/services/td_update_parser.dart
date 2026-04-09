@@ -18,9 +18,7 @@ abstract final class TdUpdateParser {
     }
     if (type == 'updateConnectionState') {
       final state = TdResponseReader.readMap(payload, 'state');
-      return TdParsedUpdate(
-        connectionState: TdConnectionState.fromJson(state),
-      );
+      return TdParsedUpdate(connectionState: TdConnectionState.fromJson(state));
     }
     return const TdParsedUpdate();
   }

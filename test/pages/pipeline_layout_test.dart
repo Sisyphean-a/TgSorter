@@ -6,6 +6,7 @@ import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_session_state.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
@@ -181,7 +182,11 @@ void main() {
       final disabled = tester.widget<OutlinedButton>(nextFinder);
       expect(disabled.onPressed, isNull);
 
-      pipelineController.canShowNext.value = true;
+      pipelineController.runtimeState.navigation.value =
+          const NavigationAvailability(
+            canShowPrevious: false,
+            next: NextAvailability.fetchable,
+          );
       await tester.pump();
 
       final enabled = tester.widget<OutlinedButton>(nextFinder);

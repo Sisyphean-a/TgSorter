@@ -6,15 +6,7 @@ enum ShortcutAction {
   retryNextFailed,
 }
 
-enum ShortcutTrigger {
-  digit1,
-  digit2,
-  digit3,
-  keyS,
-  keyZ,
-  keyR,
-  keyB,
-}
+enum ShortcutTrigger { digit1, digit2, digit3, keyS, keyZ, keyR, keyB }
 
 class ShortcutBinding {
   const ShortcutBinding({

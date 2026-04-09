@@ -16,7 +16,8 @@ class WorkspacePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasHeader = (title?.isNotEmpty ?? false) || (subtitle?.isNotEmpty ?? false);
+    final hasHeader =
+        (title?.isNotEmpty ?? false) || (subtitle?.isNotEmpty ?? false);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppTokens.panelBackground,

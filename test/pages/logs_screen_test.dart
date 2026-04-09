@@ -32,7 +32,9 @@ void main() {
     ]);
 
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: LogsScreen(pipeline: port))),
+      MaterialApp(
+        home: Scaffold(body: LogsScreen(pipeline: port)),
+      ),
     );
     await tester.pumpAndSettle();
 

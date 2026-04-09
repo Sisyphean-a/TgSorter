@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/features/pipeline/application/media_session_state.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_viewer_card.dart';
 
@@ -38,6 +40,100 @@ void main() {
     await tester.pump();
 
     expect(playRequests, 1);
+  });
+
+  testWidgets('message viewer forwards intent-level playback request', (
+    tester,
+  ) async {
+    int? requestedId;
+    final vm = MessagePreviewVm(
+      content: PipelineMessage(
+        id: 21,
+        messageIds: const <int>[21],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.video,
+          title: 'video',
+          mediaItems: [
+            MediaItemPreview(messageId: 21, kind: MediaItemKind.video),
+          ],
+        ),
+      ),
+      media: MediaSessionVm(
+        activeItemMessageId: 21,
+        items: const <int, MediaItemVm>{
+          21: MediaItemVm(
+            messageId: 21,
+            kind: MediaItemKind.video,
+            canPlay: true,
+          ),
+        },
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MessageViewerCard(
+            vm: vm,
+            processing: false,
+            onMediaAction: (action) async {
+              if (action case OpenInApp(:final messageId)) {
+                requestedId = messageId;
+              }
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('message-video-play')));
+    await tester.pump();
+
+    expect(requestedId, 21);
+  });
+
+  testWidgets('vm single video shows preparing state from media session', (
+    tester,
+  ) async {
+    final vm = MessagePreviewVm(
+      content: PipelineMessage(
+        id: 31,
+        messageIds: const <int>[31],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.video,
+          title: 'single-video',
+        ),
+      ),
+      media: MediaSessionVm(
+        activeItemMessageId: 31,
+        requestState: MediaRequestState.preparing,
+        items: const <int, MediaItemVm>{
+          31: MediaItemVm(
+            messageId: 31,
+            kind: MediaItemKind.video,
+            playbackAvailability: MediaAvailability.preparing,
+          ),
+        },
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MessageViewerCard(
+            vm: vm,
+            processing: false,
+            onMediaAction: (_) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('视频下载中...'), findsOneWidget);
+    final playButton = tester.widget<IconButton>(find.byKey(const Key('message-video-play')));
+    expect(playButton.onPressed, isNull);
   });
 
   testWidgets('renders workspace header above current message content', (

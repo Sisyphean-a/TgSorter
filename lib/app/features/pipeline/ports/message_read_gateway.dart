@@ -22,4 +22,3 @@ abstract class MessageReadGateway {
     required int messageId,
   });
 }
-

@@ -25,6 +25,9 @@ import 'pipeline_feed_controller.dart';
 import 'pipeline_lifecycle_coordinator.dart';
 import 'pipeline_media_controller.dart';
 import 'pipeline_media_refresh_service.dart';
+import 'pipeline_media_session_controller.dart';
+import 'pipeline_screen_view_model.dart';
+import 'media_session_projector.dart';
 import 'pipeline_navigation_service.dart';
 import 'pipeline_recovery_service.dart';
 import 'pipeline_runtime_state.dart';
@@ -49,6 +52,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
     PipelineActionService? actions,
     PipelineRecoveryService? recovery,
     PipelineMediaRefreshService? mediaRefresh,
+    PipelineMediaSessionController? mediaSessionController,
     PipelineFeedController? feedController,
     PipelineLifecycleCoordinator? lifecycle,
     RemainingCountService? remainingCountService,
@@ -84,7 +88,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
         );
     final resolvedMediaRefresh =
         mediaRefresh ??
-        PipelineMediaRefreshService(
+        PipelineMediaRefreshService.legacy(
           mediaGateway: _mediaGateway,
           messageGateway: _messageReadGateway,
         );
@@ -98,6 +102,13 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
       reportGeneralError: _showGeneralError,
       videoRefreshInterval: _videoRefreshInterval,
     );
+    this.mediaSessionController =
+        mediaSessionController ??
+        PipelineMediaSessionController(
+          state: this.runtimeState,
+          legacyController: mediaController,
+          projector: const MediaSessionProjector(),
+        );
     final resolvedRemainingCountService =
         remainingCountService ?? RemainingCountService();
     this.feedController =
@@ -139,6 +150,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
   late final PipelineRecoveryService recovery;
   late final PipelineMediaRefreshService mediaRefresh;
   late final PipelineMediaController mediaController;
+  late final PipelineMediaSessionController mediaSessionController;
   late final PipelineFeedController feedController;
   late final PipelineLifecycleCoordinator lifecycle;
 
@@ -153,6 +165,20 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
   RxBool get canShowNext => runtimeState.canShowNext;
   RxBool get remainingCountLoading => runtimeState.remainingCountLoading;
   RxnInt get remainingCount => runtimeState.remainingCount;
+  PipelineScreenVm get screenVm => PipelineScreenVm(
+    message: MessagePreviewVm(
+      content: currentMessage.value,
+      media: MediaSessionVm.fromState(runtimeState.mediaSession.value),
+    ),
+    navigation: NavigationVm(
+      canShowPrevious: runtimeState.navigation.value.canShowPrevious,
+      canShowNext: runtimeState.navigation.value.canShowNext,
+    ),
+    workflow: WorkflowVm(
+      processingOverlay: loading.value || processing.value,
+      online: isOnline.value,
+    ),
+  );
 
   @override
   List<ClassifyOperationLog> get logsSnapshot => logs.toList(growable: false);
@@ -206,11 +232,24 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
   }
 
   Future<void> prepareCurrentMedia([int? targetMessageId]) async {
-    await mediaController.prepareCurrentMedia(targetMessageId);
+    await mediaSessionController.requestPlayback(targetMessageId);
+  }
+
+  Future<void> performMediaAction(MediaAction action) async {
+    switch (action) {
+      case OpenInApp(:final messageId):
+        await prepareCurrentMedia(messageId);
+        return;
+      case OpenExternally():
+      case RevealInFolder():
+      case CopyPath():
+      case OpenLink():
+        return;
+    }
   }
 
   bool isPreparingMedia(int? messageId) {
-    return mediaController.isPreparingMessageId(messageId);
+    return mediaSessionController.isPreparingMessageId(messageId);
   }
 
   Future<void> skipCurrent([String source = 'unknown']) async {
@@ -386,11 +425,11 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
   }
 
   Future<void> _refreshCurrentMediaIfNeeded() async {
-    await mediaController.refreshCurrentMediaIfNeeded();
+    await mediaSessionController.refreshCurrentMediaIfNeeded();
   }
 
   void _stopVideoRefresh() {
-    mediaController.stop();
+    mediaSessionController.stop();
   }
 
   void _reportError(AppErrorEvent event) {
@@ -400,6 +439,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
   @override
   void onClose() {
     _stopVideoRefresh();
+    mediaSessionController.dispose();
     _connectionSub?.cancel();
     _authSub?.cancel();
     _settingsWorker?.dispose();

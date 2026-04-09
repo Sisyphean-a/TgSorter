@@ -8,10 +8,7 @@ void main() {
 
       await initializeAudioPlayback(
         targetPlatform: const AudioBackendPlatform(isWindows: true),
-        initializer: ({
-          required bool windows,
-          required bool linux,
-        }) async {
+        initializer: ({required bool windows, required bool linux}) async {
           captured = AudioBackendInitCall(windows: windows, linux: linux);
         },
       );

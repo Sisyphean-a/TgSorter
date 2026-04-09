@@ -48,32 +48,35 @@ void main() {
       expect(sessions, isNotNull);
     });
 
-    test('split capability interfaces keep existing classify behavior', () async {
-      final service = TelegramService(
-        adapter: _FakeTdlibAdapter(
-          wireResponses: <String, List<TdWireEnvelope>>{
-            'forwardMessages': <TdWireEnvelope>[
-              TdWireEnvelope.fromJson(<String, dynamic>{
-                '@type': 'messages',
-                'messages': [_textMessageJson(88, 'copied')],
-              }),
-            ],
-          },
-        ),
-      );
-      final classify = service as ClassifyGateway;
+    test(
+      'split capability interfaces keep existing classify behavior',
+      () async {
+        final service = TelegramService(
+          adapter: _FakeTdlibAdapter(
+            wireResponses: <String, List<TdWireEnvelope>>{
+              'forwardMessages': <TdWireEnvelope>[
+                TdWireEnvelope.fromJson(<String, dynamic>{
+                  '@type': 'messages',
+                  'messages': [_textMessageJson(88, 'copied')],
+                }),
+              ],
+            },
+          ),
+        );
+        final classify = service as ClassifyGateway;
 
-      final receipt = await classify.classifyMessage(
-        sourceChatId: 777,
-        messageIds: const <int>[10],
-        targetChatId: 999,
-        asCopy: false,
-      );
+        final receipt = await classify.classifyMessage(
+          sourceChatId: 777,
+          messageIds: const <int>[10],
+          targetChatId: 999,
+          asCopy: false,
+        );
 
-      expect(receipt.sourceChatId, 777);
-      expect(receipt.targetChatId, 999);
-      expect(receipt.sourceMessageIds, <int>[10]);
-    });
+        expect(receipt.sourceChatId, 777);
+        expect(receipt.targetChatId, 999);
+        expect(receipt.sourceMessageIds, <int>[10]);
+      },
+    );
 
     test('fetchNextMessage for video downloads thumbnail only', () async {
       final adapter = _FakeTdlibAdapter(

@@ -24,12 +24,7 @@ class AppErrorController extends GetxController {
     AppErrorLevel level = AppErrorLevel.error,
   }) {
     reportEvent(
-      AppErrorEvent(
-        scope: scope,
-        level: level,
-        title: title,
-        message: message,
-      ),
+      AppErrorEvent(scope: scope, level: level, title: title, message: message),
     );
   }
 

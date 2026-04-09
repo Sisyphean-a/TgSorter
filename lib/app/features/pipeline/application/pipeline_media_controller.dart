@@ -4,9 +4,10 @@ import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 
 import 'pipeline_media_refresh_service.dart';
+import 'pipeline_media_session_controller.dart';
 import 'pipeline_runtime_state.dart';
 
-class PipelineMediaController {
+class PipelineMediaController implements PipelineLegacyMediaController {
   PipelineMediaController({
     required PipelineRuntimeState state,
     required PipelineMediaRefreshService mediaRefresh,

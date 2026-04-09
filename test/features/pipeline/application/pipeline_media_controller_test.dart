@@ -343,7 +343,7 @@ void main() {
 
 class _FakeMediaRefreshService extends PipelineMediaRefreshService {
   _FakeMediaRefreshService()
-    : super(
+    : super.legacy(
         mediaGateway: _NoopMediaGateway(),
         messageGateway: _NoopMessageReadGateway(),
       );
@@ -368,7 +368,7 @@ class _FakeMediaRefreshService extends PipelineMediaRefreshService {
 
 class _BlockingMediaRefreshService extends PipelineMediaRefreshService {
   _BlockingMediaRefreshService(this.prepareCompleter)
-    : super(
+    : super.legacy(
         mediaGateway: _NoopMediaGateway(),
         messageGateway: _NoopMessageReadGateway(),
       );
@@ -404,7 +404,7 @@ class _BlockingMediaRefreshService extends PipelineMediaRefreshService {
 
 class _FailingRefreshMediaService extends PipelineMediaRefreshService {
   _FailingRefreshMediaService()
-    : super(
+    : super.legacy(
         mediaGateway: _NoopMediaGateway(),
         messageGateway: _NoopMessageReadGateway(),
       );
@@ -431,7 +431,7 @@ class _FailingRefreshMediaService extends PipelineMediaRefreshService {
 
 class _RecordingRefreshMediaService extends PipelineMediaRefreshService {
   _RecordingRefreshMediaService()
-    : super(
+    : super.legacy(
         mediaGateway: _NoopMediaGateway(),
         messageGateway: _NoopMessageReadGateway(),
       );

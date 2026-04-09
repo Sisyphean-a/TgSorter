@@ -10,4 +10,3 @@ abstract class AuthGateway {
   Future<void> submitCode(String code);
   Future<void> submitPassword(String password);
 }
-

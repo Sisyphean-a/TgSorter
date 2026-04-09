@@ -272,9 +272,7 @@ class SettingsCoordinator extends GetxController
     unawaited(() async {
       try {
         completer.complete(
-          await _saveDraftInternal(
-            restartOnProxyChange: restartOnProxyChange,
-          ),
+          await _saveDraftInternal(restartOnProxyChange: restartOnProxyChange),
         );
       } catch (error, stackTrace) {
         completer.completeError(error, stackTrace);

@@ -4,11 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/features/pipeline/application/media_session_projector.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_action_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_feed_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_media_refresh_service.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_media_session_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_recovery_service.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
@@ -45,9 +47,10 @@ void main() {
   });
 
   test(
-    'coordinator prepareCurrentMedia delegates to media refresh service',
+    'coordinator prepareCurrentMedia delegates to media session controller',
     () async {
-      final harness = _PipelineCoordinatorHarness();
+      final mediaSession = _RecordingPipelineMediaSessionController();
+      final harness = _PipelineCoordinatorHarness(mediaSession: mediaSession);
       harness.runtimeState.currentMessage.value = PipelineMessage(
         id: 21,
         messageIds: const <int>[21],
@@ -60,7 +63,7 @@ void main() {
 
       await harness.coordinator.prepareCurrentMedia(21);
 
-      expect(harness.mediaRefresh.prepareCalls, 1);
+      expect(mediaSession.requestPlaybackCalls, 1);
       expect(harness.runtimeState.currentMessage.value?.id, 21);
     },
   );
@@ -167,6 +170,7 @@ class _PipelineCoordinatorHarness {
     PipelineActionService? actions,
     PipelineFeedController? feed,
     PipelineLifecycleCoordinator? lifecycle,
+    PipelineMediaSessionController? mediaSession,
   }) {
     final resolvedState = runtimeState ?? PipelineRuntimeState();
     final resolvedNavigation =
@@ -191,6 +195,7 @@ class _PipelineCoordinatorHarness {
       remainingCount: RemainingCountService(),
       feed: feed,
       lifecycle: lifecycle,
+      mediaSession: mediaSession,
     );
   }
 
@@ -205,6 +210,7 @@ class _PipelineCoordinatorHarness {
     required this.remainingCount,
     this.feed,
     this.lifecycle,
+    this.mediaSession,
   }) {
     coordinator = PipelineCoordinator(
       authStateGateway: authStateGateway,
@@ -221,6 +227,7 @@ class _PipelineCoordinatorHarness {
       actions: actions,
       recovery: recovery,
       mediaRefresh: mediaRefresh,
+      mediaSessionController: mediaSession,
       remainingCountService: remainingCount,
       feedController: feed,
       lifecycle: lifecycle,
@@ -237,6 +244,7 @@ class _PipelineCoordinatorHarness {
   final _RecordingPipelineMediaRefreshService mediaRefresh;
   final PipelineFeedController? feed;
   final PipelineLifecycleCoordinator? lifecycle;
+  final PipelineMediaSessionController? mediaSession;
   late final PipelineCoordinator coordinator;
 
   _RecordingPipelineActionService get recordingActions =>
@@ -364,7 +372,7 @@ class _FailingPipelineActionService extends PipelineActionService {
 class _RecordingPipelineMediaRefreshService
     extends PipelineMediaRefreshService {
   _RecordingPipelineMediaRefreshService()
-    : super(
+    : super.legacy(
         mediaGateway: _NoopMediaGateway(),
         messageGateway: _NoopMessageReadGateway(),
       );
@@ -387,6 +395,37 @@ class _RecordingPipelineMediaRefreshService
       ),
     );
   }
+}
+
+class _RecordingPipelineMediaSessionController
+    extends PipelineMediaSessionController {
+  _RecordingPipelineMediaSessionController()
+    : super(
+        state: PipelineRuntimeState(),
+        legacyController: _NoopLegacyMediaController(),
+        projector: const MediaSessionProjector(),
+      );
+
+  int requestPlaybackCalls = 0;
+
+  @override
+  Future<void> requestPlayback([int? targetMessageId]) async {
+    requestPlaybackCalls++;
+  }
+}
+
+class _NoopLegacyMediaController implements PipelineLegacyMediaController {
+  @override
+  bool isPreparingMessageId(int? messageId) => false;
+
+  @override
+  Future<void> prepareCurrentMedia([int? targetMessageId]) async {}
+
+  @override
+  Future<void> refreshCurrentMediaIfNeeded() async {}
+
+  @override
+  void stop() {}
 }
 
 class _RecordingPipelineRecoveryService extends PipelineRecoveryService {

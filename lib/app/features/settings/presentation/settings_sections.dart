@@ -38,13 +38,11 @@ class SettingsWorkflowContent extends StatelessWidget {
         BatchOptionsDraftEditor(
           batchSize: draft.batchSize,
           throttleMs: draft.throttleMs,
-          onChanged: ({
-            required batchSize,
-            required throttleMs,
-          }) => controller.updateBatchOptionsDraft(
-            batchSize: batchSize,
-            throttleMs: throttleMs,
-          ),
+          onChanged: ({required batchSize, required throttleMs}) =>
+              controller.updateBatchOptionsDraft(
+                batchSize: batchSize,
+                throttleMs: throttleMs,
+              ),
         ),
         const SizedBox(height: 12),
         PreviewPrefetchDraftEditor(
@@ -70,17 +68,18 @@ class SettingsConnectionContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return ProxySettingsDraftEditor(
       value: draft.proxy,
-      onChanged: ({
-        required server,
-        required port,
-        required username,
-        required password,
-      }) => controller.updateProxyDraft(
-        server: server,
-        port: port,
-        username: username,
-        password: password,
-      ),
+      onChanged:
+          ({
+            required server,
+            required port,
+            required username,
+            required password,
+          }) => controller.updateProxyDraft(
+            server: server,
+            port: port,
+            username: username,
+            password: password,
+          ),
     );
   }
 }

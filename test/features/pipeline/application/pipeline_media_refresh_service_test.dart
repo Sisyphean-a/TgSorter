@@ -57,7 +57,7 @@ class _PipelineMediaRefreshHarness {
   int get refreshCalls => messageGateway.refreshCalls;
 
   PipelineMediaRefreshService build() {
-    return PipelineMediaRefreshService(
+    return PipelineMediaRefreshService.legacy(
       mediaGateway: mediaGateway,
       messageGateway: messageGateway,
     );

@@ -29,13 +29,17 @@ class TdProxy {
       return payload;
     }
     if (payload['proxy'] is Map) {
-      final endpoint = _findEndpointMap(TdResponseReader.readMap(payload, 'proxy'));
+      final endpoint = _findEndpointMap(
+        TdResponseReader.readMap(payload, 'proxy'),
+      );
       if (endpoint != null) {
         return endpoint;
       }
     }
     if (payload['type'] is Map) {
-      final endpoint = _findEndpointMap(TdResponseReader.readMap(payload, 'type'));
+      final endpoint = _findEndpointMap(
+        TdResponseReader.readMap(payload, 'type'),
+      );
       if (endpoint != null) {
         return endpoint;
       }

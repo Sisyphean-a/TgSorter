@@ -225,20 +225,25 @@ class TdMessageDto {
         'Missing required list item at photo.sizes.last',
       );
     }
-    final parsedSizes = sizes
-        .map(
-          (item) => _parsePhotoSize(
-            TdResponseReader.readMap(<String, dynamic>{'item': item}, 'item'),
-          ),
-        )
-        .toList(growable: false)
-      ..sort((a, b) {
-        final areaCompare = (a.width * a.height).compareTo(b.width * b.height);
-        if (areaCompare != 0) {
-          return areaCompare;
-        }
-        return a.remoteFileId.compareTo(b.remoteFileId);
-      });
+    final parsedSizes =
+        sizes
+            .map(
+              (item) => _parsePhotoSize(
+                TdResponseReader.readMap(<String, dynamic>{
+                  'item': item,
+                }, 'item'),
+              ),
+            )
+            .toList(growable: false)
+          ..sort((a, b) {
+            final areaCompare = (a.width * a.height).compareTo(
+              b.width * b.height,
+            );
+            if (areaCompare != 0) {
+              return areaCompare;
+            }
+            return a.remoteFileId.compareTo(b.remoteFileId);
+          });
     final preview = parsedSizes.first;
     final full = parsedSizes.last;
     return TdMessageContentDto(
@@ -446,14 +451,17 @@ class TdMessageDto {
     if (sizes.isEmpty) {
       return null;
     }
-    final parsedSizes = sizes
-        .map(
-          (item) => _parsePhotoSize(
-            TdResponseReader.readMap(<String, dynamic>{'item': item}, 'item'),
-          ),
-        )
-        .toList(growable: false)
-      ..sort((a, b) => (a.width * a.height).compareTo(b.width * b.height));
+    final parsedSizes =
+        sizes
+            .map(
+              (item) => _parsePhotoSize(
+                TdResponseReader.readMap(<String, dynamic>{
+                  'item': item,
+                }, 'item'),
+              ),
+            )
+            .toList(growable: false)
+          ..sort((a, b) => (a.width * a.height).compareTo(b.width * b.height));
     return parsedSizes.first;
   }
 

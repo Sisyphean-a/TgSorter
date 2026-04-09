@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_desktop_panels.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
@@ -24,31 +25,30 @@ class PipelineDesktopView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      final vm = pipeline.screenVm;
       final shortcuts = _buildShortcutsMap();
       return Shortcuts(
         shortcuts: shortcuts,
-        child: Actions(actions: _buildActionMap(), child: _buildBody()),
+        child: Actions(actions: _buildActionMap(vm), child: _buildBody(vm)),
       );
     });
   }
 
-  Widget _buildBody() {
-    final processing = pipeline.processing.value;
-    final canClick = pipeline.isOnline.value && !processing;
+  Widget _buildBody(PipelineScreenVm vm) {
     return Padding(
       key: const Key('pipeline-desktop-workspace'),
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Expanded(flex: 65, child: _buildLeftPane(processing, canClick)),
+          Expanded(flex: 65, child: _buildLeftPane(vm)),
           const SizedBox(width: 16),
-          Expanded(flex: 35, child: _buildRightPane(canClick)),
+          Expanded(flex: 35, child: _buildRightPane(vm)),
         ],
       ),
     );
   }
 
-  Widget _buildLeftPane(bool processing, bool canClick) {
+  Widget _buildLeftPane(PipelineScreenVm vm) {
     final categories = settings.settingsStream.value.categories;
     return WorkspacePanel(
       key: const Key('desktop-message-panel'),
@@ -62,20 +62,18 @@ class PipelineDesktopView extends StatelessWidget {
               switchOutCurve: Curves.easeInCubic,
               child: MessageViewerCard(
                 key: ValueKey(
-                  '${pipeline.currentMessage.value?.sourceChatId}-${pipeline.currentMessage.value?.id}-${pipeline.processing.value}',
+                  '${vm.message.content?.sourceChatId}-${vm.message.content?.id}-${vm.workflow.processingOverlay}',
                 ),
-                message: pipeline.currentMessage.value,
-                processing: pipeline.loading.value || processing,
-                videoPreparing: pipeline.videoPreparing.value,
-                onRequestMediaPlayback: pipeline.prepareCurrentMedia,
-                isMediaPreparing: pipeline.isPreparingMedia,
+                vm: vm.message,
+                processing: vm.workflow.processingOverlay,
+                onMediaAction: pipeline.performMediaAction,
               ),
             ),
           ),
           const SizedBox(height: 12),
           ClassificationActionGroup(
             categories: categories,
-            enabled: canClick,
+            enabled: vm.workflow.online && !vm.workflow.processingOverlay,
             onClassify: pipeline.classify,
           ),
         ],
@@ -83,19 +81,26 @@ class PipelineDesktopView extends StatelessWidget {
     );
   }
 
-  Widget _buildRightPane(bool canClick) {
+  Widget _buildRightPane(PipelineScreenVm vm) {
     return WorkspacePanel(
       key: const Key('desktop-action-panel'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           DesktopStatusBar(
-            online: pipeline.isOnline.value,
-            processing: pipeline.processing.value,
+            online: vm.workflow.online,
+            processing: vm.workflow.processingOverlay,
             directionText: settings.settingsStream.value.fetchDirection.name,
           ),
           const SizedBox(height: 12),
-          DesktopActionButtons(pipeline: pipeline, canClick: canClick),
+          DesktopActionButtons(
+            navigation: vm.navigation,
+            workflow: vm.workflow,
+            onNavigatePrevious: pipeline.showPreviousMessage,
+            onNavigateNext: pipeline.showNextMessage,
+            onSkip: () => pipeline.skipCurrent('desktop_button'),
+            onUndo: pipeline.undoLastStep,
+          ),
         ],
       ),
     );
@@ -118,22 +123,30 @@ class PipelineDesktopView extends StatelessWidget {
     return result;
   }
 
-  Map<Type, Action<Intent>> _buildActionMap() {
+  Map<Type, Action<Intent>> _buildActionMap(PipelineScreenVm vm) {
+    final canBrowse = !vm.workflow.processingOverlay;
+    final canClick = vm.workflow.online && !vm.workflow.processingOverlay;
     return {
       _PreviousIntent: CallbackAction<_PreviousIntent>(
-        onInvoke: (_) => _fire(pipeline.showPreviousMessage),
+        onInvoke: (_) => canBrowse && vm.navigation.canShowPrevious
+            ? _fire(pipeline.showPreviousMessage)
+            : null,
       ),
       _NextIntent: CallbackAction<_NextIntent>(
-        onInvoke: (_) => _fire(pipeline.showNextMessage),
+        onInvoke: (_) => canBrowse && vm.navigation.canShowNext
+            ? _fire(pipeline.showNextMessage)
+            : null,
       ),
       _SkipIntent: CallbackAction<_SkipIntent>(
-        onInvoke: (_) => _fire(() => pipeline.skipCurrent('desktop_shortcut')),
+        onInvoke: (_) => canClick
+            ? _fire(() => pipeline.skipCurrent('desktop_shortcut'))
+            : null,
       ),
       _UndoIntent: CallbackAction<_UndoIntent>(
-        onInvoke: (_) => _fire(pipeline.undoLastStep),
+        onInvoke: (_) => canClick ? _fire(pipeline.undoLastStep) : null,
       ),
       _RetryIntent: CallbackAction<_RetryIntent>(
-        onInvoke: (_) => _fire(pipeline.retryNextFailed),
+        onInvoke: (_) => canClick ? _fire(pipeline.retryNextFailed) : null,
       ),
     };
   }

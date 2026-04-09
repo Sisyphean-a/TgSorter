@@ -12,4 +12,3 @@ abstract class MediaGateway {
     required int messageId,
   });
 }
-

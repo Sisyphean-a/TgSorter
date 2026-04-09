@@ -9,10 +9,9 @@ class TdChatListDto {
     return TdChatListDto(
       chatIds: rawItems
           .map(
-            (item) => TdResponseReader.readInt(
-              <String, dynamic>{'item': item},
-              'item',
-            ),
+            (item) => TdResponseReader.readInt(<String, dynamic>{
+              'item': item,
+            }, 'item'),
           )
           .toList(growable: false),
     );
@@ -22,11 +21,7 @@ class TdChatListDto {
 }
 
 class TdChatDto {
-  const TdChatDto({
-    required this.id,
-    required this.title,
-    required this.type,
-  });
+  const TdChatDto({required this.id, required this.title, required this.type});
 
   factory TdChatDto.fromEnvelope(TdWireEnvelope envelope) {
     final type = TdResponseReader.readMap(envelope.payload, 'type');

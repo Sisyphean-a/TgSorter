@@ -252,10 +252,12 @@ void main() {
     await tester.pumpAndSettle();
 
     final outerPadding = tester.widget<Padding>(
-      find.descendant(
-        of: find.byType(StickyActionBar),
-        matching: find.byType(Padding),
-      ).first,
+      find
+          .descendant(
+            of: find.byType(StickyActionBar),
+            matching: find.byType(Padding),
+          )
+          .first,
     );
     expect(outerPadding.child, isNot(isA<DecoratedBox>()));
   });

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/features/pipeline/application/media_session_state.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_audio.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
@@ -10,24 +12,18 @@ import 'package:tgsorter/app/shared/presentation/widgets/message_preview_text.da
 class MessagePreviewContent extends StatelessWidget {
   const MessagePreviewContent({
     super.key,
-    required this.message,
-    required this.videoPreparing,
-    required this.onRequestMediaPlayback,
+    required this.vm,
+    required this.onMediaAction,
     required this.videoControllerInitializer,
-    this.isMediaPreparing = _defaultIsMediaPreparing,
   });
 
-  final PipelineMessage? message;
-  final bool videoPreparing;
-  final Future<void> Function([int? messageId]) onRequestMediaPlayback;
+  final MessagePreviewVm vm;
+  final Future<void> Function(MediaAction action) onMediaAction;
   final VideoControllerInitializer? videoControllerInitializer;
-  final bool Function(int? messageId) isMediaPreparing;
-
-  static bool _defaultIsMediaPreparing(int? messageId) => false;
 
   @override
   Widget build(BuildContext context) {
-    final data = message;
+    final data = vm.content;
     if (data == null) {
       return const Column(
         key: Key('message-preview-empty-state'),
@@ -44,17 +40,22 @@ class MessagePreviewContent extends StatelessWidget {
     final preview = data.preview;
     final linkCard = preview.linkCard;
     final mediaItems = preview.mediaItems;
+    final mediaSession = vm.media;
+    final preparing = mediaSession.requestState == MediaRequestState.preparing;
     if (preview.kind == MessagePreviewKind.photo) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           MessagePreviewMedia(
             items: mediaItems,
-            preparing: videoPreparing,
-            onRequestPlayback: onRequestMediaPlayback,
+            preparing: preparing,
+            onRequestPlayback: ([messageId]) async {
+              await onMediaAction(OpenInApp(messageId: messageId ?? data.id));
+            },
             controllerInitializer: videoControllerInitializer,
             fallbackImagePath: preview.localImagePath,
-            isMediaPreparing: isMediaPreparing,
+            isMediaPreparing: (messageId) =>
+                mediaSession.items[messageId]?.preparing ?? preparing,
           ),
           const SizedBox(height: 12),
           MessagePreviewText(
@@ -72,13 +73,16 @@ class MessagePreviewContent extends StatelessWidget {
         children: [
           MessagePreviewMedia(
             items: mediaItems,
-            preparing: videoPreparing,
-            onRequestPlayback: onRequestMediaPlayback,
+            preparing: preparing,
+            onRequestPlayback: ([messageId]) async {
+              await onMediaAction(OpenInApp(messageId: messageId ?? data.id));
+            },
             controllerInitializer: videoControllerInitializer,
             preferVideoFallback: true,
             fallbackVideoPath: preview.localVideoPath,
             fallbackThumbnailPath: preview.localVideoThumbnailPath,
-            isMediaPreparing: isMediaPreparing,
+            isMediaPreparing: (messageId) =>
+                mediaSession.items[messageId]?.preparing ?? preparing,
           ),
           if (mediaItems.isEmpty) ...[
             const SizedBox(height: 12),
@@ -105,10 +109,13 @@ class MessagePreviewContent extends StatelessWidget {
         children: [
           MessagePreviewAudio(
             audioPath: preview.localAudioPath,
-            preparing: videoPreparing,
-            onRequestPlayback: onRequestMediaPlayback,
+            preparing: preparing,
+            onRequestPlayback: ([messageId]) async {
+              await onMediaAction(OpenInApp(messageId: messageId ?? data.id));
+            },
             tracks: preview.audioTracks,
-            isPreparingTrack: isMediaPreparing,
+            isPreparingTrack: (messageId) =>
+                mediaSession.items[messageId]?.preparing ?? preparing,
           ),
           const SizedBox(height: 12),
         ],

@@ -11,11 +11,8 @@ class ShortcutBindingsEditor extends StatelessWidget {
   });
 
   final Map<ShortcutAction, ShortcutBinding> bindings;
-  final void Function(
-    ShortcutAction action,
-    ShortcutTrigger trigger,
-    bool ctrl,
-  ) onChanged;
+  final void Function(ShortcutAction action, ShortcutTrigger trigger, bool ctrl)
+  onChanged;
   final VoidCallback onResetDefaults;
 
   @override
@@ -34,7 +31,9 @@ class ShortcutBindingsEditor extends StatelessWidget {
         for (final action in ShortcutAction.values)
           _ShortcutRow(
             action: action,
-            binding: bindings[action] ?? AppSettings.defaultShortcutBindings[action]!,
+            binding:
+                bindings[action] ??
+                AppSettings.defaultShortcutBindings[action]!,
             onChanged: (trigger, ctrl) => onChanged(action, trigger, ctrl),
           ),
       ],
@@ -63,7 +62,9 @@ class _ShortcutRow extends StatelessWidget {
           SizedBox(
             width: 130,
             child: DropdownButtonFormField<ShortcutTrigger>(
-              key: ValueKey('${action.name}_${binding.trigger.name}_${binding.ctrl}'),
+              key: ValueKey(
+                '${action.name}_${binding.trigger.name}_${binding.ctrl}',
+              ),
               initialValue: binding.trigger,
               decoration: const InputDecoration(
                 isDense: true,

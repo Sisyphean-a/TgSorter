@@ -11,46 +11,25 @@ class AuthErrorMapper {
     if (kind == TdErrorKind.rateLimit) {
       final waitSeconds = parseFloodWaitSeconds(error.message);
       final suffix = waitSeconds == null ? '' : '，请等待 $waitSeconds 秒';
-      return _authError(
-        title: title,
-        message: '触发 FloodWait$suffix',
-      );
+      return _authError(title: title, message: '触发 FloodWait$suffix');
     }
     if (kind == TdErrorKind.network) {
-      return _authError(
-        title: title,
-        message: '网络异常：${error.message}',
-      );
+      return _authError(title: title, message: '网络异常：${error.message}');
     }
     if (kind == TdErrorKind.auth) {
-      return _authError(
-        title: title,
-        message: '鉴权失败：${error.message}',
-      );
+      return _authError(title: title, message: '鉴权失败：${error.message}');
     }
     if (kind == TdErrorKind.permission) {
-      return _authError(
-        title: title,
-        message: '权限受限，请检查 Telegram 账号状态',
-      );
+      return _authError(title: title, message: '权限受限，请检查 Telegram 账号状态');
     }
-    return _authError(
-      title: title,
-      message: error.toString(),
-    );
+    return _authError(title: title, message: error.toString());
   }
 
   AppErrorEvent mapGeneralError(Object error, {required String title}) {
-    return _authError(
-      title: title,
-      message: error.toString(),
-    );
+    return _authError(title: title, message: error.toString());
   }
 
-  AppErrorEvent _authError({
-    required String title,
-    required String message,
-  }) {
+  AppErrorEvent _authError({required String title, required String message}) {
     return AppErrorEvent(
       scope: AppErrorScope.auth,
       level: AppErrorLevel.error,

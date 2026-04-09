@@ -6,17 +6,18 @@ void main() {
   group('TdResponseReader', () {
     test('parses int values from tdlib numeric strings', () {
       expect(
-        TdResponseReader.readInt(<String, dynamic>{'value': '1774463496'}, 'value'),
+        TdResponseReader.readInt(<String, dynamic>{
+          'value': '1774463496',
+        }, 'value'),
         1774463496,
       );
     });
 
     test('throws clear error when required field is missing', () {
       expect(
-        () => TdResponseReader.readString(
-          <String, dynamic>{'@type': 'chat'},
-          'title',
-        ),
+        () => TdResponseReader.readString(<String, dynamic>{
+          '@type': 'chat',
+        }, 'title'),
         throwsA(
           isA<TdResponseReadError>().having(
             (error) => error.toString(),

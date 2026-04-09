@@ -7,21 +7,22 @@ void main() {
       final records = <_LogRecord>[];
       final logger = TdJsonLogger(
         isEnabled: true,
-        sink: ({
-          required String message,
-          required String name,
-          Object? error,
-          StackTrace? stackTrace,
-        }) {
-          records.add(
-            _LogRecord(
-              message: message,
-              name: name,
-              error: error,
-              stackTrace: stackTrace,
-            ),
-          );
-        },
+        sink:
+            ({
+              required String message,
+              required String name,
+              Object? error,
+              StackTrace? stackTrace,
+            }) {
+              records.add(
+                _LogRecord(
+                  message: message,
+                  name: name,
+                  error: error,
+                  stackTrace: stackTrace,
+                ),
+              );
+            },
       );
 
       logger.logSend(
@@ -39,31 +40,29 @@ void main() {
       expect(records.single.message, contains('[TD SEND]'));
       expect(records.single.message, contains('request=getChatHistory'));
       expect(records.single.message, contains('extra=1711962000123456'));
-      expect(
-        records.single.message,
-        contains('"@type":"getChatHistory"'),
-      );
+      expect(records.single.message, contains('"@type":"getChatHistory"'));
     });
 
     test('logs parse failure with raw payload and reason', () {
       final records = <_LogRecord>[];
       final logger = TdJsonLogger(
         isEnabled: true,
-        sink: ({
-          required String message,
-          required String name,
-          Object? error,
-          StackTrace? stackTrace,
-        }) {
-          records.add(
-            _LogRecord(
-              message: message,
-              name: name,
-              error: error,
-              stackTrace: stackTrace,
-            ),
-          );
-        },
+        sink:
+            ({
+              required String message,
+              required String name,
+              Object? error,
+              StackTrace? stackTrace,
+            }) {
+              records.add(
+                _LogRecord(
+                  message: message,
+                  name: name,
+                  error: error,
+                  stackTrace: stackTrace,
+                ),
+              );
+            },
       );
 
       logger.logParseError(
@@ -88,21 +87,22 @@ void main() {
       final records = <_LogRecord>[];
       final logger = TdJsonLogger(
         isEnabled: true,
-        sink: ({
-          required String message,
-          required String name,
-          Object? error,
-          StackTrace? stackTrace,
-        }) {
-          records.add(
-            _LogRecord(
-              message: message,
-              name: name,
-              error: error,
-              stackTrace: stackTrace,
-            ),
-          );
-        },
+        sink:
+            ({
+              required String message,
+              required String name,
+              Object? error,
+              StackTrace? stackTrace,
+            }) {
+              records.add(
+                _LogRecord(
+                  message: message,
+                  name: name,
+                  error: error,
+                  stackTrace: stackTrace,
+                ),
+              );
+            },
       );
 
       logger.logUpdate(
@@ -120,21 +120,22 @@ void main() {
       final records = <_LogRecord>[];
       final logger = TdJsonLogger(
         isEnabled: true,
-        sink: ({
-          required String message,
-          required String name,
-          Object? error,
-          StackTrace? stackTrace,
-        }) {
-          records.add(
-            _LogRecord(
-              message: message,
-              name: name,
-              error: error,
-              stackTrace: stackTrace,
-            ),
-          );
-        },
+        sink:
+            ({
+              required String message,
+              required String name,
+              Object? error,
+              StackTrace? stackTrace,
+            }) {
+              records.add(
+                _LogRecord(
+                  message: message,
+                  name: name,
+                  error: error,
+                  stackTrace: stackTrace,
+                ),
+              );
+            },
       );
 
       logger.logUpdate(

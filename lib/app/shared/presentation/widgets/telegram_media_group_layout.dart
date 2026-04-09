@@ -182,9 +182,7 @@ class _TelegramMediaGroupLayouter {
     final secondWidth = math.min(
       math.max(
         0.4 * (maxWidth - spacing),
-        (maxWidth - spacing) /
-            ratios[0] /
-            ((1 / ratios[0]) + (1 / ratios[1])),
+        (maxWidth - spacing) / ratios[0] / ((1 / ratios[0]) + (1 / ratios[1])),
       ),
       maxWidth - spacing - minimalWidth,
     );
@@ -493,10 +491,12 @@ class _ComplexTelegramMediaGroupLayouter {
     final totalHeight =
         heights.reduce((sum, value) => sum + value) +
         ((rowCounts.length - 1) * spacing);
-    final smallPenalty =
-        heights.any((height) => height < minWidth) ? _smallLinePenalty : 1.0;
-    final descendingPenalty =
-        _hasDescendingRows(rowCounts) ? _smallLinePenalty : 1.0;
+    final smallPenalty = heights.any((height) => height < minWidth)
+        ? _smallLinePenalty
+        : 1.0;
+    final descendingPenalty = _hasDescendingRows(rowCounts)
+        ? _smallLinePenalty
+        : 1.0;
     return (totalHeight - targetHeight).abs() *
         smallPenalty *
         descendingPenalty;

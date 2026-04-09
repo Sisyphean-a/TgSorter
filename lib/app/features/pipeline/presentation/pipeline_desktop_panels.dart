@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 
 class DesktopStatusBar extends StatelessWidget {
@@ -41,68 +41,73 @@ class DesktopStatusBar extends StatelessWidget {
 class DesktopActionButtons extends StatelessWidget {
   const DesktopActionButtons({
     super.key,
-    required this.pipeline,
-    required this.canClick,
+    required this.navigation,
+    required this.workflow,
+    required this.onNavigatePrevious,
+    required this.onNavigateNext,
+    required this.onSkip,
+    required this.onUndo,
   });
 
-  final PipelineCoordinator pipeline;
-  final bool canClick;
+  final NavigationVm navigation;
+  final WorkflowVm workflow;
+  final Future<void> Function() onNavigatePrevious;
+  final Future<void> Function() onNavigateNext;
+  final Future<void> Function() onSkip;
+  final Future<void> Function() onUndo;
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final canBrowse = !pipeline.processing.value;
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: canBrowse && pipeline.canShowPrevious.value
-                          ? pipeline.showPreviousMessage
-                          : null,
-                      child: const Text('上一条'),
-                    ),
+    final canBrowse = !workflow.processingOverlay;
+    final canClick = workflow.online && !workflow.processingOverlay;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: canBrowse && navigation.canShowPrevious
+                        ? onNavigatePrevious
+                        : null,
+                    child: const Text('上一条'),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: canBrowse && pipeline.canShowNext.value
-                          ? pipeline.showNextMessage
-                          : null,
-                      child: const Text('下一条'),
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: canBrowse && navigation.canShowNext
+                        ? onNavigateNext
+                        : null,
+                    child: const Text('下一条'),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: canClick
-                          ? () => pipeline.skipCurrent('desktop_button')
-                          : null,
-                      child: const Text('略过此条'),
-                    ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: canClick ? onSkip : null,
+                    child: const Text('略过此条'),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: canClick ? pipeline.undoLastStep : null,
-                      child: const Text('撤销上一步'),
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: canClick ? onUndo : null,
+                    child: const Text('撤销上一步'),
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
-      );
-    });
+      ),
+    );
   }
 }

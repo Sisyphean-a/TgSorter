@@ -152,7 +152,9 @@ class TdRawTransport {
       if (decoded is! Map) {
         throw const FormatException('TDLib payload is not a JSON object');
       }
-      final payload = Map<String, dynamic>.from(decoded.cast<String, dynamic>());
+      final payload = Map<String, dynamic>.from(
+        decoded.cast<String, dynamic>(),
+      );
       _routePayload(payload);
     } catch (error, stackTrace) {
       _logger.logParseError(

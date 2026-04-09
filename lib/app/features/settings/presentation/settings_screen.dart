@@ -94,7 +94,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SettingsGroupSection(
                     title: '快捷键与工具',
                     subtitle: '刷新会话列表并维护桌面端快捷键。',
-                    highlighted: draft.shortcutBindings != saved.shortcutBindings,
+                    highlighted:
+                        draft.shortcutBindings != saved.shortcutBindings,
                     child: SettingsToolsContent(
                       controller: controller,
                       draft: draft,
@@ -261,10 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  bool _sameCategories(
-    List<CategoryConfig> left,
-    List<CategoryConfig> right,
-  ) {
+  bool _sameCategories(List<CategoryConfig> left, List<CategoryConfig> right) {
     if (left.length != right.length) {
       return false;
     }

@@ -17,7 +17,9 @@ class _LogsScreenState extends State<LogsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final chains = buildPipelineLogChains(widget.pipeline?.logsSnapshot ?? const []);
+    final chains = buildPipelineLogChains(
+      widget.pipeline?.logsSnapshot ?? const [],
+    );
     final visibleChains = filterPipelineLogChains(chains, _selectedFilter);
     return ListView(
       padding: const EdgeInsets.all(AppTokens.spaceLg),

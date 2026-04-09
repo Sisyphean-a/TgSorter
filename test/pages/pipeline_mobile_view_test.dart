@@ -15,6 +15,7 @@ import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.da
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_mobile_view.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
@@ -457,6 +458,51 @@ void main() {
     expect(find.text('图片预览'), findsNothing);
     expect(find.byKey(const ValueKey('media-action-查看大图')), findsOneWidget);
     expect(find.text('普通文本'), findsNothing);
+  });
+
+  testWidgets('mobile view disables next button from navigation vm only', (
+    tester,
+  ) async {
+    final vm = PipelineScreenVm(
+      message: MessagePreviewVm(
+        content: PipelineMessage(
+          id: 1,
+          messageIds: const <int>[1],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.text,
+            title: 'hello',
+          ),
+        ),
+        media: const MediaSessionVm.empty(),
+      ),
+      navigation: const NavigationVm(
+        canShowPrevious: false,
+        canShowNext: false,
+      ),
+      workflow: const WorkflowVm(processingOverlay: false, online: true),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PipelineMobileView.fromVm(
+            vm: vm,
+            onNavigateNext: () async {},
+            onNavigatePrevious: () async {},
+            onMediaAction: (_) async {},
+            onClassify: (_) async => false,
+            onSkip: () async {},
+            onUndo: () async {},
+          ),
+        ),
+      ),
+    );
+
+    final button = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, '下一条'),
+    );
+    expect(button.onPressed, isNull);
   });
 }
 

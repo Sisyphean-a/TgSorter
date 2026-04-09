@@ -41,10 +41,10 @@ class VideoBackendInitCall {
 
 Future<void> initializeVideoPlayback({
   VideoBackendPlatform? targetPlatform,
-  VideoBackendInitializer initializer =
-      VideoPlayerMediaKit.ensureInitialized,
+  VideoBackendInitializer initializer = VideoPlayerMediaKit.ensureInitialized,
 }) async {
-  final platform = targetPlatform ??
+  final platform =
+      targetPlatform ??
       VideoBackendPlatform(
         isAndroid: Platform.isAndroid,
         isWindows: Platform.isWindows,

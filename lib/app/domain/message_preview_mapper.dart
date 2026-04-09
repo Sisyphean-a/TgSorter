@@ -1,7 +1,8 @@
 import 'package:tgsorter/app/services/td_message_dto.dart';
 
 enum MessagePreviewKind { text, photo, video, audio, link, unsupported }
-enum MediaItemKind { photo, video }
+
+enum MediaItemKind { photo, video, audio }
 
 class MediaItemPreview {
   const MediaItemPreview({

@@ -11,22 +11,23 @@ void main() {
           isAndroid: true,
           isWindows: true,
         ),
-        initializer: ({
-          required bool android,
-          required bool iOS,
-          required bool macOS,
-          required bool windows,
-          required bool linux,
-          required bool web,
-        }) async {
-          captured = VideoBackendInitCall(
-            android: android,
-            iOS: iOS,
-            macOS: macOS,
-            windows: windows,
-            linux: linux,
-          );
-        },
+        initializer:
+            ({
+              required bool android,
+              required bool iOS,
+              required bool macOS,
+              required bool windows,
+              required bool linux,
+              required bool web,
+            }) async {
+              captured = VideoBackendInitCall(
+                android: android,
+                iOS: iOS,
+                macOS: macOS,
+                windows: windows,
+                linux: linux,
+              );
+            },
       );
 
       expect(captured, isNotNull);

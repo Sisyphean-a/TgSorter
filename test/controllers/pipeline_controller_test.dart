@@ -785,7 +785,7 @@ class _RecordingPipelineRecoveryService extends PipelineRecoveryService {
 class _RecordingPipelineMediaRefreshService
     extends PipelineMediaRefreshService {
   _RecordingPipelineMediaRefreshService()
-    : super(
+    : super.legacy(
         mediaGateway: _NoopMediaGateway(),
         messageGateway: _NoopMessageReadGateway(),
       );

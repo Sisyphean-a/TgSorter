@@ -160,7 +160,11 @@ class _MessagePreviewVideoFullscreenState
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Color(0x66000000), Colors.transparent, Color(0x99000000)],
+                      colors: [
+                        Color(0x66000000),
+                        Colors.transparent,
+                        Color(0x99000000),
+                      ],
                       stops: [0, 0.5, 1],
                     ),
                   ),
@@ -244,13 +248,26 @@ class _MessagePreviewVideoFullscreenState
                                 initialValue: widget.currentSpeed,
                                 onSelected: widget.onSetPlaybackSpeed,
                                 itemBuilder: (context) => const [
-                                  PopupMenuItem(value: 0.5, child: Text('0.5x')),
-                                  PopupMenuItem(value: 1.0, child: Text('1.0x')),
-                                  PopupMenuItem(value: 1.5, child: Text('1.5x')),
-                                  PopupMenuItem(value: 2.0, child: Text('2.0x')),
+                                  PopupMenuItem(
+                                    value: 0.5,
+                                    child: Text('0.5x'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 1.0,
+                                    child: Text('1.0x'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 1.5,
+                                    child: Text('1.5x'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 2.0,
+                                    child: Text('2.0x'),
+                                  ),
                                 ],
                                 child: _FullscreenChip(
-                                  label: '${widget.currentSpeed.toStringAsFixed(widget.currentSpeed == widget.currentSpeed.roundToDouble() ? 0 : 1)}x',
+                                  label:
+                                      '${widget.currentSpeed.toStringAsFixed(widget.currentSpeed == widget.currentSpeed.roundToDouble() ? 0 : 1)}x',
                                 ),
                               ),
                               const SizedBox(width: 8),
