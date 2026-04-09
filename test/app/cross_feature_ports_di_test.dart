@@ -47,13 +47,12 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final authGateway = _ModuleAuthGateway();
-      final authSettings = _ModuleAuthSettingsPort();
       final pipelineSettings = _ModulePipelineSettingsReader();
       final pipelineGateway = _ModulePipelineGateway();
 
       Get.put<AppErrorController>(AppErrorController());
       Get.put<AuthGateway>(authGateway);
-      Get.put<AuthSettingsPort>(authSettings);
+      Get.put<AuthSettingsPort>(_NoopAuthSettingsPort());
       Get.put<AuthNavigationPort>(_NoopAuthNavigationPort());
 
       expect(registerAuthModule, returnsNormally);
@@ -143,7 +142,7 @@ class _ModuleAuthGateway implements AuthGateway, AuthStateGateway {
   Future<void> submitPhoneNumber(String phoneNumber) async {}
 }
 
-class _ModuleAuthSettingsPort implements AuthSettingsPort {
+class _NoopAuthSettingsPort implements AuthSettingsPort {
   @override
   ProxySettings get currentProxySettings => ProxySettings.empty;
 

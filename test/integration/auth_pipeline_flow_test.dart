@@ -6,8 +6,6 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
-import 'package:tgsorter/app/core/di/pipeline_module.dart';
-import 'package:tgsorter/app/core/di/settings_module.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
@@ -21,11 +19,9 @@ import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
-import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
-import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -187,37 +183,6 @@ void main() {
     });
   });
 
-  test('settings/pipeline DI modules resolve by capability ports', () async {
-    Get.reset();
-    Get.testMode = true;
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final authGateway = _IntegrationAuthGateway();
-    final settingsGateway = _IntegrationSettingsGateway();
-    final pipelineGateway = _IntegrationPipelineGateway();
-
-    Get.put<SettingsRepository>(SettingsRepository(prefs));
-    Get.put<AuthGateway>(authGateway);
-    Get.put<SessionQueryGateway>(settingsGateway);
-
-    expect(registerSettingsModule, returnsNormally);
-    expect(Get.isRegistered<SettingsCoordinator>(), isTrue);
-    expect(Get.isRegistered<AuthSettingsPort>(), isTrue);
-    expect(Get.isRegistered<PipelineSettingsReader>(), isTrue);
-
-    Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
-    Get.put<AppErrorController>(AppErrorController());
-    Get.put<AuthStateGateway>(authGateway);
-    Get.put<ConnectionStateGateway>(pipelineGateway);
-    Get.put<MessageReadGateway>(pipelineGateway);
-    Get.put<MediaGateway>(pipelineGateway);
-    Get.put<ClassifyGateway>(pipelineGateway);
-    Get.put<RecoveryGateway>(pipelineGateway);
-
-    expect(registerPipelineModule, returnsNormally);
-    expect(Get.isRegistered<PipelineCoordinator>(), isTrue);
-    expect(Get.isRegistered<PipelineLogsPort>(), isTrue);
-  });
 }
 
 class _IntegrationAuthGateway implements AuthGateway, AuthStateGateway {
