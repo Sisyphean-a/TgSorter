@@ -123,6 +123,80 @@ void main() {
 
     expect(find.text('剩余 7'), findsOneWidget);
   });
+
+  testWidgets(
+    'mobile settings proxy edit and save does not trigger framework exceptions',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      Get.testMode = true;
+      Get.reset();
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final settingsGateway = _ShellSettingsGateway();
+      final pipelineGateway = _ShellPipelineGateway();
+      final settingsController = SettingsCoordinator(
+        SettingsRepository(prefs),
+        settingsGateway,
+        auth: settingsGateway,
+      );
+      settingsController.onInit();
+      final errors = AppErrorController();
+      final pipeline = PipelineCoordinator(
+        authStateGateway: pipelineGateway,
+        connectionStateGateway: pipelineGateway,
+        messageReadGateway: pipelineGateway,
+        mediaGateway: pipelineGateway,
+        classifyGateway: pipelineGateway,
+        recoveryGateway: pipelineGateway,
+        settingsReader: settingsController,
+        journalRepository: OperationJournalRepository(prefs),
+        errorController: errors,
+      );
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          theme: AppTheme.dark(),
+          home: MainShellPage(
+            pipeline: pipeline,
+            pipelineSettings: settingsController,
+            errors: errors,
+            settings: settingsController,
+            pipelineLogs: pipeline,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('打开导航'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('设置'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('连接与代理'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('连接与代理'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextField, '代理服务器'),
+        '127.0.0.1',
+      );
+      await tester.pump();
+      await tester.enterText(find.widgetWithText(TextField, '代理端口'), '7890');
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('保存更改'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('已保存'), findsAtLeastNWidgets(1));
+    },
+  );
 }
 
 class _ShellSettingsGateway implements AuthGateway, SessionQueryGateway {

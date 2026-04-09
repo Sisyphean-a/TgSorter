@@ -111,7 +111,7 @@ void main() {
 
     test('转发结果为空时抛出异常', () async {
       final adapter = _FakeTdlibAdapter(
-        wireResponses: <String, List<TdWireEnvelope>>{
+        wireResponses: <String, List<Object>>{
           'forwardMessages': <TdWireEnvelope>[
             TdWireEnvelope.fromJson(<String, dynamic>{
               '@type': 'messages',
@@ -138,6 +138,50 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('目标消息暂时不可读时继续确认直到成功', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<Object>>{
+          'forwardMessages': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'messages',
+              'messages': [
+                _forwardedTextMessageJson(
+                  88,
+                  'copied',
+                  sendingStateType: 'messageSendingStatePending',
+                ),
+              ],
+            }),
+          ],
+          'getMessage': <Object>[
+            TdlibFailure.tdError(
+              code: 404,
+              message: 'Not Found',
+              request: 'getMessage(999,88)',
+              phase: TdlibPhase.business,
+            ),
+            TdWireEnvelope.fromJson(_forwardedTextMessageJson(88, 'copied')),
+          ],
+        },
+      );
+      final forwarder = TelegramMessageForwarder(
+        adapter: adapter,
+        confirmTimeout: const Duration(milliseconds: 30),
+        pollInterval: const Duration(milliseconds: 1),
+      );
+
+      final result = await forwarder.forwardMessagesAndConfirmDelivery(
+        targetChatId: 999,
+        sourceChatId: 777,
+        sourceMessageIds: const [10],
+        sendCopy: false,
+        requestLabel: 'forwardMessages',
+      );
+
+      expect(result, <int>[88]);
+      expect(adapter.getMessageCalls, 2);
     });
   });
 }
@@ -171,7 +215,7 @@ class _FakeTdlibAdapter extends TdlibAdapter {
         initializeTdlib: (_) async {},
       );
 
-  final Map<String, List<TdWireEnvelope>> wireResponses;
+  final Map<String, List<Object>> wireResponses;
   int getMessageCalls = 0;
   bool? lastForwardSendCopy;
 
@@ -197,7 +241,17 @@ class _FakeTdlibAdapter extends TdlibAdapter {
     if (queue == null || queue.isEmpty) {
       throw StateError('Missing fake wire response for $constructor');
     }
-    return queue.removeAt(0);
+    final next = queue.removeAt(0);
+    if (next is TdWireEnvelope) {
+      return next;
+    }
+    if (next is Exception) {
+      throw next;
+    }
+    if (next is Error) {
+      throw next;
+    }
+    throw StateError('Unsupported fake response type: ${next.runtimeType}');
   }
 
   @override

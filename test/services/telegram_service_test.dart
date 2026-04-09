@@ -278,6 +278,53 @@ void main() {
     );
 
     test(
+      'classifyMessage treats transient missing target message as pending',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<Object>>{
+            'forwardMessages': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _forwardedTextMessageJson(
+                    88,
+                    'copied',
+                    sendingStateType: 'messageSendingStatePending',
+                  ),
+                ],
+              }),
+            ],
+            'getMessage': <Object>[
+              TdlibFailure.tdError(
+                code: 404,
+                message: 'Not Found',
+                request: 'getMessage(999,88)',
+                phase: TdlibPhase.business,
+              ),
+              TdWireEnvelope.fromJson(_forwardedTextMessageJson(88, 'copied')),
+            ],
+          },
+        );
+        final service = TelegramService(
+          adapter: adapter,
+          forwardDeliveryConfirmTimeout: const Duration(milliseconds: 30),
+          forwardDeliveryPollInterval: const Duration(milliseconds: 1),
+        );
+
+        final receipt = await service.classifyMessage(
+          sourceChatId: 777,
+          messageIds: const [10],
+          targetChatId: 999,
+          asCopy: false,
+        );
+
+        expect(receipt.targetMessageIds, const <int>[88]);
+        expect(adapter.getMessageCalls, 2);
+        expect(adapter.deleteMessageRevokes, <bool>[true]);
+      },
+    );
+
+    test(
       'classifyMessage does not delete when pending target message confirmation times out',
       () async {
         final adapter = _FakeTdlibAdapter(
@@ -977,7 +1024,7 @@ class _FakeTdlibAdapter extends TdlibAdapter {
         initializeTdlib: (_) async {},
       );
 
-  final Map<String, List<TdWireEnvelope>> wireResponses;
+  final Map<String, List<Object>> wireResponses;
   final List<int> downloadedFileIds = <int>[];
   final List<bool> deleteMessageRevokes = <bool>[];
   int deleteMessageCalls = 0;
@@ -1015,7 +1062,17 @@ class _FakeTdlibAdapter extends TdlibAdapter {
     if (queue == null || queue.isEmpty) {
       throw StateError('Missing fake wire response for $constructor');
     }
-    return queue.removeAt(0);
+    final next = queue.removeAt(0);
+    if (next is TdWireEnvelope) {
+      return next;
+    }
+    if (next is Exception) {
+      throw next;
+    }
+    if (next is Error) {
+      throw next;
+    }
+    throw StateError('Unsupported fake response type: ${next.runtimeType}');
   }
 
   @override

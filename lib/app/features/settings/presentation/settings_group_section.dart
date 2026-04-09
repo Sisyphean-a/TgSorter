@@ -21,19 +21,65 @@ class SettingsGroupSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _SettingsGroupTile(
+      title: title,
+      subtitle: subtitle,
+      child: child,
+      highlighted: highlighted,
+      trailing: trailing,
+      initiallyExpanded: initiallyExpanded,
+    );
+  }
+}
+
+class _SettingsGroupTile extends StatefulWidget {
+  const _SettingsGroupTile({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+    required this.highlighted,
+    required this.trailing,
+    required this.initiallyExpanded,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget child;
+  final bool highlighted;
+  final Widget? trailing;
+  final bool initiallyExpanded;
+
+  @override
+  State<_SettingsGroupTile> createState() => _SettingsGroupTileState();
+}
+
+class _SettingsGroupTileState extends State<_SettingsGroupTile> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppTokens.panelBackground,
         borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
         border: Border.all(
-          color: highlighted ? AppTokens.brandAccent : AppTokens.borderSubtle,
+          color: widget.highlighted
+              ? AppTokens.brandAccent
+              : AppTokens.borderSubtle,
         ),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          key: PageStorageKey(title),
-          initiallyExpanded: initiallyExpanded,
+          initiallyExpanded: _expanded,
+          maintainState: true,
+          onExpansionChanged: _handleExpansionChanged,
           tilePadding: const EdgeInsets.symmetric(
             horizontal: AppTokens.spaceLg,
             vertical: AppTokens.spaceSm,
@@ -45,15 +91,21 @@ class SettingsGroupSection extends StatelessWidget {
             AppTokens.spaceLg,
           ),
           title: _Header(
-            title: title,
-            subtitle: subtitle,
-            highlighted: highlighted,
-            trailing: trailing,
+            title: widget.title,
+            subtitle: widget.subtitle,
+            highlighted: widget.highlighted,
+            trailing: widget.trailing,
           ),
-          children: [child],
+          children: [widget.child],
         ),
       ),
     );
+  }
+
+  void _handleExpansionChanged(bool expanded) {
+    setState(() {
+      _expanded = expanded;
+    });
   }
 }
 

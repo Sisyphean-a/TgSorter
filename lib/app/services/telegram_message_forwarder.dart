@@ -106,11 +106,13 @@ class TelegramMessageForwarder {
             '$requestLabel 返回临时消息 ID($messageId)，发送状态未确认，已中止删除源消息',
           );
         }
-        final envelope = await _adapter.sendWire(
-          GetMessage(chatId: targetChatId, messageId: messageId),
-          request: 'getMessage($targetChatId,$messageId)',
-          phase: TdlibPhase.business,
+        final envelope = await _loadForwardedMessage(
+          targetChatId: targetChatId,
+          messageId: messageId,
         );
+        if (envelope == null) {
+          continue;
+        }
         final delivery = _readMessageDeliveryState(envelope.payload);
         if (delivery.isSent) {
           pendingIds.remove(messageId);
@@ -132,6 +134,32 @@ class TelegramMessageForwarder {
       }
       await Future<void>.delayed(_pollInterval);
     }
+  }
+
+  Future<TdWireEnvelope?> _loadForwardedMessage({
+    required int targetChatId,
+    required int messageId,
+  }) async {
+    try {
+      return await _adapter.sendWire(
+        GetMessage(chatId: targetChatId, messageId: messageId),
+        request: 'getMessage($targetChatId,$messageId)',
+        phase: TdlibPhase.business,
+      );
+    } on TdlibFailure catch (error) {
+      if (_isTransientMissingMessage(error)) {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  bool _isTransientMissingMessage(TdlibFailure error) {
+    if (error.code == 404) {
+      return true;
+    }
+    return error.code == 400 &&
+        error.message.toLowerCase().contains('not found');
   }
 
   _MessageDeliveryState _readMessageDeliveryState(

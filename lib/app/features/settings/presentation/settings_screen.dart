@@ -52,6 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: SettingsUnsavedChangesBanner(),
                     ),
                   SettingsGroupSection(
+                    key: const ValueKey('settings-section-workflow'),
                     title: '工作流',
                     subtitle: '消息来源、拉取方向和批处理节奏。',
                     highlighted: _workflowDirty(draft, saved),
@@ -63,6 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
                   SettingsGroupSection(
+                    key: const ValueKey('settings-section-category'),
                     title: '分类',
                     subtitle: '维护分类目标与目标会话映射。',
                     highlighted: !_sameCategories(
@@ -82,6 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
                   SettingsGroupSection(
+                    key: const ValueKey('settings-section-connection'),
                     title: '连接与代理',
                     subtitle: '代理配置保存后统一生效，并在必要时重启连接。',
                     highlighted: draft.proxy != saved.proxy,
@@ -92,6 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
                   SettingsGroupSection(
+                    key: const ValueKey('settings-section-tools'),
                     title: '快捷键与工具',
                     subtitle: '刷新会话列表并维护桌面端快捷键。',
                     highlighted:
