@@ -25,6 +25,7 @@ class PipelineMediaController implements PipelineLegacyMediaController {
   Timer? _videoRefreshTimer;
   int? _refreshTargetMessageId;
 
+  @override
   bool isPreparingMessageId(int? messageId) {
     if (messageId == null) {
       return _state.videoPreparing.value;
@@ -32,6 +33,7 @@ class PipelineMediaController implements PipelineLegacyMediaController {
     return _state.preparingMessageIds.contains(messageId);
   }
 
+  @override
   Future<void> prepareCurrentMedia([int? targetMessageId]) async {
     final message = _state.currentMessage.value;
     if (message == null ||
@@ -65,6 +67,7 @@ class PipelineMediaController implements PipelineLegacyMediaController {
     }
   }
 
+  @override
   Future<void> refreshCurrentMediaIfNeeded() async {
     final message = _state.currentMessage.value;
     if (message == null || !_needsMediaRefresh(message.preview)) {
@@ -200,6 +203,7 @@ class PipelineMediaController implements PipelineLegacyMediaController {
     return current.messageIds.contains(targetId);
   }
 
+  @override
   void stop() {
     _videoRefreshTimer?.cancel();
     _videoRefreshTimer = null;

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 

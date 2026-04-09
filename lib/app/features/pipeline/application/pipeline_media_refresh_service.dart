@@ -17,11 +17,11 @@ class PipelineMediaRefreshService {
     required int sourceChatId,
     required int messageId,
   }) async {
-    final prepared = await _mediaGateway!.prepareMediaPlayback(
+    final prepared = await _mediaGateway.prepareMediaPlayback(
       sourceChatId: sourceChatId,
       messageId: messageId,
     );
-    return _messageGateway!.refreshMessage(
+    return _messageGateway.refreshMessage(
       sourceChatId: prepared.sourceChatId,
       messageId: prepared.id,
     );

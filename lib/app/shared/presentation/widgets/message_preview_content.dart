@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/pipeline/application/media_session_state.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
-import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_audio.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_link.dart';

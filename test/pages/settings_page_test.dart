@@ -275,11 +275,11 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is DropdownButtonFormField<int?> &&
-            widget.decoration?.labelText == '来源会话',
+            widget.decoration.labelText == '来源会话',
       ),
     );
     expect(
-      sourceField.decoration?.floatingLabelBehavior,
+      sourceField.decoration.floatingLabelBehavior,
       FloatingLabelBehavior.always,
     );
   });
