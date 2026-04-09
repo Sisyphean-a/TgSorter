@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
+import 'package:tgsorter/app/services/td_json_logger.dart';
+import 'package:tgsorter/app/services/td_raw_transport.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
@@ -133,6 +135,72 @@ void main() {
         ),
       );
     });
+
+    test(
+      'forwards raw message send succeeded update through adapter stream',
+      () async {
+        final transport = _InspectableFakeTransport(
+          responses: <String, List<TdObject>>{
+            'getAuthorizationState': <TdObject>[
+              const AuthorizationStateReady(),
+            ],
+            'disableProxy': <TdObject>[const Ok()],
+          },
+        );
+        final rawTransport = _InspectableRawTransport();
+        final adapter = TdlibAdapter(
+          transport: transport,
+          rawTransport: rawTransport,
+          credentials: const TdlibCredentials(
+            apiId: 1,
+            apiHash: 'hash',
+            proxyServer: null,
+            proxyPort: null,
+            proxyUsername: '',
+            proxyPassword: '',
+          ),
+          runtimePaths: const TdlibRuntimePaths(
+            libraryPath: 'tdjson.dll',
+            databaseDirectory: 'db',
+            filesDirectory: 'files',
+          ),
+          readProxySettings: () => const ProxySettings(
+            server: '',
+            port: null,
+            username: '',
+            password: '',
+          ),
+          detectCapabilities: () async => const TdlibSchemaCapabilities(
+            addProxyMode: TdlibAddProxyMode.flatArgs,
+          ),
+          initializeTdlib: (_) async {},
+        );
+
+        await rawTransport.start();
+        await adapter.start();
+        final future = adapter.messageSendResults.first;
+        rawTransport.emitUpdate(<String, dynamic>{
+          '@type': 'updateMessageSendSucceeded',
+          'old_message_id': 77,
+          'message': <String, dynamic>{
+            '@type': 'message',
+            'id': 88,
+            'chat_id': 999,
+            'content': <String, dynamic>{
+              '@type': 'messageText',
+              'text': <String, dynamic>{'text': 'ok', 'entities': <Object>[]},
+            },
+          },
+        });
+
+        final result = await future;
+
+        expect(result.chatId, 999);
+        expect(result.oldMessageId, 77);
+        expect(result.messageId, 88);
+        expect(result.isSuccess, isTrue);
+      },
+    );
   });
 }
 
@@ -209,5 +277,57 @@ class _InspectableFakeTransport implements TdTransport {
       );
     }
     return queue.removeAt(0);
+  }
+}
+
+class _InspectableRawTransport extends TdRawTransport {
+  _InspectableRawTransport()
+    : _updatesController = StreamController<Map<String, dynamic>>.broadcast(),
+      _responses = <String, List<Map<String, dynamic>>>{
+        'disableProxy': <Map<String, dynamic>>[
+          <String, dynamic>{'@type': 'ok'},
+        ],
+      },
+      super(logger: TdJsonLogger(isEnabled: false));
+
+  final StreamController<Map<String, dynamic>> _updatesController;
+  final Map<String, List<Map<String, dynamic>>> _responses;
+  bool started = false;
+
+  @override
+  Stream<Map<String, dynamic>> get updates => _updatesController.stream;
+
+  @override
+  Future<void> start() async {
+    started = true;
+  }
+
+  @override
+  Future<void> stop() async {
+    started = false;
+  }
+
+  @override
+  Future<Map<String, dynamic>> send(
+    TdFunction function, {
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final queue = _responses[function.getConstructor()];
+    if (queue == null || queue.isEmpty) {
+      throw StateError(
+        'Missing fake raw response for ${function.getConstructor()}',
+      );
+    }
+    return queue.removeAt(0);
+  }
+
+  @override
+  void sendWithoutResponse(TdFunction function) {}
+
+  void emitUpdate(Map<String, dynamic> payload) {
+    if (!started) {
+      throw StateError('transport not started');
+    }
+    _updatesController.add(payload);
   }
 }

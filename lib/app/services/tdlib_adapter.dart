@@ -4,6 +4,7 @@ import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
+import 'package:tgsorter/app/services/td_message_send_result.dart';
 import 'package:tgsorter/app/services/tdlib_adapter_support.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/tdlib_auth_manager.dart';
@@ -66,6 +67,8 @@ class TdlibAdapter {
   final _connectionController = StreamController<TdConnectionState>.broadcast(
     sync: true,
   );
+  final _messageSendController =
+      StreamController<TdMessageSendResult>.broadcast(sync: true);
   final _startupController = StreamController<TdlibStartupState>.broadcast(
     sync: true,
   );
@@ -84,6 +87,8 @@ class TdlibAdapter {
   Stream<TdAuthState> get authorizationStates => _authStateController.stream;
   Stream<TdConnectionState> get connectionStates =>
       _connectionController.stream;
+  Stream<TdMessageSendResult> get messageSendResults =>
+      _messageSendController.stream;
   Stream<TdlibStartupState> get startupStates => _startupController.stream;
   Stream<TdlibLifecycleState> get lifecycleStates =>
       _lifecycleController.stream;
@@ -322,6 +327,28 @@ class TdlibAdapter {
     }
     if (update is UpdateConnectionState) {
       _connectionController.add(TdConnectionState.fromTdObject(update.state));
+      return;
+    }
+    if (update is UpdateMessageSendSucceeded) {
+      _messageSendController.add(
+        TdMessageSendResult.succeeded(
+          chatId: update.message.chatId,
+          oldMessageId: update.oldMessageId,
+          messageId: update.message.id,
+        ),
+      );
+      return;
+    }
+    if (update is UpdateMessageSendFailed) {
+      _messageSendController.add(
+        TdMessageSendResult.failed(
+          chatId: update.message.chatId,
+          oldMessageId: update.oldMessageId,
+          messageId: update.message.id,
+          errorCode: update.errorCode,
+          errorMessage: update.errorMessage,
+        ),
+      );
     }
   }
 
@@ -335,6 +362,10 @@ class TdlibAdapter {
     final connectionState = parsed.connectionState;
     if (connectionState != null) {
       _connectionController.add(connectionState);
+    }
+    final messageSendResult = parsed.messageSendResult;
+    if (messageSendResult != null) {
+      _messageSendController.add(messageSendResult);
     }
   }
 

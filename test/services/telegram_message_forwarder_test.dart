@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
+import 'package:tgsorter/app/services/td_message_send_result.dart';
 import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
@@ -12,30 +15,14 @@ import 'package:tgsorter/app/services/telegram_message_forwarder.dart';
 
 void main() {
   group('TelegramMessageForwarder', () {
-    test('待发送目标消息确认后返回目标 ID', () async {
+    test('已发送目标消息直接返回目标 ID', () async {
       final adapter = _FakeTdlibAdapter(
         wireResponses: <String, List<TdWireEnvelope>>{
           'forwardMessages': <TdWireEnvelope>[
             TdWireEnvelope.fromJson(<String, dynamic>{
               '@type': 'messages',
-              'messages': [
-                _forwardedTextMessageJson(
-                  88,
-                  'copied',
-                  sendingStateType: 'messageSendingStatePending',
-                ),
-              ],
+              'messages': [_forwardedTextMessageJson(88, 'copied')],
             }),
-          ],
-          'getMessage': <TdWireEnvelope>[
-            TdWireEnvelope.fromJson(
-              _forwardedTextMessageJson(
-                88,
-                'copied',
-                sendingStateType: 'messageSendingStatePending',
-              ),
-            ),
-            TdWireEnvelope.fromJson(_forwardedTextMessageJson(88, 'copied')),
           ],
         },
       );
@@ -54,7 +41,7 @@ void main() {
       );
 
       expect(result, <int>[88]);
-      expect(adapter.getMessageCalls, greaterThan(0));
+      expect(adapter.getMessageCalls, 0);
       expect(adapter.lastForwardSendCopy, isFalse);
     });
 
@@ -140,7 +127,7 @@ void main() {
       );
     });
 
-    test('目标消息暂时不可读时继续确认直到成功', () async {
+    test('pending 目标消息收到显式失败 update 后抛出异常', () async {
       final adapter = _FakeTdlibAdapter(
         wireResponses: <String, List<Object>>{
           'forwardMessages': <TdWireEnvelope>[
@@ -155,14 +142,60 @@ void main() {
               ],
             }),
           ],
-          'getMessage': <Object>[
-            TdlibFailure.tdError(
-              code: 404,
-              message: 'Not Found',
-              request: 'getMessage(999,88)',
-              phase: TdlibPhase.business,
-            ),
-            TdWireEnvelope.fromJson(_forwardedTextMessageJson(88, 'copied')),
+        },
+      );
+      final forwarder = TelegramMessageForwarder(
+        adapter: adapter,
+        confirmTimeout: const Duration(milliseconds: 30),
+        pollInterval: const Duration(milliseconds: 1),
+      );
+
+      Future<void>.microtask(() {
+        adapter.emitMessageSendResult(
+          const TdMessageSendResult.failed(
+            chatId: 999,
+            oldMessageId: 88,
+            messageId: 91,
+            errorCode: 406,
+            errorMessage: 'SEND_FAILED',
+          ),
+        );
+      });
+
+      await expectLater(
+        () => forwarder.forwardMessagesAndConfirmDelivery(
+          targetChatId: 999,
+          sourceChatId: 777,
+          sourceMessageIds: const [10],
+          sendCopy: false,
+          requestLabel: 'forwardMessages',
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.toString(),
+            'message',
+            contains('目标消息发送失败'),
+          ),
+        ),
+      );
+
+      expect(adapter.getMessageCalls, 0);
+    });
+
+    test('pending 目标消息收到显式成功 update 后返回最终消息 ID', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<Object>>{
+          'forwardMessages': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'messages',
+              'messages': [
+                _forwardedTextMessageJson(
+                  77,
+                  'copied',
+                  sendingStateType: 'messageSendingStatePending',
+                ),
+              ],
+            }),
           ],
         },
       );
@@ -171,6 +204,16 @@ void main() {
         confirmTimeout: const Duration(milliseconds: 30),
         pollInterval: const Duration(milliseconds: 1),
       );
+
+      Future<void>.microtask(() {
+        adapter.emitMessageSendResult(
+          const TdMessageSendResult.succeeded(
+            chatId: 999,
+            oldMessageId: 77,
+            messageId: 88,
+          ),
+        );
+      });
 
       final result = await forwarder.forwardMessagesAndConfirmDelivery(
         targetChatId: 999,
@@ -181,7 +224,50 @@ void main() {
       );
 
       expect(result, <int>[88]);
-      expect(adapter.getMessageCalls, 2);
+      expect(adapter.getMessageCalls, 0);
+    });
+
+    test('pending 目标消息未收到显式成功 update 时超时', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<Object>>{
+          'forwardMessages': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'messages',
+              'messages': [
+                _forwardedTextMessageJson(
+                  77,
+                  'copied',
+                  sendingStateType: 'messageSendingStatePending',
+                ),
+              ],
+            }),
+          ],
+        },
+      );
+      final forwarder = TelegramMessageForwarder(
+        adapter: adapter,
+        confirmTimeout: const Duration(milliseconds: 5),
+        pollInterval: const Duration(milliseconds: 1),
+      );
+
+      await expectLater(
+        () => forwarder.forwardMessagesAndConfirmDelivery(
+          targetChatId: 999,
+          sourceChatId: 777,
+          sourceMessageIds: const [10],
+          sendCopy: false,
+          requestLabel: 'forwardMessages',
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.toString(),
+            'message',
+            contains('发送状态确认超时'),
+          ),
+        ),
+      );
+
+      expect(adapter.getMessageCalls, 0);
     });
   });
 }
@@ -216,8 +302,14 @@ class _FakeTdlibAdapter extends TdlibAdapter {
       );
 
   final Map<String, List<Object>> wireResponses;
+  final StreamController<TdMessageSendResult> _messageSendController =
+      StreamController<TdMessageSendResult>.broadcast();
   int getMessageCalls = 0;
   bool? lastForwardSendCopy;
+
+  @override
+  Stream<TdMessageSendResult> get messageSendResults =>
+      _messageSendController.stream;
 
   @override
   Future<void> waitUntilReady() async {}
@@ -262,6 +354,10 @@ class _FakeTdlibAdapter extends TdlibAdapter {
     Duration timeout = const Duration(seconds: 20),
   }) async {
     throw UnimplementedError();
+  }
+
+  void emitMessageSendResult(TdMessageSendResult result) {
+    _messageSendController.add(result);
   }
 }
 

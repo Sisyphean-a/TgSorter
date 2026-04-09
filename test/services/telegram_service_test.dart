@@ -14,6 +14,7 @@ import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
+import 'package:tgsorter/app/services/td_message_send_result.dart';
 import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
@@ -234,7 +235,7 @@ void main() {
       'classifyMessage waits pending target message to be sent before deleting source',
       () async {
         final adapter = _FakeTdlibAdapter(
-          wireResponses: <String, List<TdWireEnvelope>>{
+          wireResponses: <String, List<Object>>{
             'forwardMessages': <TdWireEnvelope>[
               TdWireEnvelope.fromJson(<String, dynamic>{
                 '@type': 'messages',
@@ -247,16 +248,6 @@ void main() {
                 ],
               }),
             ],
-            'getMessage': <TdWireEnvelope>[
-              TdWireEnvelope.fromJson(
-                _forwardedTextMessageJson(
-                  88,
-                  'copied',
-                  sendingStateType: 'messageSendingStatePending',
-                ),
-              ),
-              TdWireEnvelope.fromJson(_forwardedTextMessageJson(88, 'copied')),
-            ],
           },
         );
         final service = TelegramService(
@@ -265,6 +256,16 @@ void main() {
           forwardDeliveryPollInterval: const Duration(milliseconds: 1),
         );
 
+        Future<void>.delayed(const Duration(milliseconds: 1), () {
+          adapter.emitMessageSendResult(
+            const TdMessageSendResult.succeeded(
+              chatId: 999,
+              oldMessageId: 88,
+              messageId: 1088,
+            ),
+          );
+        });
+
         await service.classifyMessage(
           sourceChatId: 777,
           messageIds: const [10],
@@ -272,13 +273,13 @@ void main() {
           asCopy: false,
         );
 
-        expect(adapter.getMessageCalls, greaterThan(0));
+        expect(adapter.getMessageCalls, 0);
         expect(adapter.deleteMessageRevokes, <bool>[true]);
       },
     );
 
     test(
-      'classifyMessage treats transient missing target message as pending',
+      'classifyMessage returns final target message id from explicit success update',
       () async {
         final adapter = _FakeTdlibAdapter(
           wireResponses: <String, List<Object>>{
@@ -294,15 +295,6 @@ void main() {
                 ],
               }),
             ],
-            'getMessage': <Object>[
-              TdlibFailure.tdError(
-                code: 404,
-                message: 'Not Found',
-                request: 'getMessage(999,88)',
-                phase: TdlibPhase.business,
-              ),
-              TdWireEnvelope.fromJson(_forwardedTextMessageJson(88, 'copied')),
-            ],
           },
         );
         final service = TelegramService(
@@ -311,6 +303,16 @@ void main() {
           forwardDeliveryPollInterval: const Duration(milliseconds: 1),
         );
 
+        Future<void>.delayed(const Duration(milliseconds: 1), () {
+          adapter.emitMessageSendResult(
+            const TdMessageSendResult.succeeded(
+              chatId: 999,
+              oldMessageId: 88,
+              messageId: 1088,
+            ),
+          );
+        });
+
         final receipt = await service.classifyMessage(
           sourceChatId: 777,
           messageIds: const [10],
@@ -318,8 +320,8 @@ void main() {
           asCopy: false,
         );
 
-        expect(receipt.targetMessageIds, const <int>[88]);
-        expect(adapter.getMessageCalls, 2);
+        expect(receipt.targetMessageIds, const <int>[1088]);
+        expect(adapter.getMessageCalls, 0);
         expect(adapter.deleteMessageRevokes, <bool>[true]);
       },
     );
@@ -328,7 +330,7 @@ void main() {
       'classifyMessage does not delete when pending target message confirmation times out',
       () async {
         final adapter = _FakeTdlibAdapter(
-          wireResponses: <String, List<TdWireEnvelope>>{
+          wireResponses: <String, List<Object>>{
             'forwardMessages': <TdWireEnvelope>[
               TdWireEnvelope.fromJson(<String, dynamic>{
                 '@type': 'messages',
@@ -341,16 +343,6 @@ void main() {
                 ],
               }),
             ],
-            'getMessage': List<TdWireEnvelope>.generate(
-              12,
-              (_) => TdWireEnvelope.fromJson(
-                _forwardedTextMessageJson(
-                  88,
-                  'copied',
-                  sendingStateType: 'messageSendingStatePending',
-                ),
-              ),
-            ),
           },
         );
         final service = TelegramService(
@@ -372,6 +364,54 @@ void main() {
         expect(adapter.deleteMessageCalls, 0);
       },
     );
+
+    test('classifyMessage does not delete when target send failed', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<Object>>{
+          'forwardMessages': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{
+              '@type': 'messages',
+              'messages': [
+                _forwardedTextMessageJson(
+                  88,
+                  'copied',
+                  sendingStateType: 'messageSendingStatePending',
+                ),
+              ],
+            }),
+          ],
+        },
+      );
+      final service = TelegramService(
+        adapter: adapter,
+        forwardDeliveryConfirmTimeout: const Duration(milliseconds: 30),
+        forwardDeliveryPollInterval: const Duration(milliseconds: 1),
+      );
+
+      Future<void>.delayed(const Duration(milliseconds: 1), () {
+        adapter.emitMessageSendResult(
+          const TdMessageSendResult.failed(
+            chatId: 999,
+            oldMessageId: 88,
+            messageId: 91,
+            errorCode: 406,
+            errorMessage: 'SEND_FAILED',
+          ),
+        );
+      });
+
+      await expectLater(
+        () => service.classifyMessage(
+          sourceChatId: 777,
+          messageIds: const [10],
+          targetChatId: 999,
+          asCopy: false,
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(adapter.deleteMessageCalls, 0);
+    });
 
     test(
       'classifyMessage does not delete when forward returns fewer target messages than source',
@@ -1027,10 +1067,16 @@ class _FakeTdlibAdapter extends TdlibAdapter {
   final Map<String, List<Object>> wireResponses;
   final List<int> downloadedFileIds = <int>[];
   final List<bool> deleteMessageRevokes = <bool>[];
+  final StreamController<TdMessageSendResult> _messageSendController =
+      StreamController<TdMessageSendResult>.broadcast();
   int deleteMessageCalls = 0;
   int getMessageCalls = 0;
   bool? lastForwardSendCopy;
   int? lastHistoryChatId;
+
+  @override
+  Stream<TdMessageSendResult> get messageSendResults =>
+      _messageSendController.stream;
 
   @override
   Future<void> waitUntilReady() async {}
@@ -1088,6 +1134,10 @@ class _FakeTdlibAdapter extends TdlibAdapter {
       return;
     }
     throw UnimplementedError();
+  }
+
+  void emitMessageSendResult(TdMessageSendResult result) {
+    _messageSendController.add(result);
   }
 }
 

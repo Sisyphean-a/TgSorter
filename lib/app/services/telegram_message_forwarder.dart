@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:tdlib/td_api.dart';
+import 'package:tgsorter/app/services/td_message_send_result.dart';
 import 'package:tgsorter/app/services/td_response_reader.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
@@ -21,6 +22,8 @@ class TelegramMessageForwarder {
   final TdlibAdapter _adapter;
   final Duration _confirmTimeout;
   final Duration _pollInterval;
+  Stream<TdMessageSendResult> get _messageSendResults =>
+      _adapter.messageSendResults;
 
   Future<List<int>> forwardMessagesAndConfirmDelivery({
     required int targetChatId,
@@ -29,43 +32,54 @@ class TelegramMessageForwarder {
     required bool sendCopy,
     required String requestLabel,
   }) async {
-    final envelope = await _adapter.sendWire(
-      ForwardMessages(
-        chatId: targetChatId,
-        messageThreadId: 0,
-        fromChatId: sourceChatId,
-        messageIds: sourceMessageIds,
-        options: null,
-        sendCopy: sendCopy,
-        removeCaption: false,
-        onlyPreview: false,
-      ),
-      request: 'forwardMessages',
-      phase: TdlibPhase.business,
-    );
-    final forwarded = _parseForwardedMessageDeliveries(envelope);
-    if (forwarded.isEmpty) {
-      throw StateError('$requestLabel 返回异常，无法提取目标消息 ID');
-    }
-    if (forwarded.length != sourceMessageIds.length) {
-      throw StateError(
-        '$requestLabel 返回数量异常，source=${sourceMessageIds.length},target=${forwarded.length}',
+    final bufferedResults = StreamController<TdMessageSendResult>();
+    final subscription = _messageSendResults
+        .where((item) => item.chatId == targetChatId)
+        .listen(bufferedResults.add);
+    try {
+      final envelope = await _adapter.sendWire(
+        ForwardMessages(
+          chatId: targetChatId,
+          messageThreadId: 0,
+          fromChatId: sourceChatId,
+          messageIds: sourceMessageIds,
+          options: null,
+          sendCopy: sendCopy,
+          removeCaption: false,
+          onlyPreview: false,
+        ),
+        request: 'forwardMessages',
+        phase: TdlibPhase.business,
       );
-    }
-    for (final item in forwarded) {
-      if (!item.delivery.isFailed) {
-        continue;
+      final forwarded = _parseForwardedMessageDeliveries(envelope);
+      if (forwarded.isEmpty) {
+        throw StateError('$requestLabel 返回异常，无法提取目标消息 ID');
       }
-      throw StateError(
-        '$requestLabel 目标消息发送失败: message_id=${item.messageId},reason=${item.delivery.failureReason}',
+      if (forwarded.length != sourceMessageIds.length) {
+        throw StateError(
+          '$requestLabel 返回数量异常，source=${sourceMessageIds.length},target=${forwarded.length}',
+        );
+      }
+      for (final item in forwarded) {
+        if (!item.delivery.isFailed) {
+          continue;
+        }
+        throw StateError(
+          '$requestLabel 目标消息发送失败: message_id=${item.messageId},reason=${item.delivery.failureReason}',
+        );
+      }
+      final confirmedIds = await _waitPendingForwardedMessages(
+        requestLabel: requestLabel,
+        forwarded: forwarded,
+        resultStream: bufferedResults.stream,
       );
+      return forwarded
+          .map((item) => confirmedIds[item.messageId] ?? item.messageId)
+          .toList(growable: false);
+    } finally {
+      unawaited(subscription.cancel());
+      unawaited(bufferedResults.close());
     }
-    await _waitPendingForwardedMessages(
-      targetChatId: targetChatId,
-      requestLabel: requestLabel,
-      forwarded: forwarded,
-    );
-    return forwarded.map((item) => item.messageId).toList(growable: false);
   }
 
   List<_ForwardedMessageDelivery> _parseForwardedMessageDeliveries(
@@ -85,81 +99,54 @@ class TelegramMessageForwarder {
         .toList(growable: false);
   }
 
-  Future<void> _waitPendingForwardedMessages({
-    required int targetChatId,
+  Future<Map<int, int>> _waitPendingForwardedMessages({
     required String requestLabel,
     required List<_ForwardedMessageDelivery> forwarded,
+    required Stream<TdMessageSendResult> resultStream,
   }) async {
     final pendingIds = forwarded
         .where((item) => item.delivery.isPending)
         .map((item) => item.messageId)
         .toSet();
+    final confirmedIds = <int, int>{};
     if (pendingIds.isEmpty) {
-      return;
+      return confirmedIds;
     }
+    final resultIterator = StreamIterator<TdMessageSendResult>(resultStream);
     final deadline = DateTime.now().add(_confirmTimeout);
-    while (pendingIds.isNotEmpty) {
-      final snapshot = pendingIds.toList(growable: false);
-      for (final messageId in snapshot) {
-        if (messageId <= 0) {
-          throw StateError(
-            '$requestLabel 返回临时消息 ID($messageId)，发送状态未确认，已中止删除源消息',
-          );
-        }
-        final envelope = await _loadForwardedMessage(
-          targetChatId: targetChatId,
-          messageId: messageId,
-        );
-        if (envelope == null) {
-          continue;
-        }
-        final delivery = _readMessageDeliveryState(envelope.payload);
-        if (delivery.isSent) {
-          pendingIds.remove(messageId);
-          continue;
-        }
-        if (delivery.isFailed) {
-          throw StateError(
-            '$requestLabel 目标消息发送失败: message_id=$messageId,reason=${delivery.failureReason}',
-          );
-        }
-      }
-      if (pendingIds.isEmpty) {
-        return;
-      }
-      if (DateTime.now().isAfter(deadline)) {
-        throw StateError(
-          '$requestLabel 发送状态确认超时，pending=${pendingIds.join(",")}，已中止删除源消息',
-        );
-      }
-      await Future<void>.delayed(_pollInterval);
-    }
-  }
-
-  Future<TdWireEnvelope?> _loadForwardedMessage({
-    required int targetChatId,
-    required int messageId,
-  }) async {
     try {
-      return await _adapter.sendWire(
-        GetMessage(chatId: targetChatId, messageId: messageId),
-        request: 'getMessage($targetChatId,$messageId)',
-        phase: TdlibPhase.business,
-      );
-    } on TdlibFailure catch (error) {
-      if (_isTransientMissingMessage(error)) {
-        return null;
+      while (pendingIds.isNotEmpty) {
+        final remaining = deadline.difference(DateTime.now());
+        if (remaining <= Duration.zero) {
+          throw StateError(
+            '$requestLabel 发送状态确认超时，pending=${pendingIds.join(",")}，已中止删除源消息',
+          );
+        }
+        final hasNext = await resultIterator.moveNext().timeout(
+          remaining,
+          onTimeout: () => false,
+        );
+        if (!hasNext) {
+          throw StateError(
+            '$requestLabel 发送状态确认超时，pending=${pendingIds.join(",")}，已中止删除源消息',
+          );
+        }
+        final result = resultIterator.current;
+        if (!pendingIds.contains(result.oldMessageId)) {
+          continue;
+        }
+        if (!result.isSuccess) {
+          throw StateError(
+            '$requestLabel 目标消息发送失败: message_id=${result.oldMessageId},reason=code=${result.errorCode},message=${result.errorMessage}',
+          );
+        }
+        pendingIds.remove(result.oldMessageId);
+        confirmedIds[result.oldMessageId] = result.messageId;
       }
-      rethrow;
+      return confirmedIds;
+    } finally {
+      await resultIterator.cancel();
     }
-  }
-
-  bool _isTransientMissingMessage(TdlibFailure error) {
-    if (error.code == 404) {
-      return true;
-    }
-    return error.code == 400 &&
-        error.message.toLowerCase().contains('not found');
   }
 
   _MessageDeliveryState _readMessageDeliveryState(
