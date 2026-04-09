@@ -38,7 +38,7 @@ class TdlibProxyManager {
       throw StateError('代理未配置，无法执行 addProxy');
     }
     if (capabilities.addProxyMode == TdlibAddProxyMode.flatArgs) {
-      await _requestExecutor.sendWireExpectOk(
+      final response = await _requestExecutor.sendWire(
         AddProxy(
           server: server,
           port: port,
@@ -52,6 +52,9 @@ class TdlibProxyManager {
         phase: TdlibPhase.startup,
         timeout: const Duration(seconds: 20),
       );
+      if (!_isSuccessfulAddProxyResponse(response.type)) {
+        throw StateError('请求返回非 Ok: ${response.type}');
+      }
       return;
     }
     final request = AddProxyCompatRequest(
@@ -73,6 +76,10 @@ class TdlibProxyManager {
         phase: TdlibPhase.startup,
       );
     }
+  }
+
+  bool _isSuccessfulAddProxyResponse(String type) {
+    return type == 'ok' || type == 'proxy';
   }
 
   Future<void> disableProxy() {

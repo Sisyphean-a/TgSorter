@@ -78,6 +78,33 @@ void main() {
       );
     });
 
+    test('addProxy accepts proxy response for flat schema', () async {
+      final transport = _InspectableFakeTransport(
+        responses: <String, List<TdObject>>{
+          'addProxy': <TdObject>[
+            Proxy(
+              id: 1,
+              server: '10.0.0.1',
+              port: 1080,
+              lastUsedDate: 0,
+              isEnabled: true,
+              type: const ProxyTypeSocks5(username: '', password: ''),
+            ),
+          ],
+        },
+      );
+      final adapter = _buildAdapter(
+        transport,
+        capabilities: const TdlibSchemaCapabilities(
+          addProxyMode: TdlibAddProxyMode.flatArgs,
+        ),
+      );
+
+      await adapter.addProxy();
+
+      expect(transport.sentWithoutResponse, isEmpty);
+    });
+
     test('submitPhoneNumber wraps td errors as TdlibFailure', () async {
       final transport = _InspectableFakeTransport(
         responses: <String, List<TdObject>>{

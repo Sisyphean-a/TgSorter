@@ -78,6 +78,62 @@ void main() {
       },
     );
 
+    test('startup accepts proxy response when enabling proxy', () async {
+      final transport = _FakeTransport(
+        responses: <String, List<TdObject>>{
+          'getAuthorizationState': <TdObject>[
+            const AuthorizationStateWaitTdlibParameters(),
+          ],
+          'setTdlibParameters': <TdObject>[const Ok()],
+          'addProxy': <TdObject>[
+            Proxy(
+              id: 1,
+              server: '127.0.0.1',
+              port: 1080,
+              lastUsedDate: 0,
+              isEnabled: true,
+              type: const ProxyTypeSocks5(username: '', password: ''),
+            ),
+          ],
+        },
+      );
+      final adapter = TdlibAdapter(
+        transport: transport,
+        credentials: const TdlibCredentials(
+          apiId: 1,
+          apiHash: 'hash',
+          proxyServer: '127.0.0.1',
+          proxyPort: 1080,
+          proxyUsername: '',
+          proxyPassword: '',
+        ),
+        runtimePaths: const TdlibRuntimePaths(
+          libraryPath: 'tdjson.dll',
+          databaseDirectory: 'db',
+          filesDirectory: 'files',
+        ),
+        readProxySettings: () => const ProxySettings(
+          server: '127.0.0.1',
+          port: 1080,
+          username: '',
+          password: '',
+        ),
+        detectCapabilities: () async => const TdlibSchemaCapabilities(
+          addProxyMode: TdlibAddProxyMode.flatArgs,
+        ),
+        initializeTdlib: (_) async {},
+      );
+
+      await adapter.start();
+
+      expect(transport.requestConstructors, <String>[
+        'getAuthorizationState',
+        'setTdlibParameters',
+        'addProxy',
+      ]);
+      expect(adapter.lifecycleState, TdlibLifecycleState.running);
+    });
+
     test('enters ready when startup sees authorization ready', () async {
       final transport = _FakeTransport(
         responses: <String, List<TdObject>>{
