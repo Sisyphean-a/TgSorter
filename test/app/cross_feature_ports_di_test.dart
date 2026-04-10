@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:get/get.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tgsorter/app/app.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
@@ -126,6 +128,43 @@ void main() {
     expect(appPage.pipelineSettings, same(fakeRouteSettingsReader));
     expect(appPage.pipelineLogs, same(fakeRouteLogsPort));
     expect(appPage.tagging, same(Get.find<TaggingCoordinator>()));
+  });
+
+  testWidgets('app root applies persisted theme mode from settings', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'app_theme_mode': 'dark'});
+    final prefs = await SharedPreferences.getInstance();
+    final authGateway = _ModuleAuthGateway();
+    final sessionGateway = _ModuleSessionGateway();
+    final pipelineGateway = _ModulePipelineGateway();
+
+    Get.put<SettingsRepository>(SettingsRepository(prefs));
+    Get.put<AuthGateway>(authGateway);
+    Get.put<SessionQueryGateway>(sessionGateway);
+    Get.put<AppErrorController>(AppErrorController());
+
+    registerSettingsModule();
+    registerAuthModule();
+
+    Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
+    Get.put<AuthStateGateway>(authGateway);
+    Get.put<ConnectionStateGateway>(pipelineGateway);
+    Get.put<MessageReadGateway>(pipelineGateway);
+    Get.put<MediaGateway>(pipelineGateway);
+    Get.put<ClassifyGateway>(pipelineGateway);
+    Get.put<RecoveryGateway>(pipelineGateway);
+    Get.put<TaggingGateway>(pipelineGateway);
+    registerPipelineModule();
+    registerTaggingModule();
+
+    await tester.pumpWidget(const TgSorterApp());
+    await tester.pump();
+
+    final app = tester.widget<GetMaterialApp>(find.byType(GetMaterialApp));
+    expect(app.themeMode, ThemeMode.dark);
+    expect(app.theme, isNotNull);
+    expect(app.darkTheme, isNotNull);
   });
 }
 
