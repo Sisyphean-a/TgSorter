@@ -3,6 +3,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
+import 'package:tgsorter/app/models/tag_config.dart';
 
 class SettingsRepository {
   SettingsRepository(this._prefs);
@@ -15,6 +16,8 @@ class SettingsRepository {
   static const _fetchDirectionKey = 'message_fetch_direction';
   static const _forwardAsCopyKey = 'forward_as_copy';
   static const _sourceChatIdKey = 'source_chat_id';
+  static const _tagSourceChatIdKey = 'tag_source_chat_id';
+  static const _tagDefaultGroupTagsKey = 'tag_default_group_tags';
   static const _fetchDirectionLatest = 'latest_first';
   static const _fetchDirectionOldest = 'oldest_first';
   static const _batchSizeKey = 'pipeline_batch_size';
@@ -40,6 +43,12 @@ class SettingsRepository {
     final sourceChatIdRaw = _prefs.getString(_sourceChatIdKey);
     final sourceChatId = int.tryParse(sourceChatIdRaw ?? '');
     settings = settings.updateSourceChatId(sourceChatId);
+    final tagSourceChatIdRaw = _prefs.getString(_tagSourceChatIdKey);
+    final tagSourceChatId = int.tryParse(tagSourceChatIdRaw ?? '');
+    settings = settings.copyWith(
+      tagSourceChatId: tagSourceChatId,
+      clearTagSourceChatId: tagSourceChatId == null,
+    );
     final batchSize = _prefs.getInt(_batchSizeKey) ?? _defaultBatchSize;
     final throttleMs = _prefs.getInt(_throttleMsKey) ?? _defaultThrottleMs;
     settings = settings.updateBatchOptions(
@@ -72,6 +81,7 @@ class SettingsRepository {
         ),
       );
     }
+    settings = settings.copyWith(tagGroups: _loadTagGroups());
     return settings;
   }
 
@@ -87,6 +97,7 @@ class SettingsRepository {
     } else {
       await _prefs.setString(_sourceChatIdKey, sourceChatId.toString());
     }
+    await _saveTagSourceChatId(settings.tagSourceChatId);
     for (final entry in settings.shortcutBindings.entries) {
       await _prefs.setString(
         '$_shortcutPrefix${entry.key.name}',
@@ -101,6 +112,15 @@ class SettingsRepository {
     );
     await _saveProxySettings(settings.proxy);
     await _saveCategories(settings.categories);
+    await _saveTagGroups(settings.tagGroups);
+  }
+
+  Future<void> _saveTagSourceChatId(int? chatId) async {
+    if (chatId == null) {
+      await _prefs.remove(_tagSourceChatIdKey);
+      return;
+    }
+    await _prefs.setString(_tagSourceChatIdKey, chatId.toString());
   }
 
   Future<void> _saveCategories(List<CategoryConfig> categories) async {
@@ -122,6 +142,33 @@ class SettingsRepository {
         item.targetChatTitle,
       );
     }
+  }
+
+  List<TagGroupConfig> _loadTagGroups() {
+    final tags =
+        _prefs.getStringList(_tagDefaultGroupTagsKey) ?? const <String>[];
+    return [
+      TagGroupConfig.fromRaw(
+        key: TagGroupConfig.defaultGroupKey,
+        title: TagGroupConfig.defaultGroupTitle,
+        tags: tags,
+      ),
+    ];
+  }
+
+  Future<void> _saveTagGroups(List<TagGroupConfig> groups) async {
+    final group = _findDefaultTagGroup(groups);
+    final tags = group.tags.map((item) => item.name).toList(growable: false);
+    await _prefs.setStringList(_tagDefaultGroupTagsKey, tags);
+  }
+
+  TagGroupConfig _findDefaultTagGroup(List<TagGroupConfig> groups) {
+    for (final group in groups) {
+      if (group.key == TagGroupConfig.defaultGroupKey) {
+        return group;
+      }
+    }
+    return TagGroupConfig.emptyDefault;
   }
 
   ProxySettings _loadProxySettings() {

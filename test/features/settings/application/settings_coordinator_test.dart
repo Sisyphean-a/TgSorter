@@ -156,6 +156,23 @@ void main() {
     expect(coordinator.getCategory('news').targetChatId, 1001);
   });
 
+  test('updates tag source and default tags in draft only', () {
+    final harness = _SettingsCoordinatorHarness();
+    final coordinator = harness.build();
+    coordinator.onInit();
+
+    coordinator.updateTagSourceChatDraft(-1001);
+    coordinator.addDefaultTagDraft('#摄影');
+
+    expect(coordinator.isDirty.value, isTrue);
+    expect(coordinator.savedSettings.value.tagSourceChatId, isNull);
+    expect(coordinator.draftSettings.value.tagSourceChatId, -1001);
+    expect(
+      coordinator.draftSettings.value.tagGroups.single.tags.single.name,
+      '摄影',
+    );
+  });
+
   test(
     'saveDraft still commits saved settings when restart fails after persistence',
     () async {
