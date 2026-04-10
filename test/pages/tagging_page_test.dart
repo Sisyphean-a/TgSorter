@@ -129,14 +129,6 @@ class _TaggingPageMedia implements MediaGateway {
   }) async {
     throw UnimplementedError();
   }
-
-  @override
-  Future<PipelineMessage> refreshMessage({
-    required int sourceChatId,
-    required int messageId,
-  }) async {
-    throw UnimplementedError();
-  }
 }
 
 class _TaggingPageSettings implements PipelineSettingsReader {

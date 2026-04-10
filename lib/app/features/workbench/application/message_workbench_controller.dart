@@ -11,7 +11,7 @@ import 'package:tgsorter/app/models/pipeline_message.dart';
 
 class MessageWorkbenchController {
   MessageWorkbenchController({
-    required MessageWorkbenchState state,
+    required this.state,
     required MessageReadGateway messages,
     required MediaGateway media,
     required PipelineSettingsReader settings,
@@ -19,7 +19,7 @@ class MessageWorkbenchController {
     PipelineNavigationService? navigation,
     PipelineFeedController? feed,
     RemainingCountService? remainingCount,
-  }) : state = state {
+  }) {
     this.navigation = navigation ?? PipelineNavigationService(state: state);
     feedController =
         feed ??

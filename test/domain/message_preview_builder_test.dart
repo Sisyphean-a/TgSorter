@@ -75,6 +75,7 @@ TdMessageDto _textMessage(int id, String text) {
   return TdMessageDto(
     id: id,
     mediaAlbumId: null,
+    canBeEdited: false,
     content: TdMessageContentDto(
       kind: TdMessageContentKind.text,
       messageId: id,
@@ -87,6 +88,7 @@ TdMessageDto _audioMessage(int id, String title, {required String albumId}) {
   return TdMessageDto(
     id: id,
     mediaAlbumId: albumId,
+    canBeEdited: false,
     content: TdMessageContentDto(
       kind: TdMessageContentKind.audio,
       messageId: id,
@@ -108,6 +110,7 @@ TdMessageDto _photoMessage(
   return TdMessageDto(
     id: id,
     mediaAlbumId: albumId,
+    canBeEdited: false,
     content: TdMessageContentDto(
       kind: TdMessageContentKind.photo,
       messageId: id,
@@ -128,6 +131,7 @@ TdMessageDto _videoMessage(
   return TdMessageDto(
     id: id,
     mediaAlbumId: albumId,
+    canBeEdited: false,
     content: TdMessageContentDto(
       kind: TdMessageContentKind.video,
       messageId: id,
