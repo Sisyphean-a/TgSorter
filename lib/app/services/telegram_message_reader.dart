@@ -2,6 +2,7 @@ import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/domain/message_preview_builder.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/link_preview_instant_view_enricher.dart';
 import 'package:tgsorter/app/services/media_download_coordinator.dart';
 import 'package:tgsorter/app/services/message_history_paginator.dart';
 import 'package:tgsorter/app/services/td_message_dto.dart';
@@ -16,6 +17,7 @@ class TelegramMessageReader {
     required TdlibAdapter adapter,
     MessageHistoryPaginator? historyPaginator,
     MediaDownloadCoordinator? mediaDownloadCoordinator,
+    LinkPreviewInstantViewEnricher? linkPreviewEnricher,
     MessagePreviewBuilder previewBuilder = const MessagePreviewBuilder(),
     Duration defaultTimeout = _defaultTimeoutValue,
     int historyBatchSize = _historyBatchSizeDefault,
@@ -30,12 +32,16 @@ class TelegramMessageReader {
            ),
        _mediaDownloadCoordinator =
            mediaDownloadCoordinator ??
-           MediaDownloadCoordinator(adapter: adapter);
+           MediaDownloadCoordinator(adapter: adapter),
+       _linkPreviewEnricher =
+           linkPreviewEnricher ??
+           LinkPreviewInstantViewEnricher(adapter: adapter);
 
   final TdlibAdapter _adapter;
   final MessagePreviewBuilder _previewBuilder;
   final MessageHistoryPaginator _historyPaginator;
   final MediaDownloadCoordinator _mediaDownloadCoordinator;
+  final LinkPreviewInstantViewEnricher _linkPreviewEnricher;
 
   Future<int> countRemainingMessages(int chatId) async {
     return _historyPaginator.countHistoryMessages(chatId);
@@ -53,11 +59,13 @@ class TelegramMessageReader {
       fromMessageId: fromMessageId,
       limit: limit,
     );
+    final preparedMessages = <TdMessageDto>[];
     for (final item in messages) {
-      await _mediaDownloadCoordinator.warmUpPreview(item.content);
+      final prepared = await _preparePreview(item);
+      preparedMessages.add(prepared);
     }
     return _previewBuilder.groupPipelineMessages(
-      messages: messages,
+      messages: preparedMessages,
       sourceChatId: sourceChatId,
       direction: direction,
     );
@@ -74,15 +82,17 @@ class TelegramMessageReader {
     if (message == null) {
       return null;
     }
-    await _mediaDownloadCoordinator.warmUpPreview(message.content);
-    return toPipelineMessage(message: message, sourceChatId: sourceChatId);
+    final prepared = await _preparePreview(message);
+    return toPipelineMessage(message: prepared, sourceChatId: sourceChatId);
   }
 
   Future<PipelineMessage> refreshMessage({
     required int sourceChatId,
     required int messageId,
   }) async {
-    final message = await loadMessage(sourceChatId, messageId);
+    final message = await _preparePreview(
+      await loadMessage(sourceChatId, messageId),
+    );
     return toPipelineMessage(message: message, sourceChatId: sourceChatId);
   }
 
@@ -103,5 +113,11 @@ class TelegramMessageReader {
       phase: TdlibPhase.business,
     );
     return TdMessageDto.fromJson(envelope.payload);
+  }
+
+  Future<TdMessageDto> _preparePreview(TdMessageDto message) async {
+    final prepared = await _linkPreviewEnricher.enrich(message);
+    await _mediaDownloadCoordinator.warmUpPreview(prepared.content);
+    return prepared;
   }
 }

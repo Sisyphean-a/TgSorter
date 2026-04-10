@@ -78,6 +78,7 @@ class LinkCardPreview {
     required this.description,
     this.localImagePath,
     this.remoteImageFileId,
+    this.remoteImageUrl,
   });
 
   final String url;
@@ -87,6 +88,7 @@ class LinkCardPreview {
   final String description;
   final String? localImagePath;
   final int? remoteImageFileId;
+  final String? remoteImageUrl;
 }
 
 class AudioTrackPreview {
@@ -281,7 +283,8 @@ LinkCardPreview? mapLinkCardPreview(TdMessageContentDto content) {
   final url = preview.url.trim();
   final hasImage =
       preview.localImagePath?.trim().isNotEmpty == true ||
-      preview.remoteImageFileId != null;
+      preview.remoteImageFileId != null ||
+      preview.remoteImageUrl?.trim().isNotEmpty == true;
   if (url.isEmpty ||
       (title.isEmpty && site.isEmpty && description.isEmpty && !hasImage)) {
     return null;
@@ -294,6 +297,7 @@ LinkCardPreview? mapLinkCardPreview(TdMessageContentDto content) {
     description: description,
     localImagePath: preview.localImagePath,
     remoteImageFileId: preview.remoteImageFileId,
+    remoteImageUrl: preview.remoteImageUrl,
   );
 }
 

@@ -44,6 +44,28 @@ void main() {
     expect(fileActions.copiedTexts, ['https://openai.com/research']);
     expect(find.text('https://openai.com/research'), findsNothing);
   });
+
+  testWidgets('link preview renders remote instant view image', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MessagePreviewLinkCard(
+            link: LinkCardPreview(
+              url: 'https://telegra.ph/demo',
+              displayUrl: 'telegra.ph/demo',
+              siteName: 'Telegraph',
+              title: 'Demo',
+              description: '',
+              remoteImageUrl: 'https://telegra.ph/file/preview.jpg',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(image.image, isA<NetworkImage>());
+  });
 }
 
 class _RecordingPlatformFileActions extends PlatformFileActions {

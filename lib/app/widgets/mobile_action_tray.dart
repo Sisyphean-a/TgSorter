@@ -2,6 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
+const _trayRadius = 8.0;
+const _trayPadding = 10.0;
+const _categorySpacing = 8.0;
+const _categoryColumnsBreakpoint = 360.0;
+const _wideCategoryColumns = 3;
+const _narrowCategoryColumns = 2;
+const _categoryButtonHeight = 36.0;
+const _categoryButtonHorizontalPadding = 8.0;
+const _categoryButtonVerticalPadding = 6.0;
+const _statusGap = 6.0;
+
 class MobileActionTray extends StatelessWidget {
   const MobileActionTray({
     super.key,
@@ -20,96 +31,122 @@ class MobileActionTray extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = AppTokens.colorsOf(context);
     return AnimatedContainer(
       duration: AppTokens.quick,
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        color: AppTokens.panelBackground,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
-        border: Border.all(color: AppTokens.borderSubtle),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 20,
-            offset: Offset(0, 12),
-          ),
-        ],
+        color: colors.panelBackground,
+        borderRadius: BorderRadius.circular(_trayRadius),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(_trayPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!online) ...[
-              Text(
-                '离线，分类已禁用',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppTokens.danger,
-                ),
-              ),
-              const SizedBox(height: 6),
-            ],
-            if (categories.isEmpty)
-              Text(
-                '暂无分类',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppTokens.textMuted,
-                ),
-              )
-            else
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  const spacing = 8.0;
-                  final columns = constraints.maxWidth >= 360 ? 3 : 2;
-                  final itemWidth =
-                      (constraints.maxWidth - spacing * (columns - 1)) /
-                      columns;
-                  return Wrap(
-                    spacing: spacing,
-                    runSpacing: spacing,
-                    children: [
-                      for (final category in categories)
-                        SizedBox(
-                          width: itemWidth,
-                          child: FilledButton(
-                            onPressed: canClick
-                                ? () => onClassify(category.key)
-                                : null,
-                            style: FilledButton.styleFrom(
-                              minimumSize: const Size.fromHeight(36),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 6,
-                              ),
-                              backgroundColor: AppTokens.brandAccent,
-                              foregroundColor: const Color(0xFF03211C),
-                              disabledBackgroundColor: AppTokens.surfaceRaised,
-                              disabledForegroundColor: AppTokens.textMuted,
-                              textStyle: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  AppTokens.radiusSmall,
-                                ),
-                              ),
-                            ),
-                            child: Text(
-                              category.targetChatTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            const SizedBox(height: 6),
+            ..._statusWidgets(context, colors),
+            _categoryContent(context, colors),
+            const SizedBox(height: _statusGap),
             secondaryActions,
           ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _statusWidgets(BuildContext context, AppColorPalette colors) {
+    if (online) {
+      return const [];
+    }
+    return [
+      Text(
+        '离线，分类已禁用',
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: colors.danger),
+      ),
+      const SizedBox(height: _statusGap),
+    ];
+  }
+
+  Widget _categoryContent(BuildContext context, AppColorPalette colors) {
+    if (categories.isEmpty) {
+      return Text(
+        '暂无分类',
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: colors.textMuted),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return _categoryGrid(
+          context: context,
+          colors: colors,
+          maxWidth: constraints.maxWidth,
+        );
+      },
+    );
+  }
+
+  Widget _categoryGrid({
+    required BuildContext context,
+    required AppColorPalette colors,
+    required double maxWidth,
+  }) {
+    final columns = maxWidth >= _categoryColumnsBreakpoint
+        ? _wideCategoryColumns
+        : _narrowCategoryColumns;
+    final itemWidth = (maxWidth - _categorySpacing * (columns - 1)) / columns;
+    return Wrap(
+      spacing: _categorySpacing,
+      runSpacing: _categorySpacing,
+      children: [
+        for (final category in categories)
+          _categoryButton(
+            context: context,
+            colors: colors,
+            category: category,
+            width: itemWidth,
+          ),
+      ],
+    );
+  }
+
+  Widget _categoryButton({
+    required BuildContext context,
+    required AppColorPalette colors,
+    required CategoryConfig category,
+    required double width,
+  }) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: width,
+      child: FilledButton(
+        onPressed: canClick ? () => onClassify(category.key) : null,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(_categoryButtonHeight),
+          padding: const EdgeInsets.symmetric(
+            horizontal: _categoryButtonHorizontalPadding,
+            vertical: _categoryButtonVerticalPadding,
+          ),
+          backgroundColor: colors.brandAccent,
+          foregroundColor: theme.colorScheme.onPrimary,
+          disabledBackgroundColor: colors.surfaceRaised,
+          disabledForegroundColor: colors.textMuted,
+          textStyle: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_trayRadius),
+          ),
+        ),
+        child: Text(
+          category.targetChatTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );

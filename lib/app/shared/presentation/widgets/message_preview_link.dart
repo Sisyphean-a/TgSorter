@@ -24,8 +24,7 @@ class _MessagePreviewLinkCardState extends State<MessagePreviewLinkCard> {
   @override
   Widget build(BuildContext context) {
     final link = widget.link;
-    final hasImage =
-        link.localImagePath != null && link.localImagePath!.isNotEmpty;
+    final image = _buildPreviewImage(link);
     return KeyedSubtree(
       key: const Key('message-preview-link-card'),
       child: MessageMediaShell(
@@ -42,19 +41,12 @@ class _MessagePreviewLinkCardState extends State<MessagePreviewLinkCard> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (hasImage)
+                  if (image != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        io.File(link.localImagePath!),
-                        width: 72,
-                        height: 72,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, error, stackTrace) =>
-                            const SizedBox(width: 72),
-                      ),
+                      child: image,
                     ),
-                  if (hasImage) const SizedBox(width: 12),
+                  if (image != null) const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,6 +100,30 @@ class _MessagePreviewLinkCardState extends State<MessagePreviewLinkCard> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget? _buildPreviewImage(LinkCardPreview link) {
+    final localPath = link.localImagePath;
+    if (localPath != null && localPath.isNotEmpty) {
+      return Image.file(
+        io.File(localPath),
+        width: 72,
+        height: 72,
+        fit: BoxFit.cover,
+        errorBuilder: (_, error, stackTrace) => const SizedBox(width: 72),
+      );
+    }
+    final remoteUrl = link.remoteImageUrl;
+    if (remoteUrl == null || remoteUrl.isEmpty) {
+      return null;
+    }
+    return Image.network(
+      remoteUrl,
+      width: 72,
+      height: 72,
+      fit: BoxFit.cover,
+      errorBuilder: (_, error, stackTrace) => const SizedBox(width: 72),
     );
   }
 

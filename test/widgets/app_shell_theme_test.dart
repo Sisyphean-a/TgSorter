@@ -57,6 +57,62 @@ void main() {
     expect(find.byType(AppBar), findsNothing);
   });
 
+  testWidgets('brand app bar follows light theme palette', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const Scaffold(
+          appBar: BrandAppBar(title: 'TgSorter', subtitle: '安全登录'),
+        ),
+      ),
+    );
+
+    final material = tester.widget<Material>(
+      find.descendant(
+        of: find.byType(BrandAppBar),
+        matching: find.byType(Material),
+      ),
+    );
+    final headerBox = tester.widget<DecoratedBox>(
+      find.descendant(
+        of: find.byType(BrandAppBar),
+        matching: find.byType(DecoratedBox),
+      ),
+    );
+    final decoration = headerBox.decoration as BoxDecoration;
+
+    expect(material.color, const Color(0xFFF4F5F7));
+    expect(decoration.color, const Color(0xFFFFFFFF));
+  });
+
+  testWidgets('brand app bar follows dark theme palette', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: const Scaffold(
+          appBar: BrandAppBar(title: 'TgSorter', subtitle: '安全登录'),
+        ),
+      ),
+    );
+
+    final material = tester.widget<Material>(
+      find.descendant(
+        of: find.byType(BrandAppBar),
+        matching: find.byType(Material),
+      ),
+    );
+    final headerBox = tester.widget<DecoratedBox>(
+      find.descendant(
+        of: find.byType(BrandAppBar),
+        matching: find.byType(DecoratedBox),
+      ),
+    );
+    final decoration = headerBox.decoration as BoxDecoration;
+
+    expect(material.color, const Color(0xFF17191C));
+    expect(decoration.color, const Color(0xFF23262A));
+  });
+
   testWidgets('brand app bar stays stable on narrow mobile width', (
     tester,
   ) async {
@@ -98,7 +154,9 @@ void main() {
       ),
     );
 
-    final shellBox = tester.widget<DecoratedBox>(find.byType(DecoratedBox).first);
+    final shellBox = tester.widget<DecoratedBox>(
+      find.byType(DecoratedBox).first,
+    );
     final decoration = shellBox.decoration as BoxDecoration;
 
     expect(decoration.gradient, isNull);

@@ -5,6 +5,17 @@ import 'package:tgsorter/app/shared/presentation/widgets/message_preview_image_g
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_video.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/telegram_media_group_layout.dart';
 
+const _videoDurationBadgeOffset = 6.0;
+const _videoDurationBadgeRadius = 4.0;
+const _videoDurationBadgeHorizontalPadding = 6.0;
+const _videoDurationBadgeVerticalPadding = 2.0;
+const _videoDurationBadgeColor = Color(0x99000000);
+const _videoDurationLabelStyle = TextStyle(
+  color: Colors.white,
+  fontSize: 12,
+  fontWeight: FontWeight.w600,
+);
+
 class MessagePreviewMedia extends StatelessWidget {
   const MessagePreviewMedia({
     super.key,
@@ -214,18 +225,21 @@ class _VideoMosaicTile extends StatelessWidget {
         ),
         if (item.durationSeconds != null)
           Positioned(
-            right: 8,
-            bottom: 8,
+            left: _videoDurationBadgeOffset,
+            bottom: _videoDurationBadgeOffset,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(999),
+                color: _videoDurationBadgeColor,
+                borderRadius: BorderRadius.circular(_videoDurationBadgeRadius),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _videoDurationBadgeHorizontalPadding,
+                  vertical: _videoDurationBadgeVerticalPadding,
+                ),
                 child: Text(
-                  '时长 ${formatPreviewDuration(item.durationSeconds!)}',
-                  style: const TextStyle(color: Colors.white),
+                  formatPreviewDuration(item.durationSeconds!),
+                  style: _videoDurationLabelStyle,
                 ),
               ),
             ),

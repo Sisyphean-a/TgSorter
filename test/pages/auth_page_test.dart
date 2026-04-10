@@ -20,7 +20,6 @@ import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
-import 'package:tgsorter/app/shared/presentation/widgets/brand_app_bar.dart';
 
 void main() {
   setUp(() {
@@ -30,16 +29,64 @@ void main() {
 
   tearDown(Get.reset);
 
-  testWidgets('auth page uses shared shell and branded auth summary', (
+  testWidgets('auth page uses shared shell and compact auth toolbar', (
     tester,
   ) async {
     await _pumpAuthPage(tester);
 
     expect(find.byType(AppShell), findsOneWidget);
-    expect(find.byType(BrandAppBar), findsOneWidget);
-    expect(find.text('安全登录'), findsOneWidget);
-    expect(find.text('使用 TDLib Userbot 登录 Telegram'), findsOneWidget);
-    expect(find.text('登录流程保持简洁，代理与验证码操作集中在同一页面。'), findsOneWidget);
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.text('TgSorter'), findsOneWidget);
+    expect(find.text('安全登录'), findsNothing);
+    expect(find.text('使用 TDLib Userbot 登录 Telegram'), findsNothing);
+    expect(find.text('登录流程保持简洁，代理与验证码操作集中在同一页面。'), findsNothing);
+  });
+
+  testWidgets('auth page keeps login task minimal in wait phone stage', (
+    tester,
+  ) async {
+    final gateway = _FakeAuthGateway();
+    await _pumpAuthPage(tester, gateway: gateway, theme: AppTheme.light());
+
+    gateway.emitState(
+      const TdAuthState(
+        kind: TdAuthStateKind.waitPhoneNumber,
+        rawType: 'authorizationStateWaitPhoneNumber',
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('手机号（含国家码）'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '发送验证码'), findsOneWidget);
+    expect(find.text('手机号登录'), findsNothing);
+    expect(find.text('先输入带国家码的手机号，验证码会发送到 Telegram 官方客户端。'), findsNothing);
+  });
+
+  testWidgets('mobile auth page has compact title and folded proxy settings', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final gateway = _FakeAuthGateway();
+    await _pumpAuthPage(tester, gateway: gateway, theme: AppTheme.light());
+
+    gateway.emitState(
+      const TdAuthState(
+        kind: TdAuthStateKind.waitPhoneNumber,
+        rawType: 'authorizationStateWaitPhoneNumber',
+      ),
+    );
+    await tester.pump();
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    final phoneY = tester.getTopLeft(find.text('手机号（含国家码）')).dy;
+    final proxyY = tester.getTopLeft(find.text('代理配置')).dy;
+
+    expect(scaffold.appBar?.preferredSize.height, 72);
+    expect(phoneY, lessThan(proxyY));
+    expect(find.text('代理服务器'), findsNothing);
+    expect(find.text('代理端口'), findsNothing);
   });
 
   testWidgets('auth page animates between auth stages', (tester) async {
@@ -55,7 +102,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(AnimatedSwitcher), findsWidgets);
-    expect(find.text('手机号登录'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '发送验证码'), findsOneWidget);
 
     gateway.emitState(
       const TdAuthState(
@@ -66,7 +113,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('输入验证码'), findsOneWidget);
+    expect(find.text('验证码'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '提交验证码'), findsOneWidget);
   });
 
   test('auth DI module resolves by capability ports only', () async {
@@ -94,6 +142,7 @@ void main() {
 Future<void> _pumpAuthPage(
   WidgetTester tester, {
   _FakeAuthGateway? gateway,
+  ThemeData? theme,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -124,7 +173,7 @@ Future<void> _pumpAuthPage(
 
   await tester.pumpWidget(
     GetMaterialApp(
-      theme: AppTheme.dark(),
+      theme: theme ?? AppTheme.dark(),
       home: AuthPage(auth: auth, errors: errors),
     ),
   );

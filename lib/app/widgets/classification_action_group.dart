@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
+const _buttonRadius = 8.0;
+const _actionButtonWidth = 160.0;
+const _actionButtonHeight = 44.0;
+
 class ClassificationActionGroup extends StatelessWidget {
   const ClassificationActionGroup({
     super.key,
@@ -17,10 +21,11 @@ class ClassificationActionGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = AppTokens.colorsOf(context);
     if (categories.isEmpty) {
       return Text(
         '暂无分类',
-        style: theme.textTheme.bodyMedium?.copyWith(color: AppTokens.textMuted),
+        style: theme.textTheme.bodyMedium?.copyWith(color: colors.textMuted),
       );
     }
 
@@ -33,28 +38,22 @@ class ClassificationActionGroup extends StatelessWidget {
             duration: AppTokens.quick,
             curve: Curves.easeOutCubic,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
-              boxShadow: enabled
-                  ? const [
-                      BoxShadow(
-                        color: Color(0x22000000),
-                        blurRadius: 18,
-                        offset: Offset(0, 10),
-                      ),
-                    ]
-                  : const [],
+              borderRadius: BorderRadius.circular(_buttonRadius),
             ),
             child: FilledButton(
               onPressed: enabled ? () => onClassify(entry.$2.key) : null,
               style: FilledButton.styleFrom(
-                minimumSize: const Size(160, 44),
-                backgroundColor: AppTokens.brandAccent,
-                foregroundColor: const Color(0xFF03211C),
-                disabledBackgroundColor: AppTokens.surfaceRaised,
-                disabledForegroundColor: AppTokens.textMuted,
+                minimumSize: const Size(
+                  _actionButtonWidth,
+                  _actionButtonHeight,
+                ),
+                backgroundColor: colors.brandAccent,
+                foregroundColor: theme.colorScheme.onPrimary,
+                disabledBackgroundColor: colors.surfaceRaised,
+                disabledForegroundColor: colors.textMuted,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
-                  side: const BorderSide(color: AppTokens.borderSubtle),
+                  borderRadius: BorderRadius.circular(_buttonRadius),
+                  side: BorderSide(color: colors.borderSubtle),
                 ),
                 textStyle: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w700,

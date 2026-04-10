@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/theme/app_theme.dart';
 import 'package:tgsorter/app/widgets/classification_action_group.dart';
-import 'package:tgsorter/app/theme/app_tokens.dart';
 
 void main() {
   testWidgets('empty category state keeps copy minimal', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
+        theme: AppTheme.light(),
         home: Scaffold(
-          body: ClassificationActionGroup(
+          body: const ClassificationActionGroup(
             categories: [],
             enabled: true,
             onClassify: _noop,
@@ -26,9 +27,10 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
+        theme: AppTheme.light(),
         home: Scaffold(
-          body: ClassificationActionGroup(
+          body: const ClassificationActionGroup(
             categories: [
               CategoryConfig(
                 key: 'a',
@@ -54,8 +56,8 @@ void main() {
       find.widgetWithText(FilledButton, '1 收纳'),
     );
     final style = firstButton.style!;
-    expect(style.backgroundColor?.resolve({}), AppTokens.brandAccent);
-    expect(style.foregroundColor?.resolve({}), const Color(0xFF03211C));
+    expect(style.backgroundColor?.resolve({}), const Color(0xFF3390EC));
+    expect(style.foregroundColor?.resolve({}), const Color(0xFFFFFFFF));
   });
 }
 

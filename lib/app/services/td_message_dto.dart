@@ -30,6 +30,7 @@ class TdLinkPreviewDto {
     required this.description,
     this.localImagePath,
     this.remoteImageFileId,
+    this.remoteImageUrl,
   });
 
   final String url;
@@ -39,6 +40,7 @@ class TdLinkPreviewDto {
   final String description;
   final String? localImagePath;
   final int? remoteImageFileId;
+  final String? remoteImageUrl;
 }
 
 class TdTextEntityDto {

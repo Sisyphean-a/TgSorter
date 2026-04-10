@@ -10,6 +10,23 @@ import 'package:tgsorter/app/shared/presentation/widgets/message_preview_video_f
 import 'package:tgsorter/app/shared/presentation/widgets/platform_file_actions.dart';
 import 'package:video_player/video_player.dart';
 
+const _previewScrimColor = Color(0x14000000);
+const _overlayButtonSplashColor = Color(0x1FFFFFFF);
+const _overlayButtonDisabledColor = Color(0x99FFFFFF);
+
+final _overlayIconButtonStyle = ButtonStyle(
+  backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+  foregroundColor: WidgetStateProperty.resolveWith((states) {
+    if (states.contains(WidgetState.disabled)) {
+      return _overlayButtonDisabledColor;
+    }
+    return Colors.white;
+  }),
+  overlayColor: const WidgetStatePropertyAll(_overlayButtonSplashColor),
+  shadowColor: const WidgetStatePropertyAll(Colors.transparent),
+  surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+);
+
 class MessagePreviewVideo extends StatefulWidget {
   const MessagePreviewVideo({
     super.key,
@@ -390,9 +407,10 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
             ),
           ),
         ),
-        IconButton.filled(
+        IconButton(
           key: const Key('message-preview-video-play-toggle'),
           onPressed: _togglePlayback,
+          style: _overlayIconButtonStyle,
           icon: Icon(
             controller.value.isPlaying
                 ? Icons.pause_rounded
@@ -548,7 +566,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
             fit: StackFit.expand,
             children: [
               _buildThumbnail(thumbnailPath),
-              const ColoredBox(color: Colors.black26),
+              const ColoredBox(color: _previewScrimColor),
             ],
           );
     return SizedBox(
@@ -559,7 +577,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
         children: [
           Positioned.fill(child: body),
           if (widget.preparing) const CircularProgressIndicator(),
-          IconButton.filled(
+          IconButton(
             key: const Key('message-video-play'),
             onPressed: widget.preparing
                 ? null
@@ -576,6 +594,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
                     }
                     await widget.onRequestPlayback();
                   },
+            style: _overlayIconButtonStyle,
             icon: const Icon(Icons.play_arrow_rounded),
           ),
         ],
@@ -593,10 +612,11 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
           PreviewPlaceholder(text: text, height: widget.height),
           Positioned(
             bottom: 16,
-            child: IconButton.filled(
+            child: IconButton(
               onPressed: () async {
                 await _syncController(allowInitialize: true);
               },
+              style: _overlayIconButtonStyle,
               icon: const Icon(Icons.refresh_rounded),
             ),
           ),

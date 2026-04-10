@@ -32,6 +32,8 @@ import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 
+part 'auth_pipeline_flow_test_fakes.dart';
+
 void main() {
   testWidgets('Auth ready navigates to app shell', (tester) async {
     tester.view.devicePixelRatio = 1.0;
@@ -176,12 +178,20 @@ void main() {
     );
     await tester.pump();
 
+    await tester.tap(find.text('代理配置'));
+    await tester.pump(const Duration(seconds: 1));
+
     await tester.enterText(
       find.widgetWithText(TextField, '代理服务器'),
       '127.0.0.1',
     );
     await tester.enterText(find.widgetWithText(TextField, '代理端口'), '7897');
-    await tester.tap(find.text('保存代理并重试启动'));
+    final saveProxyButton = find.widgetWithText(FilledButton, '保存代理并重试启动');
+    await tester.ensureVisible(saveProxyButton);
+    await tester.pump();
+    final saveButton = tester.widget<FilledButton>(saveProxyButton);
+    expect(saveButton.onPressed, isNotNull);
+    saveButton.onPressed!.call();
     await tester.pump();
 
     expect(prefs.getString('tdlib_proxy_server'), '127.0.0.1');
@@ -192,143 +202,4 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
   });
-}
-
-class _IntegrationAuthGateway implements AuthGateway, AuthStateGateway {
-  final _authController = StreamController<TdAuthState>.broadcast();
-  int restartCalls = 0;
-
-  @override
-  Stream<TdAuthState> get authStates => _authController.stream;
-
-  void emitAuthState(TdAuthState state) {
-    _authController.add(state);
-  }
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> restart() async {
-    restartCalls++;
-  }
-
-  @override
-  Future<void> submitCode(String code) async {}
-
-  @override
-  Future<void> submitPassword(String password) async {}
-
-  @override
-  Future<void> submitPhoneNumber(String phoneNumber) async {}
-}
-
-class _IntegrationSettingsGateway implements SessionQueryGateway {
-  @override
-  Future<List<SelectableChat>> listSelectableChats() async => const [];
-}
-
-class _NoopAuthNavigationPort implements AuthNavigationPort {
-  @override
-  void goToApp() {}
-}
-
-class _IntegrationPipelineGateway
-    implements
-        ConnectionStateGateway,
-        MessageReadGateway,
-        MediaGateway,
-        ClassifyGateway,
-        RecoveryGateway,
-        TaggingGateway {
-  final _connectionController = StreamController<TdConnectionState>.broadcast();
-
-  @override
-  Stream<TdConnectionState> get connectionStates =>
-      _connectionController.stream;
-
-  void emitConnectionReady() {
-    _connectionController.add(
-      const TdConnectionState(
-        kind: TdConnectionStateKind.ready,
-        rawType: 'connectionStateReady',
-      ),
-    );
-  }
-
-  @override
-  Future<int> countRemainingMessages({required int? sourceChatId}) async => 0;
-
-  @override
-  Future<List<PipelineMessage>> fetchMessagePage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-    required int? fromMessageId,
-    required int limit,
-  }) async {
-    return const [];
-  }
-
-  @override
-  Future<PipelineMessage?> fetchNextMessage({
-    required MessageFetchDirection direction,
-    required int? sourceChatId,
-  }) async {
-    return null;
-  }
-
-  @override
-  Future<PipelineMessage> prepareMediaPlayback({
-    required int sourceChatId,
-    required int messageId,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> prepareMediaPreview({
-    required int sourceChatId,
-    required int messageId,
-  }) async {}
-
-  @override
-  Future<PipelineMessage> refreshMessage({
-    required int sourceChatId,
-    required int messageId,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<ClassifyReceipt> classifyMessage({
-    required int? sourceChatId,
-    required List<int> messageIds,
-    required int targetChatId,
-    required bool asCopy,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> undoClassify({
-    required int sourceChatId,
-    required int targetChatId,
-    required List<int> targetMessageIds,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
-    return ClassifyRecoverySummary.empty;
-  }
-
-  @override
-  Future<ApplyTagResult> applyTag({
-    required int sourceChatId,
-    required List<int> messageIds,
-    required String tagName,
-  }) async {
-    throw UnimplementedError();
-  }
 }

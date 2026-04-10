@@ -607,9 +607,62 @@ void main() {
     );
 
     expect(find.byIcon(Icons.play_arrow_rounded), findsNWidgets(2));
-    expect(find.text('时长 00:11'), findsOneWidget);
-    expect(find.text('时长 00:22'), findsOneWidget);
+    expect(find.text('00:11'), findsOneWidget);
+    expect(find.text('00:22'), findsOneWidget);
     expect(find.byType(PageView), findsNothing);
+  });
+
+  testWidgets('video mosaic keeps playback chrome lightweight', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: PipelineMessage(
+              id: 6,
+              messageIds: const [6, 7],
+              sourceChatId: 100,
+              preview: MessagePreview(
+                kind: MessagePreviewKind.video,
+                title: '媒体组 (2 项)',
+                mediaItems: const [
+                  MediaItemPreview(
+                    messageId: 6,
+                    kind: MediaItemKind.video,
+                    previewPath: null,
+                    fullPath: null,
+                    durationSeconds: 11,
+                  ),
+                  MediaItemPreview(
+                    messageId: 7,
+                    kind: MediaItemKind.video,
+                    previewPath: null,
+                    fullPath: null,
+                    durationSeconds: 22,
+                  ),
+                ],
+              ),
+            ),
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    final playButton = tester.widget<IconButton>(
+      find.byKey(const Key('message-video-play')).first,
+    );
+    final firstTile = tester.getTopLeft(
+      find.byKey(const ValueKey('message-preview-media-tile-6')),
+    );
+    final firstDuration = tester.getTopLeft(find.textContaining('00:11'));
+
+    expect(playButton.style?.backgroundColor?.resolve({}), Colors.transparent);
+    expect(find.text('00:11'), findsOneWidget);
+    expect(find.text('时长 00:11'), findsNothing);
+    expect(firstDuration.dx - firstTile.dx, lessThan(16));
   });
 
   testWidgets('video group does not duplicate duration text', (tester) async {
@@ -652,7 +705,8 @@ void main() {
       ),
     );
 
-    expect(find.text('时长 00:11'), findsNWidgets(2));
+    expect(find.text('00:11'), findsNWidgets(2));
+    expect(find.text('时长 00:11'), findsNothing);
   });
 
   testWidgets('mixed media group renders all tiles without carousel', (
