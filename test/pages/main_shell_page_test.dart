@@ -103,7 +103,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('剩余 7'), findsOneWidget);
-    expect(find.text('分类设置'), findsNothing);
+    expect(find.text('设置'), findsNothing);
 
     await tester.tap(find.byTooltip('打开导航'));
     await tester.pumpAndSettle();
@@ -116,7 +116,7 @@ void main() {
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
 
-    expect(find.text('分类设置'), findsOneWidget);
+    expect(find.text('设置'), findsOneWidget);
     expect(find.byTooltip('打开导航'), findsOneWidget);
 
     await tester.tap(find.byTooltip('打开导航'));
@@ -193,12 +193,10 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('连接与代理'),
+        find.widgetWithText(TextField, '代理服务器'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('连接与代理'));
       await tester.pumpAndSettle();
 
       await tester.enterText(

@@ -183,7 +183,7 @@ class _MobileWorkbench extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppTokens.panelBackground,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppTokens.borderSubtle),
       ),
       child: Padding(

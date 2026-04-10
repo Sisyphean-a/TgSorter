@@ -10,11 +10,13 @@ class SourceChatDraftEditor extends StatelessWidget {
     required this.sourceChatId,
     required this.chats,
     required this.onChanged,
+    this.label = '来源会话',
   });
 
   final int? sourceChatId;
   final List<SelectableChat> chats;
   final ValueChanged<int?> onChanged;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +30,7 @@ class SourceChatDraftEditor extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '来源会话',
+          label,
           style: theme.textTheme.bodySmall?.copyWith(
             color: AppTokens.textMuted,
             fontWeight: FontWeight.w600,

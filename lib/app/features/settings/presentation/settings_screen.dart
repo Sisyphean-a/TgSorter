@@ -7,7 +7,7 @@ import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_category_dialog.dart';
-import 'package:tgsorter/app/features/settings/presentation/settings_group_section.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_list_section.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_sections.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/sticky_action_bar.dart';
@@ -51,59 +51,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       padding: EdgeInsets.only(bottom: 8),
                       child: SettingsUnsavedChangesBanner(),
                     ),
-                  SettingsGroupSection(
-                    key: const ValueKey('settings-section-workflow'),
-                    title: '工作流',
-                    subtitle: '消息来源、拉取方向和批处理节奏。',
-                    highlighted: _workflowDirty(draft, saved),
-                    child: SettingsWorkflowContent(
-                      controller: controller,
-                      draft: draft,
-                    ),
+                  SettingsListSection(
+                    key: const ValueKey('settings-section-forwarding'),
+                    title: '转发区设置',
+                    highlighted: _forwardingDirty(draft, saved),
+                    children: [
+                      SettingsForwardingContent(
+                        controller: controller,
+                        draft: draft,
+                        saved: saved,
+                        onAddCategory: _showAddCategoryDialog,
+                        onRemoveCategory: _removeCategoryDraft,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
-                  SettingsGroupSection(
-                    key: const ValueKey('settings-section-category'),
-                    title: '分类',
-                    subtitle: '维护分类目标与目标会话映射。',
-                    highlighted: !_sameCategories(
-                      draft.categories,
-                      saved.categories,
-                    ),
-                    initiallyExpanded: true,
-                    child: SettingsCategoryContent(
-                      categories: draft.categories,
-                      savedCategories: saved.categories,
-                      chats: controller.chats.toList(growable: false),
-                      onAdd: _showAddCategoryDialog,
-                      onChanged: (key, chat) =>
-                          controller.updateCategoryDraft(key: key, chat: chat),
-                      onRemove: _removeCategoryDraft,
-                    ),
+                  SettingsListSection(
+                    key: const ValueKey('settings-section-tagging'),
+                    title: '标签区设置',
+                    highlighted: _taggingDirty(draft, saved),
+                    children: [
+                      SettingsTaggingContent(
+                        controller: controller,
+                        draft: draft,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
-                  SettingsGroupSection(
-                    key: const ValueKey('settings-section-connection'),
-                    title: '连接与代理',
-                    subtitle: '代理配置保存后统一生效，并在必要时重启连接。',
-                    highlighted: draft.proxy != saved.proxy,
-                    child: SettingsConnectionContent(
-                      controller: controller,
-                      draft: draft,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SettingsGroupSection(
-                    key: const ValueKey('settings-section-tools'),
-                    title: '快捷键与工具',
-                    subtitle: '刷新会话列表并维护桌面端快捷键。',
-                    highlighted:
-                        draft.shortcutBindings != saved.shortcutBindings,
-                    child: SettingsToolsContent(
-                      controller: controller,
-                      draft: draft,
-                      onReloadChats: _loadChats,
-                    ),
+                  SettingsListSection(
+                    key: const ValueKey('settings-section-common'),
+                    title: '通用设置',
+                    highlighted: _commonDirty(draft, saved),
+                    children: [
+                      SettingsCommonContent(
+                        controller: controller,
+                        draft: draft,
+                        onReloadChats: _loadChats,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -277,12 +262,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return true;
   }
 
-  bool _workflowDirty(AppSettings current, AppSettings original) {
+  bool _forwardingDirty(AppSettings current, AppSettings original) {
     return current.sourceChatId != original.sourceChatId ||
         current.fetchDirection != original.fetchDirection ||
         current.forwardAsCopy != original.forwardAsCopy ||
         current.batchSize != original.batchSize ||
         current.throttleMs != original.throttleMs ||
-        current.previewPrefetchCount != original.previewPrefetchCount;
+        current.previewPrefetchCount != original.previewPrefetchCount ||
+        !_sameCategories(current.categories, original.categories);
+  }
+
+  bool _taggingDirty(AppSettings current, AppSettings original) {
+    return current.tagSourceChatId != original.tagSourceChatId ||
+        !_sameTagGroups(current.tagGroups, original.tagGroups);
+  }
+
+  bool _commonDirty(AppSettings current, AppSettings original) {
+    return current.proxy != original.proxy ||
+        current.shortcutBindings != original.shortcutBindings;
+  }
+
+  bool _sameTagGroups(List<Object> left, List<Object> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
   }
 }

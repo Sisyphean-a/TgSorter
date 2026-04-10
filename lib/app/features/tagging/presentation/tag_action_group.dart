@@ -38,7 +38,7 @@ class TagActionGroup extends StatelessWidget {
               disabledBackgroundColor: AppTokens.surfaceRaised,
               disabledForegroundColor: AppTokens.textMuted,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+                borderRadius: BorderRadius.circular(8),
               ),
               textStyle: theme.textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w700,
