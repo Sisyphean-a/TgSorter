@@ -23,6 +23,8 @@ import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
+import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
+import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
@@ -58,6 +60,13 @@ void main() {
       journalRepository: OperationJournalRepository(prefs),
       errorController: errors,
     );
+    final tagging = TaggingCoordinator(
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      taggingGateway: pipelineGateway,
+      settingsReader: settings,
+      errorController: errors,
+    );
     Get.put<AppErrorController>(errors);
     Get.put<AuthGateway>(authGateway);
     Get.put<AuthSettingsPort>(settings);
@@ -80,6 +89,7 @@ void main() {
             name: '/app',
             page: () => MainShellPage(
               pipeline: pipeline,
+              tagging: tagging,
               pipelineSettings: settings,
               errors: errors,
               settings: settings,
@@ -182,7 +192,6 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
   });
-
 }
 
 class _IntegrationAuthGateway implements AuthGateway, AuthStateGateway {
@@ -230,7 +239,8 @@ class _IntegrationPipelineGateway
         MessageReadGateway,
         MediaGateway,
         ClassifyGateway,
-        RecoveryGateway {
+        RecoveryGateway,
+        TaggingGateway {
   final _connectionController = StreamController<TdConnectionState>.broadcast();
 
   @override
@@ -311,5 +321,14 @@ class _IntegrationPipelineGateway
   @override
   Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
     return ClassifyRecoverySummary.empty;
+  }
+
+  @override
+  Future<ApplyTagResult> applyTag({
+    required int sourceChatId,
+    required List<int> messageIds,
+    required String tagName,
+  }) async {
+    throw UnimplementedError();
   }
 }

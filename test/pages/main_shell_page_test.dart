@@ -14,6 +14,8 @@ import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_page.dart';
+import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
+import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -77,12 +79,20 @@ void main() {
     );
     pipeline.isOnline.value = true;
     pipeline.remainingCount.value = 7;
+    final tagging = TaggingCoordinator(
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      taggingGateway: pipelineGateway,
+      settingsReader: settingsController,
+      errorController: errors,
+    );
 
     await tester.pumpWidget(
       GetMaterialApp(
         theme: AppTheme.dark(),
         home: MainShellPage(
           pipeline: pipeline,
+          tagging: tagging,
           pipelineSettings: settingsController,
           errors: errors,
           settings: settingsController,
@@ -98,7 +108,8 @@ void main() {
     await tester.tap(find.byTooltip('打开导航'));
     await tester.pumpAndSettle();
 
-    expect(find.text('工作台'), findsOneWidget);
+    expect(find.text('转发工作台'), findsOneWidget);
+    expect(find.text('标签工作台'), findsOneWidget);
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('日志'), findsOneWidget);
 
@@ -118,7 +129,7 @@ void main() {
 
     await tester.tap(find.byTooltip('打开导航'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('工作台'));
+    await tester.tap(find.text('转发工作台'));
     await tester.pumpAndSettle();
 
     expect(find.text('剩余 7'), findsOneWidget);
@@ -153,12 +164,20 @@ void main() {
         journalRepository: OperationJournalRepository(prefs),
         errorController: errors,
       );
+      final tagging = TaggingCoordinator(
+        messageReadGateway: pipelineGateway,
+        mediaGateway: pipelineGateway,
+        taggingGateway: pipelineGateway,
+        settingsReader: settingsController,
+        errorController: errors,
+      );
 
       await tester.pumpWidget(
         GetMaterialApp(
           theme: AppTheme.dark(),
           home: MainShellPage(
             pipeline: pipeline,
+            tagging: tagging,
             pipelineSettings: settingsController,
             errors: errors,
             settings: settingsController,
@@ -231,7 +250,8 @@ class _ShellPipelineGateway
         ClassifyGateway,
         MessageReadGateway,
         MediaGateway,
-        RecoveryGateway {
+        RecoveryGateway,
+        TaggingGateway {
   @override
   Stream<TdAuthState> get authStates => const Stream.empty();
 
@@ -301,5 +321,14 @@ class _ShellPipelineGateway
   @override
   Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
     return ClassifyRecoverySummary.empty;
+  }
+
+  @override
+  Future<ApplyTagResult> applyTag({
+    required int sourceChatId,
+    required List<int> messageIds,
+    required String tagName,
+  }) async {
+    throw UnimplementedError();
   }
 }

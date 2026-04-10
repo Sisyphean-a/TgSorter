@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 enum MainShellDestination {
-  workspace(label: '工作台', icon: Icons.dashboard_customize_rounded),
+  forwardingWorkbench(label: '转发工作台', icon: Icons.dashboard_customize_rounded),
+  taggingWorkbench(label: '标签工作台', icon: Icons.tag_rounded),
   settings(label: '设置', icon: Icons.tune_rounded),
   logs(label: '日志', icon: Icons.receipt_long_rounded);
 

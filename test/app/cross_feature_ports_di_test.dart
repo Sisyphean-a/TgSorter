@@ -105,7 +105,9 @@ void main() {
     Get.put<MediaGateway>(pipelineGateway);
     Get.put<ClassifyGateway>(pipelineGateway);
     Get.put<RecoveryGateway>(pipelineGateway);
+    Get.put<TaggingGateway>(pipelineGateway);
     registerPipelineModule();
+    registerTaggingModule();
 
     final fakeRouteSettingsReader = _RoutePipelineSettingsReader();
     final fakeRouteLogsPort = _RoutePipelineLogsPort();
@@ -123,6 +125,7 @@ void main() {
     expect(authPage, isA<AuthPage>());
     expect(appPage.pipelineSettings, same(fakeRouteSettingsReader));
     expect(appPage.pipelineLogs, same(fakeRouteLogsPort));
+    expect(appPage.tagging, same(Get.find<TaggingCoordinator>()));
   });
 }
 

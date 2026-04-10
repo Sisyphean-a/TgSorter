@@ -8,6 +8,8 @@ import 'package:tgsorter/app/features/settings/presentation/logs_screen.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_screen.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_destination.dart';
+import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
+import 'package:tgsorter/app/features/tagging/presentation/tagging_page.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
@@ -15,6 +17,7 @@ import 'package:tgsorter/app/theme/app_tokens.dart';
 class MainShellPage extends StatefulWidget {
   const MainShellPage({
     required this.pipeline,
+    required this.tagging,
     required this.pipelineSettings,
     required this.errors,
     required this.settings,
@@ -23,6 +26,7 @@ class MainShellPage extends StatefulWidget {
   });
 
   final PipelineCoordinator pipeline;
+  final TaggingCoordinator tagging;
   final PipelineSettingsReader pipelineSettings;
   final AppErrorController errors;
   final SettingsCoordinator settings;
@@ -34,7 +38,7 @@ class MainShellPage extends StatefulWidget {
 
 class _MainShellPageState extends State<MainShellPage> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  MainShellDestination _current = MainShellDestination.workspace;
+  MainShellDestination _current = MainShellDestination.forwardingWorkbench;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +57,7 @@ class _MainShellPageState extends State<MainShellPage> {
             settings: widget.pipelineSettings,
             errors: widget.errors,
           ),
+          TaggingScreen(controller: widget.tagging, errors: widget.errors),
           SettingsScreen(
             controller: widget.settings,
             pipeline: widget.pipelineLogs,
@@ -66,9 +71,14 @@ class _MainShellPageState extends State<MainShellPage> {
   PreferredSizeWidget _buildAppBar() {
     final leading = _DrawerMenuButton(onPressed: _openDrawer);
     switch (_current) {
-      case MainShellDestination.workspace:
+      case MainShellDestination.forwardingWorkbench:
         return PipelineCompactAppBar(
           pipeline: widget.pipeline,
+          leading: leading,
+        );
+      case MainShellDestination.taggingWorkbench:
+        return TaggingCompactAppBar(
+          controller: widget.tagging,
           leading: leading,
         );
       case MainShellDestination.settings:
