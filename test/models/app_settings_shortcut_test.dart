@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
 
@@ -95,6 +96,28 @@ void main() {
       expect(settings.tagging.defaultGroup.tags.single.name, '摄影');
       expect(settings.common.proxy, settings.proxy);
       expect(settings.common.shortcutBindings, settings.shortcutBindings);
+    });
+  });
+
+  group('AppSettings theme mode', () {
+    test('defaults use light theme mode', () {
+      final settings = AppSettings.defaults();
+
+      expect(settings.themeMode, AppThemeMode.light);
+    });
+
+    test('copyWith updates theme mode and equality tracks it', () {
+      final settings = AppSettings.defaults();
+
+      final updated = settings.copyWith(themeMode: AppThemeMode.dark);
+
+      expect(updated.themeMode, AppThemeMode.dark);
+      expect(updated, isNot(settings));
+      expect(updated.copyWith(), updated);
+      expect(
+        settings.copyWith(themeMode: AppThemeMode.dark),
+        settings.copyWith(themeMode: AppThemeMode.dark),
+      );
     });
   });
 }

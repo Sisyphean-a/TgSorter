@@ -15,6 +15,7 @@ import 'package:tgsorter/app/features/settings/application/settings_save_result.
 import 'package:tgsorter/app/features/settings/application/shortcut_settings_service.dart';
 import 'package:tgsorter/app/features/settings/application/tag_settings_service.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
@@ -144,6 +145,10 @@ class SettingsCoordinator extends GetxController
         password: password,
       ),
     );
+  }
+
+  void updateThemeModeDraft(AppThemeMode mode) {
+    _draftCoordinator.update(draftSettings.value.copyWith(themeMode: mode));
   }
 
   void addCategoryDraft(SelectableChat chat) {
