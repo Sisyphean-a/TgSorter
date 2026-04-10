@@ -3,6 +3,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_common_editors.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
+import 'package:tgsorter/app/features/settings/presentation/theme_mode_draft_editor.dart';
 import 'package:tgsorter/app/features/settings/presentation/tag_group_editor.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
 import 'package:tgsorter/app/widgets/shortcut_bindings_editor.dart';
@@ -99,6 +100,11 @@ class SettingsCommonContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        ThemeModeDraftEditor(
+          value: draft.themeMode,
+          onChanged: controller.updateThemeModeDraft,
+        ),
+        const SizedBox(height: 12),
         SettingsConnectionContent(controller: controller, draft: draft),
         const SizedBox(height: 12),
         SettingsToolsContent(

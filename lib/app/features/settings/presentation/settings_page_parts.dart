@@ -84,8 +84,9 @@ class SettingsUnsavedChangesBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     return Material(
-      color: AppTokens.brandAccentSoft,
+      color: colors.brandAccentSoft,
       borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
       child: const Padding(
         padding: EdgeInsets.all(AppTokens.spaceMd),
