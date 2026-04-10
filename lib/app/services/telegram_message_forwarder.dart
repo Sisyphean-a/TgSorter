@@ -16,12 +16,10 @@ class TelegramMessageForwarder {
     Duration confirmTimeout = _confirmTimeoutDefault,
     Duration pollInterval = _pollIntervalDefault,
   }) : _adapter = adapter,
-       _confirmTimeout = confirmTimeout,
-       _pollInterval = pollInterval;
+       _confirmTimeout = confirmTimeout;
 
   final TdlibAdapter _adapter;
   final Duration _confirmTimeout;
-  final Duration _pollInterval;
   Stream<TdMessageSendResult> get _messageSendResults =>
       _adapter.messageSendResults;
 

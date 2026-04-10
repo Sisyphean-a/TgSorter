@@ -24,10 +24,10 @@ class SettingsGroupSection extends StatelessWidget {
     return _SettingsGroupTile(
       title: title,
       subtitle: subtitle,
-      child: child,
       highlighted: highlighted,
       trailing: trailing,
       initiallyExpanded: initiallyExpanded,
+      child: child,
     );
   }
 }

@@ -145,6 +145,45 @@ void main() {
   );
 
   test(
+    'refreshCurrentMediaIfNeeded refreshes missing photo previews',
+    () async {
+      final state = PipelineRuntimeState();
+      state.currentMessage.value = PipelineMessage(
+        id: 31,
+        messageIds: const <int>[31, 32],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.photo,
+          title: 'photos',
+          mediaItems: [
+            MediaItemPreview(messageId: 31, kind: MediaItemKind.photo),
+            MediaItemPreview(
+              messageId: 32,
+              kind: MediaItemKind.photo,
+              previewPath: 'C:/photo-32.jpg',
+            ),
+          ],
+        ),
+      );
+      final mediaRefresh = _PhotoRefreshMediaService();
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: mediaRefresh,
+        videoRefreshInterval: const Duration(milliseconds: 5),
+      );
+
+      await controller.refreshCurrentMediaIfNeeded();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(mediaRefresh.refreshCalls, contains(31));
+      expect(
+        state.currentMessage.value?.preview.mediaItems.first.previewPath,
+        'C:/photo-31.jpg',
+      );
+    },
+  );
+
+  test(
     'prepareCurrentMedia keeps prepared payload when navigating away and back',
     () async {
       final state = PipelineRuntimeState();
@@ -465,6 +504,48 @@ class _RecordingRefreshMediaService extends PipelineMediaRefreshService {
             kind: MediaItemKind.video,
             previewPath: 'C:/thumb-$messageId.jpg',
             fullPath: null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoRefreshMediaService extends PipelineMediaRefreshService {
+  _PhotoRefreshMediaService()
+    : super.legacy(
+        mediaGateway: _NoopMediaGateway(),
+        messageGateway: _NoopMessageReadGateway(),
+      );
+
+  final List<int> refreshCalls = <int>[];
+
+  @override
+  Future<PipelineMessage> prepareCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PipelineMessage> refreshCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    refreshCalls.add(messageId);
+    return PipelineMessage(
+      id: messageId,
+      messageIds: <int>[messageId],
+      sourceChatId: sourceChatId,
+      preview: MessagePreview(
+        kind: MessagePreviewKind.photo,
+        title: 'photo-$messageId',
+        mediaItems: <MediaItemPreview>[
+          MediaItemPreview(
+            messageId: messageId,
+            kind: MediaItemKind.photo,
+            previewPath: 'C:/photo-$messageId.jpg',
           ),
         ],
       ),

@@ -201,6 +201,63 @@ void main() {
         expect(result.isSuccess, isTrue);
       },
     );
+
+    test(
+      'forwards raw connection updates emitted during transport start',
+      () async {
+        final rawTransport = _InspectableRawTransport(
+          updatesOnStart: const [
+            <String, dynamic>{
+              '@type': 'updateConnectionState',
+              'state': <String, dynamic>{'@type': 'connectionStateReady'},
+            },
+          ],
+        );
+        final transport = _InspectableFakeTransport(
+          responses: <String, List<TdObject>>{
+            'getAuthorizationState': <TdObject>[
+              const AuthorizationStateReady(),
+            ],
+            'disableProxy': <TdObject>[const Ok()],
+          },
+          onStart: rawTransport.start,
+        );
+        final adapter = TdlibAdapter(
+          transport: transport,
+          rawTransport: rawTransport,
+          credentials: const TdlibCredentials(
+            apiId: 1,
+            apiHash: 'hash',
+            proxyServer: null,
+            proxyPort: null,
+            proxyUsername: '',
+            proxyPassword: '',
+          ),
+          runtimePaths: const TdlibRuntimePaths(
+            libraryPath: 'tdjson.dll',
+            databaseDirectory: 'db',
+            filesDirectory: 'files',
+          ),
+          readProxySettings: () => const ProxySettings(
+            server: '',
+            port: null,
+            username: '',
+            password: '',
+          ),
+          detectCapabilities: () async => const TdlibSchemaCapabilities(
+            addProxyMode: TdlibAddProxyMode.flatArgs,
+          ),
+          initializeTdlib: (_) async {},
+        );
+
+        final connection = adapter.connectionStates.first.timeout(
+          const Duration(milliseconds: 20),
+        );
+        await adapter.start();
+
+        expect((await connection).isReady, isTrue);
+      },
+    );
   });
 }
 
@@ -236,10 +293,14 @@ TdlibAdapter _buildAdapter(
 }
 
 class _InspectableFakeTransport implements TdTransport {
-  _InspectableFakeTransport({required Map<String, List<TdObject>> responses})
-    : _responses = responses;
+  _InspectableFakeTransport({
+    required Map<String, List<TdObject>> responses,
+    Future<void> Function()? onStart,
+  }) : _responses = responses,
+       _onStart = onStart;
 
   final Map<String, List<TdObject>> _responses;
+  final Future<void> Function()? _onStart;
   final StreamController<TdObject> _updates =
       StreamController<TdObject>.broadcast();
   final List<TdFunction> sentWithoutResponse = <TdFunction>[];
@@ -248,7 +309,9 @@ class _InspectableFakeTransport implements TdTransport {
   Stream<TdObject> get updates => _updates.stream;
 
   @override
-  Future<void> start() async {}
+  Future<void> start() async {
+    await _onStart?.call();
+  }
 
   @override
   Future<void> stop() async {
@@ -281,15 +344,18 @@ class _InspectableFakeTransport implements TdTransport {
 }
 
 class _InspectableRawTransport extends TdRawTransport {
-  _InspectableRawTransport()
-    : _updatesController = StreamController<Map<String, dynamic>>.broadcast(),
-      _responses = <String, List<Map<String, dynamic>>>{
-        'disableProxy': <Map<String, dynamic>>[
-          <String, dynamic>{'@type': 'ok'},
-        ],
-      },
-      super(logger: TdJsonLogger(isEnabled: false));
+  _InspectableRawTransport({
+    List<Map<String, dynamic>> updatesOnStart = const <Map<String, dynamic>>[],
+  }) : _updatesOnStart = updatesOnStart,
+       _updatesController = StreamController<Map<String, dynamic>>.broadcast(),
+       _responses = <String, List<Map<String, dynamic>>>{
+         'disableProxy': <Map<String, dynamic>>[
+           <String, dynamic>{'@type': 'ok'},
+         ],
+       },
+       super(logger: TdJsonLogger(isEnabled: false));
 
+  final List<Map<String, dynamic>> _updatesOnStart;
   final StreamController<Map<String, dynamic>> _updatesController;
   final Map<String, List<Map<String, dynamic>>> _responses;
   bool started = false;
@@ -300,6 +366,9 @@ class _InspectableRawTransport extends TdRawTransport {
   @override
   Future<void> start() async {
     started = true;
+    for (final update in _updatesOnStart) {
+      emitUpdate(update);
+    }
   }
 
   @override

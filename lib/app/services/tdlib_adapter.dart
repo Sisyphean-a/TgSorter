@@ -108,18 +108,8 @@ class TdlibAdapter {
       _emitLifecycle(TdlibLifecycleState.starting);
       _emitStartup(TdlibStartupState.init);
       await _initializeTdlib(_runtimePaths.libraryPath);
+      _subscribeUpdates();
       await _transport.start();
-      if (_rawTransport != null) {
-        _rawUpdatesSub = _rawTransport.updates.listen(
-          _handleRawUpdate,
-          onError: _handleTransportError,
-        );
-      } else {
-        _updatesSub = _transport.updates.listen(
-          _handleUpdate,
-          onError: _handleTransportError,
-        );
-      }
       final state = await _getAuthorizationState();
       if (state.needsTdlibParameters) {
         _emitStartup(TdlibStartupState.setParams);
@@ -136,6 +126,7 @@ class TdlibAdapter {
       _emitLifecycle(TdlibLifecycleState.running);
       completer.complete();
     } catch (error, stackTrace) {
+      await _cancelUpdateSubscriptions();
       _emitLifecycle(TdlibLifecycleState.failed);
       _emitStartup(TdlibStartupState.failed);
       if (!completer.isCompleted) {
@@ -404,11 +395,29 @@ class TdlibAdapter {
     _lifecycleController.add(state);
   }
 
-  Future<void> _disposeTransport() async {
+  void _subscribeUpdates() {
+    if (_rawTransport != null) {
+      _rawUpdatesSub ??= _rawTransport.updates.listen(
+        _handleRawUpdate,
+        onError: _handleTransportError,
+      );
+      return;
+    }
+    _updatesSub ??= _transport.updates.listen(
+      _handleUpdate,
+      onError: _handleTransportError,
+    );
+  }
+
+  Future<void> _cancelUpdateSubscriptions() async {
     await _updatesSub?.cancel();
     _updatesSub = null;
     await _rawUpdatesSub?.cancel();
     _rawUpdatesSub = null;
+  }
+
+  Future<void> _disposeTransport() async {
+    await _cancelUpdateSubscriptions();
     await _transport.stop();
   }
 

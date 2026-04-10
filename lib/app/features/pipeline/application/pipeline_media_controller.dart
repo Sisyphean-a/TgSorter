@@ -213,23 +213,27 @@ class PipelineMediaController implements PipelineLegacyMediaController {
   }
 
   bool _needsMediaRefresh(MessagePreview preview) {
+    if (preview.mediaItems.isNotEmpty) {
+      return preview.mediaItems.any((item) {
+        if (!_hasPath(item.previewPath) && !_hasPath(item.fullPath)) {
+          return true;
+        }
+        final waitingForPlayback =
+            preview.kind == MessagePreviewKind.video &&
+            _state.videoPreparing.value &&
+            (_refreshTargetMessageId == null ||
+                _refreshTargetMessageId == item.messageId);
+        return item.kind == MediaItemKind.video &&
+            waitingForPlayback &&
+            !_hasPath(item.fullPath);
+      });
+    }
     if (preview.kind == MessagePreviewKind.video) {
-      if (preview.mediaItems.isNotEmpty) {
-        return preview.mediaItems.any((item) {
-          if (!_hasPath(item.previewPath)) {
-            return true;
-          }
-          final waitingForPlayback =
-              _state.videoPreparing.value &&
-              (_refreshTargetMessageId == null ||
-                  _refreshTargetMessageId == item.messageId);
-          return item.kind == MediaItemKind.video &&
-              waitingForPlayback &&
-              !_hasPath(item.fullPath);
-        });
-      }
       return !_hasPath(preview.localVideoThumbnailPath) ||
           (_state.videoPreparing.value && !_hasPath(preview.localVideoPath));
+    }
+    if (preview.kind == MessagePreviewKind.photo) {
+      return !_hasPath(preview.localImagePath);
     }
     if (preview.kind == MessagePreviewKind.audio) {
       return _state.videoPreparing.value && !_hasPath(preview.localAudioPath);
@@ -277,10 +281,6 @@ class PipelineMediaController implements PipelineLegacyMediaController {
       return targetId;
     }
     final preview = current.preview;
-    if (preview.kind != MessagePreviewKind.video ||
-        preview.mediaItems.isEmpty) {
-      return current.id;
-    }
     for (final item in preview.mediaItems) {
       if (!_hasPath(item.previewPath) && !_hasPath(item.fullPath)) {
         return item.messageId;
