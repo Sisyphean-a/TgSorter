@@ -4,6 +4,7 @@ import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
+import 'package:tgsorter/app/core/di/tagging_module.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
@@ -83,4 +84,5 @@ Future<void> registerAppBindings() async {
   registerSettingsModule();
   registerAuthModule();
   registerPipelineModule();
+  registerTaggingModule();
 }

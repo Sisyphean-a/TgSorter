@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
+import 'package:tgsorter/app/core/di/tagging_module.dart';
 import 'package:tgsorter/app/core/routing/app_routes.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
@@ -24,6 +25,8 @@ import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
+import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
+import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_page.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -66,10 +69,13 @@ void main() {
       Get.put<ClassifyGateway>(pipelineGateway);
       Get.put<RecoveryGateway>(pipelineGateway);
       Get.put<PipelineSettingsReader>(pipelineSettings);
+      Get.put<TaggingGateway>(pipelineGateway);
 
       expect(registerPipelineModule, returnsNormally);
       expect(Get.find<PipelineCoordinator>(), isNotNull);
       expect(Get.find<PipelineLogsPort>(), isA<PipelineLogsPort>());
+      expect(registerTaggingModule, returnsNormally);
+      expect(Get.find<TaggingCoordinator>(), isNotNull);
     },
   );
 
@@ -194,7 +200,8 @@ class _ModulePipelineGateway
         MessageReadGateway,
         MediaGateway,
         ClassifyGateway,
-        RecoveryGateway {
+        RecoveryGateway,
+        TaggingGateway {
   final _connectionStates = StreamController<TdConnectionState>.broadcast();
 
   @override
@@ -253,6 +260,13 @@ class _ModulePipelineGateway
     required int targetChatId,
     required List<int> targetMessageIds,
   }) async {}
+
+  @override
+  Future<ApplyTagResult> applyTag({
+    required int sourceChatId,
+    required List<int> messageIds,
+    required String tagName,
+  }) async => throw UnimplementedError();
 }
 
 class _NoopAuthNavigationPort implements AuthNavigationPort {
