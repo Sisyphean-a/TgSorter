@@ -38,8 +38,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('操作日志'), findsOneWidget);
+    expect(find.text('操作日志'), findsNothing);
     expect(find.text('失败中'), findsWidgets);
+    expect(find.byKey(const Key('logs-filter-bar')), findsOneWidget);
+    expect(find.byKey(const Key('log-chain-row-1002_cat_200')), findsOneWidget);
     expect(find.text('消息 #1002'), findsOneWidget);
     expect(find.text('原因：NETWORK'), findsOneWidget);
     expect(find.text('消息 #1001'), findsOneWidget);

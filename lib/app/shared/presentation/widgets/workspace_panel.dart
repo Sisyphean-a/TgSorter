@@ -7,11 +7,13 @@ class WorkspacePanel extends StatelessWidget {
     this.title,
     required this.child,
     this.subtitle,
+    this.dense = false,
   });
 
   final String? title;
   final String? subtitle;
   final Widget child;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -21,11 +23,13 @@ class WorkspacePanel extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppTokens.panelBackground,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+        borderRadius: BorderRadius.circular(
+          dense ? AppTokens.radiusMedium : AppTokens.radiusLarge,
+        ),
         border: Border.all(color: AppTokens.borderSubtle),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: EdgeInsets.all(dense ? AppTokens.spaceMd : AppTokens.spaceLg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

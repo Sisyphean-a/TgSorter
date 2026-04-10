@@ -28,7 +28,7 @@ class ClassificationActionGroup extends StatelessWidget {
       spacing: AppTokens.spaceSm,
       runSpacing: AppTokens.spaceSm,
       children: [
-        for (final category in categories)
+        for (final entry in categories.indexed)
           AnimatedContainer(
             duration: AppTokens.quick,
             curve: Curves.easeOutCubic,
@@ -44,12 +44,14 @@ class ClassificationActionGroup extends StatelessWidget {
                     ]
                   : const [],
             ),
-            child: FilledButton.tonal(
-              onPressed: enabled ? () => onClassify(category.key) : null,
+            child: FilledButton(
+              onPressed: enabled ? () => onClassify(entry.$2.key) : null,
               style: FilledButton.styleFrom(
-                minimumSize: const Size(180, 52),
-                backgroundColor: AppTokens.surfaceRaised,
-                foregroundColor: AppTokens.textPrimary,
+                minimumSize: const Size(160, 44),
+                backgroundColor: AppTokens.brandAccent,
+                foregroundColor: const Color(0xFF03211C),
+                disabledBackgroundColor: AppTokens.surfaceRaised,
+                disabledForegroundColor: AppTokens.textMuted,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
                   side: const BorderSide(color: AppTokens.borderSubtle),
@@ -58,7 +60,11 @@ class ClassificationActionGroup extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              child: Text(category.targetChatTitle),
+              child: Text(
+                '${entry.$1 + 1} ${entry.$2.targetChatTitle}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
       ],

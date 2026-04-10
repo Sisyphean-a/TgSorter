@@ -22,10 +22,10 @@ class _LogsScreenState extends State<LogsScreen> {
     );
     final visibleChains = filterPipelineLogChains(chains, _selectedFilter);
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      padding: const EdgeInsets.all(AppTokens.spaceMd),
       children: [
         _LogsHeader(filter: _selectedFilter, onChanged: _updateFilter),
-        const SizedBox(height: AppTokens.spaceLg),
+        const SizedBox(height: AppTokens.spaceMd),
         if (visibleChains.isEmpty)
           const _LogsEmptyState()
         else
@@ -52,35 +52,18 @@ class _LogsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subtitleStyle = Theme.of(
-      context,
-    ).textTheme.bodyMedium?.copyWith(color: AppTokens.textMuted);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Wrap(
+      key: const Key('logs-filter-bar'),
+      spacing: AppTokens.spaceSm,
+      runSpacing: AppTokens.spaceSm,
       children: [
-        Text(
-          '操作日志',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: AppTokens.spaceSm),
-        Text('按消息分类链路查看失败、重试和最终结果。', style: subtitleStyle),
-        const SizedBox(height: AppTokens.spaceLg),
-        Wrap(
-          spacing: AppTokens.spaceSm,
-          runSpacing: AppTokens.spaceSm,
-          children: PipelineLogFilter.values
-              .map(
-                (item) => ChoiceChip(
-                  key: ValueKey('log-filter-${item.name}'),
-                  label: Text(_filterLabel(item)),
-                  selected: filter == item,
-                  onSelected: (_) => onChanged(item),
-                ),
-              )
-              .toList(growable: false),
-        ),
+        for (final item in PipelineLogFilter.values)
+          ChoiceChip(
+            key: ValueKey('log-filter-${item.name}'),
+            label: Text(_filterLabel(item)),
+            selected: filter == item,
+            onSelected: (_) => onChanged(item),
+          ),
       ],
     );
   }
@@ -113,13 +96,14 @@ class _PipelineLogChainCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
+      key: Key('log-chain-row-${chain.chainKey}'),
       decoration: BoxDecoration(
         color: AppTokens.panelBackground,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
+        borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
         border: Border.all(color: AppTokens.borderSubtle),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: const EdgeInsets.all(AppTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

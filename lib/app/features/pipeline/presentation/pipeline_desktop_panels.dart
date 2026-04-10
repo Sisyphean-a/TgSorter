@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class DesktopStatusBar extends StatelessWidget {
   const DesktopStatusBar({
@@ -33,6 +34,61 @@ class DesktopStatusBar extends StatelessWidget {
         ),
         StatusBadge(label: '拉取 $directionLabel', tone: StatusBadgeTone.accent),
       ],
+    );
+  }
+}
+
+class DesktopMessageSummary extends StatelessWidget {
+  const DesktopMessageSummary({super.key, required this.message});
+
+  final MessagePreviewVm message;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = message.content;
+    if (content == null) {
+      return const _SummaryPanel(rows: ['消息 暂无']);
+    }
+    return _SummaryPanel(
+      rows: [
+        '消息 #${content.id}',
+        '来源 ${content.sourceChatId}',
+        '共 ${content.messageIds.length} 条',
+      ],
+    );
+  }
+}
+
+class _SummaryPanel extends StatelessWidget {
+  const _SummaryPanel({required this.rows});
+
+  final List<String> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppTokens.surfaceBase,
+        borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
+        border: Border.all(color: AppTokens.borderSubtle),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppTokens.spaceSm),
+        child: Wrap(
+          spacing: AppTokens.spaceSm,
+          runSpacing: AppTokens.spaceXs,
+          children: [
+            for (final row in rows)
+              Text(
+                row,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTokens.textMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

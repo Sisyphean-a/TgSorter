@@ -13,6 +13,7 @@ class MessageViewerCard extends StatelessWidget {
     this.message,
     this.vm,
     required this.processing,
+    this.embedded = false,
     this.videoPreparing = false,
     this.onRequestMediaPlayback,
     this.onMediaAction,
@@ -23,6 +24,7 @@ class MessageViewerCard extends StatelessWidget {
   final PipelineMessage? message;
   final MessagePreviewVm? vm;
   final bool processing;
+  final bool embedded;
   final bool videoPreparing;
   final Future<void> Function([int? messageId])? onRequestMediaPlayback;
   final Future<void> Function(MediaAction action)? onMediaAction;
@@ -35,27 +37,34 @@ class MessageViewerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolvedVm = vm ?? _buildLegacyVm();
     return AnimatedContainer(
+      key: const Key('message-viewer-card'),
       duration: AppTokens.quick,
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
         color: AppTokens.surfaceBase,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
+        borderRadius: BorderRadius.circular(
+          embedded ? AppTokens.radiusSmall : AppTokens.radiusMedium,
+        ),
         border: Border.all(
           color: processing ? AppTokens.brandAccent : AppTokens.borderSubtle,
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 24,
-            offset: Offset(0, 14),
-          ),
-        ],
+        boxShadow: embedded
+            ? const []
+            : const [
+                BoxShadow(
+                  color: Color(0x1A000000),
+                  blurRadius: 24,
+                  offset: Offset(0, 14),
+                ),
+              ],
       ),
       child: Stack(
         children: [
           Positioned.fill(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppTokens.spaceLg),
+              padding: EdgeInsets.all(
+                embedded ? AppTokens.spaceMd : AppTokens.spaceLg,
+              ),
               child: MessagePreviewContent(
                 vm: resolvedVm,
                 onMediaAction: onMediaAction ?? _handleLegacyMediaAction,

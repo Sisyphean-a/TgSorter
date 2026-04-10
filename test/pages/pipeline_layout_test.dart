@@ -85,7 +85,7 @@ void main() {
         auth: settingsGateway,
       );
       settingsController.onInit();
-      settingsController.settings.value = const AppSettings(
+      const seededSettings = AppSettings(
         categories: [
           CategoryConfig(key: 'a', targetChatId: 1001, targetChatTitle: '收纳'),
           CategoryConfig(key: 'b', targetChatId: 1002, targetChatTitle: '归档'),
@@ -97,6 +97,8 @@ void main() {
         throttleMs: 0,
         proxy: ProxySettings.empty,
       );
+      settingsController.savedSettings.value = seededSettings;
+      settingsController.draftSettings.value = seededSettings;
       errorController = AppErrorController();
       pipelineController = PipelineCoordinator(
         authStateGateway: pipelineGateway,
@@ -152,6 +154,10 @@ void main() {
       );
       expect(find.byKey(const Key('desktop-message-panel')), findsOneWidget);
       expect(find.byKey(const Key('desktop-action-panel')), findsOneWidget);
+      expect(find.byKey(const Key('desktop-operations-panel')), findsOneWidget);
+      expect(find.text('消息 #1'), findsOneWidget);
+      expect(find.text('来源 888'), findsOneWidget);
+      expect(find.text('共 1 条'), findsOneWidget);
       expect(find.text('快捷键映射'), findsNothing);
       expect(find.text('查看状态、快捷键与辅助操作'), findsNothing);
       expect(find.text('控制台'), findsNothing);

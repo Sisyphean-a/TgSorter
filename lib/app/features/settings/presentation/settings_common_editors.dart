@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class SourceChatDraftEditor extends StatelessWidget {
   const SourceChatDraftEditor({
@@ -22,25 +23,38 @@ class SourceChatDraftEditor extends StatelessWidget {
         !options.any((item) => item.id == sourceChatId)) {
       options.add(SelectableChat(id: sourceChatId!, title: '未知会话'));
     }
-    return DropdownButtonFormField<int?>(
-      key: ValueKey(sourceChatId),
-      initialValue: sourceChatId,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: '来源会话',
-        floatingLabelBehavior: FloatingLabelBehavior.always,
-      ),
-      items: [
-        const DropdownMenuItem<int?>(
-          value: null,
-          child: Text('收藏夹（Saved Messages）'),
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '来源会话',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: AppTokens.textMuted,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        ...options.map(
-          (item) =>
-              DropdownMenuItem<int?>(value: item.id, child: Text(item.title)),
+        const SizedBox(height: 4),
+        DropdownButtonFormField<int?>(
+          key: ValueKey(sourceChatId),
+          initialValue: sourceChatId,
+          isExpanded: true,
+          decoration: const InputDecoration(),
+          items: [
+            const DropdownMenuItem<int?>(
+              value: null,
+              child: Text('收藏夹（Saved Messages）'),
+            ),
+            ...options.map(
+              (item) => DropdownMenuItem<int?>(
+                value: item.id,
+                child: Text(item.title),
+              ),
+            ),
+          ],
+          onChanged: onChanged,
         ),
       ],
-      onChanged: onChanged,
     );
   }
 }

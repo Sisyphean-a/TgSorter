@@ -132,7 +132,9 @@ void main() {
     );
 
     expect(find.text('视频下载中...'), findsOneWidget);
-    final playButton = tester.widget<IconButton>(find.byKey(const Key('message-video-play')));
+    final playButton = tester.widget<IconButton>(
+      find.byKey(const Key('message-video-play')),
+    );
     expect(playButton.onPressed, isNull);
   });
 
@@ -164,6 +166,40 @@ void main() {
     expect(find.text('当前消息'), findsNothing);
     expect(find.text('待分类内容预览'), findsNothing);
     expect(find.text('当前需要处理的文本消息'), findsOneWidget);
+  });
+
+  testWidgets('embedded message viewer removes decorative shadow', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            embedded: true,
+            message: PipelineMessage(
+              id: 100,
+              messageIds: const [100],
+              sourceChatId: 100,
+              preview: const MessagePreview(
+                kind: MessagePreviewKind.text,
+                title: '紧凑消息',
+              ),
+            ),
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    final card = tester.widget<AnimatedContainer>(
+      find.byKey(const Key('message-viewer-card')),
+    );
+    final decoration = card.decoration! as BoxDecoration;
+    expect(decoration.boxShadow, isEmpty);
+    expect(find.text('紧凑消息'), findsOneWidget);
   });
 
   testWidgets('renders empty state inside dedicated preview shell', (

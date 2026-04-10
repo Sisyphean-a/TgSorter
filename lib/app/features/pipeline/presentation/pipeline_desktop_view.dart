@@ -12,6 +12,9 @@ import 'package:tgsorter/app/widgets/classification_action_group.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_viewer_card.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/workspace_panel.dart';
 
+const _desktopContentFlex = 70;
+const _desktopSideFlex = 30;
+
 class PipelineDesktopView extends StatelessWidget {
   const PipelineDesktopView({
     super.key,
@@ -40,9 +43,9 @@ class PipelineDesktopView extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Expanded(flex: 65, child: _buildLeftPane(vm)),
+          Expanded(flex: _desktopContentFlex, child: _buildLeftPane(vm)),
           const SizedBox(width: 16),
-          Expanded(flex: 35, child: _buildRightPane(vm)),
+          Expanded(flex: _desktopSideFlex, child: _buildRightPane(vm)),
         ],
       ),
     );
@@ -52,6 +55,7 @@ class PipelineDesktopView extends StatelessWidget {
     final categories = settings.settingsStream.value.categories;
     return WorkspacePanel(
       key: const Key('desktop-message-panel'),
+      dense: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -66,6 +70,7 @@ class PipelineDesktopView extends StatelessWidget {
                 ),
                 vm: vm.message,
                 processing: vm.workflow.processingOverlay,
+                embedded: true,
                 onMediaAction: pipeline.performMediaAction,
               ),
             ),
@@ -84,6 +89,7 @@ class PipelineDesktopView extends StatelessWidget {
   Widget _buildRightPane(PipelineScreenVm vm) {
     return WorkspacePanel(
       key: const Key('desktop-action-panel'),
+      dense: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -93,7 +99,10 @@ class PipelineDesktopView extends StatelessWidget {
             directionText: settings.settingsStream.value.fetchDirection.name,
           ),
           const SizedBox(height: 12),
+          DesktopMessageSummary(message: vm.message),
+          const SizedBox(height: 12),
           DesktopActionButtons(
+            key: const Key('desktop-operations-panel'),
             navigation: vm.navigation,
             workflow: vm.workflow,
             onNavigatePrevious: pipeline.showPreviousMessage,

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_common_editors.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -12,6 +13,7 @@ import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/sticky_action_bar.dart';
+import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -72,7 +74,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('新增分类'), findsOneWidget);
     expect(controller.draftSettings.value.categories, isEmpty);
-    expect(find.text('预加载后续预览'), findsOneWidget);
+    expect(find.text('预加载后续预览'), findsNothing);
   });
 
   testWidgets('edits stay in draft until save and can be discarded', (
@@ -83,6 +85,8 @@ void main() {
       chats: const [SelectableChat(id: -1001, title: '频道一')],
     );
 
+    await tester.tap(find.text('工作流'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('最新优先'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('最旧优先').last);
@@ -122,6 +126,8 @@ void main() {
         gateway: gateway,
       );
 
+      await tester.tap(find.text('工作流'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('最新优先'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('最旧优先').last);
@@ -187,6 +193,30 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('source chat label sits above the input border', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SourceChatDraftEditor(
+              sourceChatId: null,
+              chats: const [],
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final inputTop = tester
+        .getRect(find.byType(DropdownButtonFormField<int?>))
+        .top;
+    final labelBottom = tester.getRect(find.text('来源会话')).bottom;
+
+    expect(labelBottom, lessThanOrEqualTo(inputTop));
+  });
 }
 
 Future<SettingsCoordinator> _pumpSettingsPage(

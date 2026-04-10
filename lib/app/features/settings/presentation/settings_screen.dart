@@ -56,7 +56,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: '工作流',
                     subtitle: '消息来源、拉取方向和批处理节奏。',
                     highlighted: _workflowDirty(draft, saved),
-                    initiallyExpanded: true,
                     child: SettingsWorkflowContent(
                       controller: controller,
                       draft: draft,
