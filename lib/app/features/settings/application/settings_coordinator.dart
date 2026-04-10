@@ -13,6 +13,7 @@ import 'package:tgsorter/app/features/settings/application/settings_persistence_
 import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
 import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/features/settings/application/shortcut_settings_service.dart';
+import 'package:tgsorter/app/features/settings/application/tag_settings_service.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
@@ -31,6 +32,7 @@ class SettingsCoordinator extends GetxController
     CategorySettingsService? categories,
     ShortcutSettingsService? shortcuts,
     ConnectionSettingsService? connection,
+    TagSettingsService? tags,
     SettingsChatLoader? chatLoader,
   }) : _repository = repository,
        _sessions = sessions,
@@ -42,6 +44,7 @@ class SettingsCoordinator extends GetxController
        _categories = categories ?? CategorySettingsService(),
        _shortcuts = shortcuts ?? ShortcutSettingsService(),
        _connection = connection ?? ConnectionSettingsService(),
+       _tags = tags ?? TagSettingsService(),
        _chatLoader =
            chatLoader ?? SettingsChatLoader(sessionQueryGateway: sessions);
 
@@ -54,6 +57,7 @@ class SettingsCoordinator extends GetxController
   final CategorySettingsService _categories;
   final ShortcutSettingsService _shortcuts;
   final ConnectionSettingsService _connection;
+  final TagSettingsService _tags;
   final SettingsChatLoader _chatLoader;
   Future<SettingsSaveResult>? _pendingSaveDraft;
   Future<void>? _pendingChatLoad;
@@ -184,6 +188,24 @@ class SettingsCoordinator extends GetxController
 
   void resetShortcutDefaultsDraft() {
     _draftCoordinator.update(_shortcuts.resetDefaults(draftSettings.value));
+  }
+
+  void updateTagSourceChatDraft(int? chatId) {
+    _draftCoordinator.update(
+      _tags.updateTagSourceChat(current: draftSettings.value, chatId: chatId),
+    );
+  }
+
+  void addDefaultTagDraft(String rawName) {
+    _draftCoordinator.update(
+      _tags.addDefaultTag(current: draftSettings.value, rawName: rawName),
+    );
+  }
+
+  void removeDefaultTagDraft(String rawName) {
+    _draftCoordinator.update(
+      _tags.removeDefaultTag(current: draftSettings.value, rawName: rawName),
+    );
   }
 
   void discardDraft() => _draftCoordinator.discard();

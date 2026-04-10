@@ -9,6 +9,7 @@ import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
+import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
@@ -40,6 +41,7 @@ void main() {
       final classify = service as ClassifyGateway;
       final recovery = service as RecoveryGateway;
       final sessions = service as SessionQueryGateway;
+      final tagging = service as TaggingGateway;
 
       expect(auth, isNotNull);
       expect(messages, isNotNull);
@@ -47,6 +49,35 @@ void main() {
       expect(classify, isNotNull);
       expect(recovery, isNotNull);
       expect(sessions, isNotNull);
+      expect(tagging, isNotNull);
+    });
+
+    test('TaggingGateway applies tag through editMessageText', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<TdWireEnvelope>>{
+          'getMessage': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(
+              _textMessageJson(10, 'hello', canBeEdited: true),
+            ),
+          ],
+          'editMessageText': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(
+              _textMessageJson(10, 'hello #摄影', canBeEdited: true),
+            ),
+          ],
+        },
+      );
+      final service = TelegramService(adapter: adapter);
+      final tagging = service as TaggingGateway;
+
+      final result = await tagging.applyTag(
+        sourceChatId: 777,
+        messageIds: const [10],
+        tagName: '摄影',
+      );
+
+      expect(result.changed, isTrue);
+      expect(result.message.preview.text?.text, 'hello #摄影');
     });
 
     test(
@@ -1141,9 +1172,14 @@ class _FakeTdlibAdapter extends TdlibAdapter {
   }
 }
 
-Map<String, dynamic> _textMessageJson(int id, String text) {
+Map<String, dynamic> _textMessageJson(
+  int id,
+  String text, {
+  bool canBeEdited = false,
+}) {
   return <String, dynamic>{
     'id': id,
+    'can_be_edited': canBeEdited,
     'content': {
       '@type': 'messageText',
       'text': {'text': text, 'entities': []},

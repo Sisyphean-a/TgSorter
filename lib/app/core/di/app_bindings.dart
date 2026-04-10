@@ -4,6 +4,7 @@ import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
+import 'package:tgsorter/app/core/di/tagging_module.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
@@ -12,6 +13,7 @@ import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
+import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
@@ -77,8 +79,10 @@ Future<void> registerAppBindings() async {
   Get.put<MediaGateway>(telegram, permanent: true);
   Get.put<ClassifyGateway>(telegram, permanent: true);
   Get.put<RecoveryGateway>(telegram, permanent: true);
+  Get.put<TaggingGateway>(telegram, permanent: true);
 
   registerSettingsModule();
   registerAuthModule();
   registerPipelineModule();
+  registerTaggingModule();
 }

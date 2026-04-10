@@ -25,7 +25,7 @@ void main() {
 
   tearDown(Get.reset);
 
-  testWidgets('renders collapsible settings groups without inline logs', (
+  testWidgets('renders telegram style settings sections without inline logs', (
     tester,
   ) async {
     final controller = await _pumpSettingsPage(
@@ -36,45 +36,74 @@ void main() {
       ],
     );
 
-    expect(find.text('工作流'), findsOneWidget);
+    expect(find.text('转发区设置'), findsOneWidget);
+    expect(find.text('新增分类'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('分类'),
-      200,
+      find.text('标签区设置'),
+      240,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('分类'), findsOneWidget);
+    expect(find.text('标签区设置'), findsOneWidget);
+    expect(find.text('标签来源会话'), findsOneWidget);
+    expect(find.text('默认标签组'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('连接与代理'),
-      200,
+      find.text('通用设置'),
+      240,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('连接与代理'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('快捷键与工具'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('快捷键与工具'), findsOneWidget);
+    expect(find.text('通用设置'), findsOneWidget);
+    expect(find.text('工作流'), findsNothing);
+    expect(find.text('分类'), findsNothing);
+    expect(find.text('连接与代理'), findsNothing);
+    expect(find.text('快捷键与工具'), findsNothing);
     expect(find.text('最近操作'), findsNothing);
     expect(find.text('保存更改'), findsOneWidget);
     expect(find.text('放弃更改'), findsOneWidget);
-    expect(find.text('分类设置'), findsOneWidget);
+    expect(find.text('设置'), findsOneWidget);
     expect(find.byType(StickyActionBar), findsOneWidget);
     expect(find.text('保存代理'), findsNothing);
     expect(find.text('批处理设置已保存'), findsNothing);
     expect(find.text('保存'), findsNothing);
+    expect(controller.draftSettings.value.categories, isEmpty);
+    expect(find.text('预加载后续预览'), findsNothing);
+  });
+
+  testWidgets('default tag group can add and remove a tag', (tester) async {
+    final controller = await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
     await tester.scrollUntilVisible(
-      find.text('新增分类'),
-      -200,
+      find.widgetWithText(TextField, '新增标签'),
+      240,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('新增分类'), findsOneWidget);
-    expect(controller.draftSettings.value.categories, isEmpty);
-    expect(find.text('预加载后续预览'), findsNothing);
+    await tester.enterText(find.widgetWithText(TextField, '新增标签'), '摄影');
+    await tester.pump();
+    await tester.tap(find.text('添加标签'));
+    await tester.pumpAndSettle();
+
+    expect(
+      controller.draftSettings.value.tagGroups.first.tags.single.name,
+      '摄影',
+    );
+    await tester.scrollUntilVisible(
+      find.text('#摄影', skipOffstage: false),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('#摄影'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('删除标签 #摄影'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('#摄影'), findsNothing);
+    expect(controller.draftSettings.value.tagGroups.first.tags, isEmpty);
   });
 
   testWidgets('edits stay in draft until save and can be discarded', (
@@ -85,8 +114,6 @@ void main() {
       chats: const [SelectableChat(id: -1001, title: '频道一')],
     );
 
-    await tester.tap(find.text('工作流'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('最新优先'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('最旧优先').last);
@@ -126,8 +153,6 @@ void main() {
         gateway: gateway,
       );
 
-      await tester.tap(find.text('工作流'));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('最新优先'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('最旧优先').last);

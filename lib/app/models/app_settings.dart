@@ -1,9 +1,13 @@
+import 'package:tgsorter/app/features/settings/domain/common_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/connection_settings.dart';
+import 'package:tgsorter/app/features/settings/domain/forwarding_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/shortcut_settings.dart';
+import 'package:tgsorter/app/features/settings/domain/tagging_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/workflow_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
+import 'package:tgsorter/app/models/tag_config.dart';
 
 enum MessageFetchDirection { latestFirst, oldestFirst }
 
@@ -18,6 +22,8 @@ class AppSettings {
     required this.batchSize,
     required this.throttleMs,
     required this.proxy,
+    this.tagSourceChatId,
+    this.tagGroups = const <TagGroupConfig>[TagGroupConfig.emptyDefault],
     this.previewPrefetchCount = defaultPreviewPrefetchCount,
     this.shortcutBindings = defaultShortcutBindings,
   });
@@ -29,6 +35,8 @@ class AppSettings {
   final int batchSize;
   final int throttleMs;
   final ProxySettings proxy;
+  final int? tagSourceChatId;
+  final List<TagGroupConfig> tagGroups;
   final int previewPrefetchCount;
   final Map<ShortcutAction, ShortcutBinding> shortcutBindings;
 
@@ -47,6 +55,22 @@ class AppSettings {
   ShortcutSettings get shortcuts =>
       ShortcutSettings(bindings: shortcutBindings);
 
+  ForwardingSettings get forwarding => ForwardingSettings(
+    sourceChatId: sourceChatId,
+    fetchDirection: fetchDirection,
+    forwardAsCopy: forwardAsCopy,
+    batchSize: batchSize,
+    throttleMs: throttleMs,
+    previewPrefetchCount: previewPrefetchCount,
+    categories: categories,
+  );
+
+  TaggingSettings get tagging =>
+      TaggingSettings(sourceChatId: tagSourceChatId, groups: tagGroups);
+
+  CommonSettings get common =>
+      CommonSettings(proxy: proxy, shortcutBindings: shortcutBindings);
+
   static AppSettings defaults() {
     return const AppSettings(
       categories: [],
@@ -56,6 +80,8 @@ class AppSettings {
       batchSize: 5,
       throttleMs: 1200,
       proxy: ProxySettings.empty,
+      tagSourceChatId: null,
+      tagGroups: <TagGroupConfig>[TagGroupConfig.emptyDefault],
       previewPrefetchCount: defaultPreviewPrefetchCount,
       shortcutBindings: defaultShortcutBindings,
     );
@@ -98,6 +124,9 @@ class AppSettings {
     int? batchSize,
     int? throttleMs,
     ProxySettings? proxy,
+    int? tagSourceChatId,
+    bool clearTagSourceChatId = false,
+    List<TagGroupConfig>? tagGroups,
     int? previewPrefetchCount,
     Map<ShortcutAction, ShortcutBinding>? shortcutBindings,
   }) {
@@ -111,6 +140,10 @@ class AppSettings {
       batchSize: batchSize ?? this.batchSize,
       throttleMs: throttleMs ?? this.throttleMs,
       proxy: proxy ?? this.proxy,
+      tagSourceChatId: clearTagSourceChatId
+          ? null
+          : tagSourceChatId ?? this.tagSourceChatId,
+      tagGroups: tagGroups ?? this.tagGroups,
       previewPrefetchCount: previewPrefetchCount ?? this.previewPrefetchCount,
       shortcutBindings: shortcutBindings ?? this.shortcutBindings,
     );
@@ -182,6 +215,8 @@ class AppSettings {
             batchSize == other.batchSize &&
             throttleMs == other.throttleMs &&
             proxy == other.proxy &&
+            tagSourceChatId == other.tagSourceChatId &&
+            _listEquals(tagGroups, other.tagGroups) &&
             previewPrefetchCount == other.previewPrefetchCount &&
             _mapEquals(shortcutBindings, other.shortcutBindings);
   }
@@ -196,12 +231,14 @@ class AppSettings {
       batchSize,
       throttleMs,
       proxy,
+      tagSourceChatId,
+      Object.hashAll(tagGroups),
       previewPrefetchCount,
       Object.hashAll(shortcutBindings.entries),
     );
   }
 
-  bool _listEquals(List<CategoryConfig> left, List<CategoryConfig> right) {
+  bool _listEquals<T>(List<T> left, List<T> right) {
     if (left.length != right.length) {
       return false;
     }

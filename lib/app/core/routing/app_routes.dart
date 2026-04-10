@@ -7,6 +7,7 @@ import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.da
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_page.dart';
+import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
 
 abstract final class AppRoutes {
   static const auth = '/auth';
@@ -26,6 +27,7 @@ List<GetPage<dynamic>> buildAppPages() {
       name: AppRoutes.app,
       page: () => MainShellPage(
         pipeline: Get.find<PipelineCoordinator>(),
+        tagging: Get.find<TaggingCoordinator>(),
         pipelineSettings: Get.find<PipelineSettingsReader>(),
         errors: Get.find<AppErrorController>(),
         settings: Get.find<SettingsCoordinator>(),

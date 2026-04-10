@@ -4,6 +4,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
+import 'package:tgsorter/app/models/tag_config.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 
 void main() {
@@ -55,6 +56,16 @@ void main() {
       expect(settings.sourceChatId, isNull);
     });
 
+    test('load uses null tagSourceChatId by default', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final settings = repo.load();
+
+      expect(settings.tagSourceChatId, isNull);
+    });
+
     test('save persists sourceChatId', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
@@ -64,6 +75,20 @@ void main() {
       await repo.save(settings);
 
       expect(prefs.getString('source_chat_id'), '123456789');
+    });
+
+    test('save persists tagSourceChatId', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().copyWith(
+        tagSourceChatId: -1001,
+      );
+
+      await repo.save(settings);
+
+      expect(prefs.getString('tag_source_chat_id'), '-1001');
+      expect(repo.load().tagSourceChatId, -1001);
     });
 
     test('save persists forwardAsCopy option', () async {
@@ -105,6 +130,30 @@ void main() {
       expect(loaded.categories.length, 2);
       expect(loaded.categories.first.targetChatTitle, '频道一');
       expect(loaded.categories.last.targetChatId, -1002);
+    });
+
+    test('save persists default tag group and load restores it', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().copyWith(
+        tagGroups: [
+          TagGroupConfig.fromRaw(
+            key: TagGroupConfig.defaultGroupKey,
+            title: TagGroupConfig.defaultGroupTitle,
+            tags: const ['摄影', '#风景'],
+          ),
+        ],
+      );
+
+      await repo.save(settings);
+      final loaded = repo.load();
+
+      expect(prefs.getStringList('tag_default_group_tags'), ['摄影', '风景']);
+      expect(loaded.tagGroups.single.tags.map((item) => item.name), [
+        '摄影',
+        '风景',
+      ]);
     });
 
     test('save removes stale category keys', () async {

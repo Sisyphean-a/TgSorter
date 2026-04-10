@@ -26,7 +26,7 @@ class SettingsCompactAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const SettingsCompactAppBar({
     required this.controller,
-    this.title = '分类设置',
+    this.title = '设置',
     this.leading,
     super.key,
   });
