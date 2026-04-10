@@ -44,7 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                 children: [
                   if (controller.isDirty.value)
                     const Padding(
@@ -278,7 +278,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   bool _commonDirty(AppSettings current, AppSettings original) {
-    return current.proxy != original.proxy ||
+    return current.themeMode != original.themeMode ||
+        current.proxy != original.proxy ||
         current.shortcutBindings != original.shortcutBindings;
   }
 

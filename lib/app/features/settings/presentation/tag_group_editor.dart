@@ -76,12 +76,13 @@ class _TagGroupEditorState extends State<TagGroupEditor> {
   bool get _canAdd => _tagController.text.trim().isNotEmpty;
 
   Widget _buildTags(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     if (widget.group.tags.isEmpty) {
       return Text(
         '暂无标签',
         style: Theme.of(
           context,
-        ).textTheme.bodyMedium?.copyWith(color: AppTokens.textMuted),
+        ).textTheme.bodyMedium?.copyWith(color: colors.textMuted),
       );
     }
     return Wrap(

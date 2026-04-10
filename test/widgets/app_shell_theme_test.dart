@@ -1,21 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
-import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/brand_app_bar.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 
 void main() {
-  test('app theme uses dark branded palette', () {
+  test('app theme uses light telegram-inspired palette by default', () {
+    final theme = AppTheme.light();
+
+    expect(theme.brightness, Brightness.light);
+    expect(theme.scaffoldBackgroundColor, const Color(0xFFF4F5F7));
+    expect(theme.colorScheme.primary, const Color(0xFF3390EC));
+    expect(theme.colorScheme.surface, const Color(0xFFFFFFFF));
+    expect(theme.useMaterial3, isTrue);
+    expect(theme.inputDecorationTheme.filled, isTrue);
+    expect(theme.dialogTheme.backgroundColor, const Color(0xFFFFFFFF));
+    expect(theme.snackBarTheme.behavior, SnackBarBehavior.floating);
+  });
+
+  test('app theme uses neutral dark palette', () {
     final theme = AppTheme.dark();
 
     expect(theme.brightness, Brightness.dark);
-    expect(theme.scaffoldBackgroundColor, AppTokens.pageBackground);
-    expect(theme.colorScheme.primary, AppTokens.brandAccent);
-    expect(theme.colorScheme.surface, AppTokens.surfaceBase);
+    expect(theme.scaffoldBackgroundColor, const Color(0xFF17191C));
+    expect(theme.colorScheme.primary, const Color(0xFF5CA8F5));
+    expect(theme.colorScheme.surface, const Color(0xFF23262A));
     expect(theme.useMaterial3, isTrue);
     expect(theme.inputDecorationTheme.filled, isTrue);
-    expect(theme.dialogTheme.backgroundColor, AppTokens.panelBackground);
+    expect(theme.dialogTheme.backgroundColor, const Color(0xFF23262A));
     expect(theme.snackBarTheme.behavior, SnackBarBehavior.floating);
   });
 
@@ -73,5 +86,44 @@ void main() {
 
     expect(find.text('TgSorter'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('app shell uses flat theme-driven background in light mode', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const AppShell(body: SizedBox.expand()),
+      ),
+    );
+
+    final shellBox = tester.widget<DecoratedBox>(find.byType(DecoratedBox).first);
+    final decoration = shellBox.decoration as BoxDecoration;
+
+    expect(decoration.gradient, isNull);
+    expect(decoration.color, const Color(0xFFF4F5F7));
+  });
+
+  testWidgets('status badge uses light accent palette in light mode', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const Scaffold(
+          body: Center(
+            child: StatusBadge(label: '剩余 32', tone: StatusBadgeTone.accent),
+          ),
+        ),
+      ),
+    );
+
+    final badgeBox = tester.widget<DecoratedBox>(find.byType(DecoratedBox));
+    final decoration = badgeBox.decoration as BoxDecoration;
+    final label = tester.widget<Text>(find.text('剩余 32'));
+
+    expect(decoration.color, const Color(0xFFE9F3FF));
+    expect(label.style?.color, const Color(0xFF3390EC));
   });
 }

@@ -42,9 +42,10 @@ class SettingsCompactAppBar extends StatelessWidget
   Widget build(BuildContext context) {
     return Obx(() {
       final theme = Theme.of(context);
+      final colors = AppTokens.colorsOf(context);
       final dirty = controller.isDirty.value;
       return Material(
-        color: AppTokens.pageBackground,
+        color: colors.pageBackground,
         child: SafeArea(
           bottom: false,
           child: Padding(

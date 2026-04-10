@@ -17,10 +17,11 @@ class TagActionGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = AppTokens.colorsOf(context);
     if (tags.isEmpty) {
       return Text(
         '暂无标签',
-        style: theme.textTheme.bodyMedium?.copyWith(color: AppTokens.textMuted),
+        style: theme.textTheme.bodyMedium?.copyWith(color: colors.textMuted),
       );
     }
     return Wrap(
@@ -33,10 +34,10 @@ class TagActionGroup extends StatelessWidget {
             style: FilledButton.styleFrom(
               minimumSize: const Size(112, 38),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              backgroundColor: AppTokens.brandAccent,
-              foregroundColor: const Color(0xFF03211C),
-              disabledBackgroundColor: AppTokens.surfaceRaised,
-              disabledForegroundColor: AppTokens.textMuted,
+              backgroundColor: colors.brandAccent,
+              foregroundColor: theme.colorScheme.onPrimary,
+              disabledBackgroundColor: colors.surfaceRaised,
+              disabledForegroundColor: colors.textMuted,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),

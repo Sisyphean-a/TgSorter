@@ -9,6 +9,7 @@ import 'package:tgsorter/app/features/settings/application/settings_persistence_
 import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
@@ -171,6 +172,24 @@ void main() {
       coordinator.draftSettings.value.tagGroups.single.tags.single.name,
       '摄影',
     );
+  });
+
+  test('updates theme mode in draft and discard restores saved value', () {
+    final harness = _SettingsCoordinatorHarness()
+      ..persistence.loaded = AppSettings.defaults().copyWith(
+        themeMode: AppThemeMode.light,
+      );
+    final coordinator = harness.build();
+    coordinator.onInit();
+
+    coordinator.updateThemeModeDraft(AppThemeMode.dark);
+
+    expect(coordinator.savedSettings.value.themeMode, AppThemeMode.light);
+    expect(coordinator.draftSettings.value.themeMode, AppThemeMode.dark);
+
+    coordinator.discardDraft();
+
+    expect(coordinator.draftSettings.value.themeMode, AppThemeMode.light);
   });
 
   test(

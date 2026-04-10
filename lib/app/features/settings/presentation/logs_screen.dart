@@ -74,11 +74,13 @@ class _LogsEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     return DecoratedBox(
+      key: const Key('logs-empty-state'),
       decoration: BoxDecoration(
-        color: AppTokens.panelBackground,
+        color: colors.panelBackground,
         borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
-        border: Border.all(color: AppTokens.borderSubtle),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: const Padding(
         padding: EdgeInsets.all(AppTokens.spaceLg),
@@ -95,12 +97,13 @@ class _PipelineLogChainCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     return DecoratedBox(
       key: Key('log-chain-row-${chain.chainKey}'),
       decoration: BoxDecoration(
-        color: AppTokens.panelBackground,
+        color: colors.panelBackground,
         borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
-        border: Border.all(color: AppTokens.borderSubtle),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppTokens.spaceMd),
@@ -123,7 +126,7 @@ class _PipelineLogChainCard extends StatelessWidget {
               '分类 ${chain.categoryKey} -> ${chain.targetChatId}',
               style: Theme.of(
                 context,
-              ).textTheme.bodySmall?.copyWith(color: AppTokens.textMuted),
+              ).textTheme.bodySmall?.copyWith(color: colors.textMuted),
             ),
             const SizedBox(height: AppTokens.spaceMd),
             for (final event in chain.events) ...[
@@ -144,6 +147,7 @@ class _PipelineLogEventRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     final time = _formatTime(event.timestamp);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,7 +160,7 @@ class _PipelineLogEventRow extends StatelessWidget {
               '原因：${event.reason}',
               style: Theme.of(
                 context,
-              ).textTheme.bodySmall?.copyWith(color: AppTokens.danger),
+              ).textTheme.bodySmall?.copyWith(color: colors.danger),
             ),
           ),
       ],
@@ -172,9 +176,10 @@ class _StateBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: _badgeColor(state),
+        color: _badgeColor(colors, state),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
@@ -184,16 +189,16 @@ class _StateBadge extends StatelessWidget {
     );
   }
 
-  Color _badgeColor(PipelineLogChainState value) {
+  Color _badgeColor(AppColorPalette colors, PipelineLogChainState value) {
     switch (value) {
       case PipelineLogChainState.failedInProgress:
-        return AppTokens.danger.withValues(alpha: 0.18);
+        return colors.danger.withValues(alpha: 0.18);
       case PipelineLogChainState.recovered:
-        return AppTokens.brandAccentSoft;
+        return colors.brandAccentSoft;
       case PipelineLogChainState.skippedOrUndone:
-        return AppTokens.surfaceBase;
+        return colors.surfaceBase;
       case PipelineLogChainState.completed:
-        return AppTokens.surfaceBase;
+        return colors.surfaceBase;
     }
   }
 }

@@ -91,8 +91,9 @@ class PipelineCompactAppBar extends StatelessWidget
           ? '剩余 统计中'
           : '剩余 ${pipeline.remainingCount.value ?? '-'}';
       final theme = Theme.of(context);
+      final colors = AppTokens.colorsOf(context);
       return Material(
-        color: AppTokens.pageBackground,
+        color: colors.pageBackground,
         child: SafeArea(
           bottom: false,
           child: Padding(

@@ -18,15 +18,16 @@ class WorkspacePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = AppTokens.colorsOf(context);
     final hasHeader =
         (title?.isNotEmpty ?? false) || (subtitle?.isNotEmpty ?? false);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTokens.panelBackground,
+        color: colors.panelBackground,
         borderRadius: BorderRadius.circular(
           dense ? AppTokens.radiusMedium : AppTokens.radiusLarge,
         ),
-        border: Border.all(color: AppTokens.borderSubtle),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: Padding(
         padding: EdgeInsets.all(dense ? AppTokens.spaceMd : AppTokens.spaceLg),
@@ -47,7 +48,7 @@ class WorkspacePanel extends StatelessWidget {
                 Text(
                   text,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppTokens.textMuted,
+                    color: colors.textMuted,
                   ),
                 ),
               ],

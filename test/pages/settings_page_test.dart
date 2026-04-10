@@ -6,8 +6,10 @@ import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_common_editors.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_list_section.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
@@ -54,6 +56,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('通用设置'), findsOneWidget);
+    expect(find.text('主题模式'), findsOneWidget);
     expect(find.text('工作流'), findsNothing);
     expect(find.text('分类'), findsNothing);
     expect(find.text('连接与代理'), findsNothing);
@@ -68,6 +71,14 @@ void main() {
     expect(find.text('保存'), findsNothing);
     expect(controller.draftSettings.value.categories, isEmpty);
     expect(find.text('预加载后续预览'), findsNothing);
+    final firstSection = find.byType(SettingsListSection).first;
+    final sectionBox = tester.widget<DecoratedBox>(
+      find.descendant(of: firstSection, matching: find.byType(DecoratedBox)).first,
+    );
+    final decoration = sectionBox.decoration as BoxDecoration;
+    final border = decoration.border! as Border;
+    expect(decoration.color, const Color(0xFFFFFFFF));
+    expect(border.top.color, const Color(0xFFD9E1E8));
   });
 
   testWidgets('default tag group can add and remove a tag', (tester) async {
@@ -77,14 +88,17 @@ void main() {
     );
 
     await tester.scrollUntilVisible(
-      find.widgetWithText(TextField, '新增标签'),
+      find.widgetWithText(FilledButton, '添加标签'),
       240,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, '新增标签'), '摄影');
     await tester.pump();
-    await tester.tap(find.text('添加标签'));
+    final addButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '添加标签'),
+    );
+    addButton.onPressed!.call();
     await tester.pumpAndSettle();
 
     expect(
@@ -242,6 +256,28 @@ void main() {
 
     expect(labelBottom, lessThanOrEqualTo(inputTop));
   });
+
+  testWidgets('theme mode stays in draft until saved', (tester) async {
+    final controller = await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('主题模式'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('浅色'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('深色').last);
+    await tester.pumpAndSettle();
+
+    expect(controller.savedSettings.value.themeMode, AppThemeMode.light);
+    expect(controller.draftSettings.value.themeMode, AppThemeMode.dark);
+    expect(controller.isDirty.value, isTrue);
+  });
 }
 
 Future<SettingsCoordinator> _pumpSettingsPage(
@@ -267,7 +303,11 @@ Future<SettingsCoordinator> _pumpSettingsPage(
   Get.put<SettingsCoordinator>(controller);
 
   await tester.pumpWidget(
-    GetMaterialApp(home: SettingsPage(controller: controller)),
+    GetMaterialApp(
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      home: SettingsPage(controller: controller),
+    ),
   );
   await tester.pumpAndSettle();
   return controller;

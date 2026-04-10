@@ -99,8 +99,9 @@ class TaggingCompactAppBar extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = AppTokens.colorsOf(context);
     return Material(
-      color: AppTokens.pageBackground,
+      color: colors.pageBackground,
       child: SafeArea(
         bottom: false,
         child: Padding(

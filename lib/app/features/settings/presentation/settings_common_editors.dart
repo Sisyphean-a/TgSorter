@@ -26,13 +26,14 @@ class SourceChatDraftEditor extends StatelessWidget {
       options.add(SelectableChat(id: sourceChatId!, title: '未知会话'));
     }
     final theme = Theme.of(context);
+    final colors = AppTokens.colorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: AppTokens.textMuted,
+            color: colors.textMuted,
             fontWeight: FontWeight.w600,
           ),
         ),

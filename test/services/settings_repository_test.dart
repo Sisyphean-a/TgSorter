@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
@@ -44,6 +45,30 @@ void main() {
       await repo.save(settings);
 
       expect(prefs.getString('message_fetch_direction'), 'oldest_first');
+    });
+
+    test('load uses light theme mode by default', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final settings = repo.load();
+
+      expect(settings.themeMode, AppThemeMode.light);
+    });
+
+    test('save persists theme mode and load restores it', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().copyWith(
+        themeMode: AppThemeMode.system,
+      );
+
+      await repo.save(settings);
+
+      expect(prefs.getString('app_theme_mode'), 'system');
+      expect(repo.load().themeMode, AppThemeMode.system);
     });
 
     test('load uses null sourceChatId by default', () async {

@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
@@ -14,6 +15,7 @@ class SettingsRepository {
   static const _chatIdPrefix = 'category_chat_id_';
   static const _chatTitlePrefix = 'category_chat_title_';
   static const _fetchDirectionKey = 'message_fetch_direction';
+  static const _themeModeKey = 'app_theme_mode';
   static const _forwardAsCopyKey = 'forward_as_copy';
   static const _sourceChatIdKey = 'source_chat_id';
   static const _tagSourceChatIdKey = 'tag_source_chat_id';
@@ -37,6 +39,10 @@ class SettingsRepository {
     final fetchDirectionRaw = _prefs.getString(_fetchDirectionKey);
     final fetchDirection = _parseFetchDirection(fetchDirectionRaw);
     settings = settings.updateFetchDirection(fetchDirection);
+    final themeModeRaw = _prefs.getString(_themeModeKey);
+    settings = settings.copyWith(
+      themeMode: appThemeModeFromStorage(themeModeRaw),
+    );
     settings = settings.updateForwardAsCopy(
       _prefs.getBool(_forwardAsCopyKey) ?? false,
     );
@@ -90,6 +96,7 @@ class SettingsRepository {
       _fetchDirectionKey,
       _encodeFetchDirection(settings.fetchDirection),
     );
+    await _prefs.setString(_themeModeKey, settings.themeMode.storageValue);
     await _prefs.setBool(_forwardAsCopyKey, settings.forwardAsCopy);
     final sourceChatId = settings.sourceChatId;
     if (sourceChatId == null) {

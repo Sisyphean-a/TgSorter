@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/features/settings/presentation/logs_screen.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
+import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
   testWidgets('renders grouped log chains with failure reason and filters', (
@@ -33,6 +34,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: AppTheme.light(),
         home: Scaffold(body: LogsScreen(pipeline: port)),
       ),
     );
@@ -46,6 +48,11 @@ void main() {
     expect(find.text('原因：NETWORK'), findsOneWidget);
     expect(find.text('消息 #1001'), findsOneWidget);
     expect(find.text('已恢复'), findsWidgets);
+    final chainCard = tester.widget<DecoratedBox>(
+      find.byKey(const Key('log-chain-row-1002_cat_200')),
+    );
+    final decoration = chainCard.decoration as BoxDecoration;
+    expect(decoration.color, const Color(0xFFFFFFFF));
 
     await tester.tap(find.byKey(const ValueKey('log-filter-failedInProgress')));
     await tester.pumpAndSettle();

@@ -118,7 +118,10 @@ class _MainShellDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = AppTokens.colorsOf(context);
     return Drawer(
+      backgroundColor: colors.panelBackground,
+      surfaceTintColor: Colors.transparent,
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppTokens.spaceLg),
@@ -135,7 +138,7 @@ class _MainShellDrawer extends StatelessWidget {
               Text(
                 '主工作区导航',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppTokens.textMuted,
+                  color: colors.textMuted,
                 ),
               ),
               const SizedBox(height: AppTokens.spaceLg),

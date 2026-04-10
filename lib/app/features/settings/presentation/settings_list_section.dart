@@ -15,6 +15,7 @@ class SettingsListSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -23,30 +24,36 @@ class SettingsListSection extends StatelessWidget {
           child: Text(
             title,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: highlighted ? AppTokens.warning : AppTokens.brandAccent,
+              color: highlighted ? colors.warning : colors.brandAccent,
               fontWeight: FontWeight.w700,
             ),
           ),
         ),
         DecoratedBox(
           decoration: BoxDecoration(
-            color: AppTokens.surfaceBase,
+            color: colors.panelBackground,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: highlighted ? AppTokens.warning : AppTokens.borderSubtle,
+              color: highlighted ? colors.warning : colors.borderSubtle,
             ),
           ),
-          child: Column(children: _withDividers()),
+          child: Column(children: _withDividers(context)),
         ),
       ],
     );
   }
 
-  List<Widget> _withDividers() {
+  List<Widget> _withDividers(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     final result = <Widget>[];
     for (var index = 0; index < children.length; index++) {
       if (index > 0) {
-        result.add(const Divider(height: 1, color: AppTokens.borderSubtle));
+        result.add(
+          Divider(
+            height: 1,
+            color: colors.borderSubtle,
+          ),
+        );
       }
       result.add(
         Padding(padding: const EdgeInsets.all(12), child: children[index]),

@@ -5,6 +5,7 @@ import 'package:tgsorter/app/features/settings/domain/shortcut_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/tagging_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/workflow_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
@@ -22,6 +23,7 @@ class AppSettings {
     required this.batchSize,
     required this.throttleMs,
     required this.proxy,
+    this.themeMode = AppThemeMode.light,
     this.tagSourceChatId,
     this.tagGroups = const <TagGroupConfig>[TagGroupConfig.emptyDefault],
     this.previewPrefetchCount = defaultPreviewPrefetchCount,
@@ -35,6 +37,7 @@ class AppSettings {
   final int batchSize;
   final int throttleMs;
   final ProxySettings proxy;
+  final AppThemeMode themeMode;
   final int? tagSourceChatId;
   final List<TagGroupConfig> tagGroups;
   final int previewPrefetchCount;
@@ -80,6 +83,7 @@ class AppSettings {
       batchSize: 5,
       throttleMs: 1200,
       proxy: ProxySettings.empty,
+      themeMode: AppThemeMode.light,
       tagSourceChatId: null,
       tagGroups: <TagGroupConfig>[TagGroupConfig.emptyDefault],
       previewPrefetchCount: defaultPreviewPrefetchCount,
@@ -124,6 +128,7 @@ class AppSettings {
     int? batchSize,
     int? throttleMs,
     ProxySettings? proxy,
+    AppThemeMode? themeMode,
     int? tagSourceChatId,
     bool clearTagSourceChatId = false,
     List<TagGroupConfig>? tagGroups,
@@ -140,6 +145,7 @@ class AppSettings {
       batchSize: batchSize ?? this.batchSize,
       throttleMs: throttleMs ?? this.throttleMs,
       proxy: proxy ?? this.proxy,
+      themeMode: themeMode ?? this.themeMode,
       tagSourceChatId: clearTagSourceChatId
           ? null
           : tagSourceChatId ?? this.tagSourceChatId,
@@ -215,6 +221,7 @@ class AppSettings {
             batchSize == other.batchSize &&
             throttleMs == other.throttleMs &&
             proxy == other.proxy &&
+            themeMode == other.themeMode &&
             tagSourceChatId == other.tagSourceChatId &&
             _listEquals(tagGroups, other.tagGroups) &&
             previewPrefetchCount == other.previewPrefetchCount &&
@@ -231,6 +238,7 @@ class AppSettings {
       batchSize,
       throttleMs,
       proxy,
+      themeMode,
       tagSourceChatId,
       Object.hashAll(tagGroups),
       previewPrefetchCount,

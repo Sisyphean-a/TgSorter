@@ -5,6 +5,7 @@ import 'package:tgsorter/app/features/pipeline/application/media_session_state.d
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_viewer_card.dart';
+import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
   testWidgets('video preview shows play action before local file is ready', (
@@ -200,6 +201,41 @@ void main() {
     final decoration = card.decoration! as BoxDecoration;
     expect(decoration.boxShadow, isEmpty);
     expect(find.text('紧凑消息'), findsOneWidget);
+  });
+
+  testWidgets('light theme uses white surface and subtle border', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: PipelineMessage(
+              id: 101,
+              messageIds: const [101],
+              sourceChatId: 100,
+              preview: const MessagePreview(
+                kind: MessagePreviewKind.text,
+                title: '浅色消息',
+              ),
+            ),
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    final card = tester.widget<AnimatedContainer>(
+      find.byKey(const Key('message-viewer-card')),
+    );
+    final decoration = card.decoration! as BoxDecoration;
+    final border = decoration.border! as Border;
+
+    expect(decoration.color, const Color(0xFFFFFFFF));
+    expect(border.top.color, const Color(0xFFD9E1E8));
   });
 
   testWidgets('renders empty state inside dedicated preview shell', (
