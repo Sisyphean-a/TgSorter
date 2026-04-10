@@ -9,6 +9,7 @@ import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
+import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
@@ -22,6 +23,7 @@ import 'package:tgsorter/app/services/telegram_classify_workflow.dart';
 import 'package:tgsorter/app/services/telegram_media_service.dart';
 import 'package:tgsorter/app/services/telegram_message_forwarder.dart';
 import 'package:tgsorter/app/services/telegram_message_reader.dart';
+import 'package:tgsorter/app/services/telegram_tagging_service.dart';
 import 'package:tgsorter/app/services/telegram_session_resolver.dart';
 
 class TelegramService
@@ -34,7 +36,8 @@ class TelegramService
         MediaGateway,
         ClassifyGateway,
         RecoveryGateway,
-        RecoverableClassifyGateway {
+        RecoverableClassifyGateway,
+        TaggingGateway {
   static const Duration _authorizationReadyTimeout = Duration(seconds: 20);
   static const Duration _defaultTimeout = Duration(seconds: 20);
   static const Duration _forwardDeliveryConfirmTimeoutDefault = Duration(
@@ -79,6 +82,10 @@ class TelegramService
   late final TelegramMediaService _mediaService = TelegramMediaService(
     adapter: _adapter,
     reader: _messageReader,
+  );
+
+  late final TelegramTaggingService _taggingService = TelegramTaggingService(
+    adapter: _adapter,
   );
 
   late final ClassifyTransactionCoordinator _classifyCoordinator =
@@ -237,6 +244,20 @@ class TelegramService
   Future<ClassifyRecoverySummary> recoverPendingClassifyOperations() async {
     await _requireAuthorizationReady();
     return _classifyWorkflow.recoverPendingClassifyOperations();
+  }
+
+  @override
+  Future<ApplyTagResult> applyTag({
+    required int sourceChatId,
+    required List<int> messageIds,
+    required String tagName,
+  }) async {
+    await _requireAuthorizationReady();
+    return _taggingService.applyTag(
+      sourceChatId: sourceChatId,
+      messageIds: messageIds,
+      tagName: tagName,
+    );
   }
 
   Future<bool> _anySourceMessageExists(

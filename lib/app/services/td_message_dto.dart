@@ -162,6 +162,7 @@ class TdMessageDto {
   const TdMessageDto({
     required this.id,
     required this.mediaAlbumId,
+    required this.canBeEdited,
     required this.content,
   });
 
@@ -170,6 +171,7 @@ class TdMessageDto {
     return TdMessageDto(
       id: id,
       mediaAlbumId: _readMediaAlbumId(payload),
+      canBeEdited: _readBool(payload['can_be_edited']),
       content: _parseContent(
         TdResponseReader.readMap(payload, 'content'),
         messageId: id,
@@ -179,6 +181,7 @@ class TdMessageDto {
 
   final int id;
   final String? mediaAlbumId;
+  final bool canBeEdited;
   final TdMessageContentDto content;
 
   static TdMessageContentDto _parseContent(
@@ -481,6 +484,13 @@ class TdMessageDto {
       return int.tryParse(raw) ?? 0;
     }
     return 0;
+  }
+
+  static bool _readBool(dynamic raw) {
+    if (raw is bool) {
+      return raw;
+    }
+    return false;
   }
 }
 

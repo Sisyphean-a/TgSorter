@@ -310,5 +310,26 @@ void main() {
 
       expect(dto.messages.first.id, 777);
     });
+
+    test('parses message editability flag', () {
+      final dto = TdMessagesDto.fromEnvelope(
+        TdWireEnvelope.fromJson(<String, dynamic>{
+          '@type': 'messages',
+          'messages': [
+            {
+              'id': 9,
+              'can_be_edited': true,
+              'content': {
+                '@type': 'messageText',
+                'text': {'text': '可编辑', 'entities': []},
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(dto.messages.single.canBeEdited, isTrue);
+      expect(dto.messages.single.content.text?.text, '可编辑');
+    });
   });
 }
