@@ -11,7 +11,7 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = _paletteFor(tone);
+    final palette = _paletteFor(context, tone);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: palette.background,
@@ -34,32 +34,46 @@ class StatusBadge extends StatelessWidget {
     );
   }
 
-  _BadgePalette _paletteFor(StatusBadgeTone value) {
+  _BadgePalette _paletteFor(BuildContext context, StatusBadgeTone value) {
+    final colors = AppTokens.colorsOf(context);
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return switch (value) {
-      StatusBadgeTone.accent => const _BadgePalette(
-        background: AppTokens.brandAccentSoft,
-        foreground: AppTokens.brandAccent,
-        border: AppTokens.borderSubtle,
+      StatusBadgeTone.accent => _BadgePalette(
+        background: colors.brandAccentSoft,
+        foreground: colors.brandAccent,
+        border: colors.borderSubtle,
       ),
-      StatusBadgeTone.success => const _BadgePalette(
-        background: Color(0xFF123326),
-        foreground: AppTokens.success,
-        border: Color(0xFF24543E),
+      StatusBadgeTone.success => _BadgePalette(
+        background: isLight
+            ? colors.success.withValues(alpha: 0.14)
+            : const Color(0xFF123326),
+        foreground: colors.success,
+        border: isLight
+            ? colors.success.withValues(alpha: 0.24)
+            : const Color(0xFF24543E),
       ),
-      StatusBadgeTone.warning => const _BadgePalette(
-        background: Color(0xFF34270E),
-        foreground: AppTokens.warning,
-        border: Color(0xFF5B4622),
+      StatusBadgeTone.warning => _BadgePalette(
+        background: isLight
+            ? colors.warning.withValues(alpha: 0.14)
+            : const Color(0xFF34270E),
+        foreground: colors.warning,
+        border: isLight
+            ? colors.warning.withValues(alpha: 0.24)
+            : const Color(0xFF5B4622),
       ),
-      StatusBadgeTone.danger => const _BadgePalette(
-        background: Color(0xFF3A1B24),
-        foreground: AppTokens.danger,
-        border: Color(0xFF5A2C38),
+      StatusBadgeTone.danger => _BadgePalette(
+        background: isLight
+            ? colors.danger.withValues(alpha: 0.12)
+            : const Color(0xFF3A1B24),
+        foreground: colors.danger,
+        border: isLight
+            ? colors.danger.withValues(alpha: 0.24)
+            : const Color(0xFF5A2C38),
       ),
-      StatusBadgeTone.neutral => const _BadgePalette(
-        background: AppTokens.panelBackground,
-        foreground: AppTokens.textMuted,
-        border: AppTokens.borderSubtle,
+      StatusBadgeTone.neutral => _BadgePalette(
+        background: colors.panelBackground,
+        foreground: colors.textMuted,
+        border: colors.borderSubtle,
       ),
     };
   }

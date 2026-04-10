@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/brand_app_bar.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
@@ -85,5 +86,44 @@ void main() {
 
     expect(find.text('TgSorter'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('app shell uses flat theme-driven background in light mode', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const AppShell(body: SizedBox.expand()),
+      ),
+    );
+
+    final shellBox = tester.widget<DecoratedBox>(find.byType(DecoratedBox).first);
+    final decoration = shellBox.decoration as BoxDecoration;
+
+    expect(decoration.gradient, isNull);
+    expect(decoration.color, const Color(0xFFF4F5F7));
+  });
+
+  testWidgets('status badge uses light accent palette in light mode', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const Scaffold(
+          body: Center(
+            child: StatusBadge(label: '剩余 32', tone: StatusBadgeTone.accent),
+          ),
+        ),
+      ),
+    );
+
+    final badgeBox = tester.widget<DecoratedBox>(find.byType(DecoratedBox));
+    final decoration = badgeBox.decoration as BoxDecoration;
+    final label = tester.widget<Text>(find.text('剩余 32'));
+
+    expect(decoration.color, const Color(0xFFE9F3FF));
+    expect(label.style?.color, const Color(0xFF3390EC));
   });
 }

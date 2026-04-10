@@ -19,18 +19,15 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     return Scaffold(
       key: scaffoldKey,
       appBar: appBar,
       drawer: drawer,
       bottomNavigationBar: bottomBar,
       body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppTokens.pageBackground, AppTokens.panelBackground],
-          ),
+        decoration: BoxDecoration(
+          color: colors.pageBackground,
         ),
         child: SafeArea(
           top: false,

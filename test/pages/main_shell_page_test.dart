@@ -89,7 +89,7 @@ void main() {
 
     await tester.pumpWidget(
       GetMaterialApp(
-        theme: AppTheme.dark(),
+        theme: AppTheme.light(),
         home: MainShellPage(
           pipeline: pipeline,
           tagging: tagging,
@@ -108,6 +108,8 @@ void main() {
     await tester.tap(find.byTooltip('打开导航'));
     await tester.pumpAndSettle();
 
+    final drawerSubtitle = tester.widget<Text>(find.text('主工作区导航'));
+    expect(drawerSubtitle.style?.color, const Color(0xFF74808B));
     expect(find.text('转发工作台'), findsOneWidget);
     expect(find.text('标签工作台'), findsOneWidget);
     expect(find.text('设置'), findsOneWidget);

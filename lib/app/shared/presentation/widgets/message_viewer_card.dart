@@ -36,25 +36,26 @@ class MessageViewerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolvedVm = vm ?? _buildLegacyVm();
+    final colors = AppTokens.colorsOf(context);
     return AnimatedContainer(
       key: const Key('message-viewer-card'),
       duration: AppTokens.quick,
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        color: AppTokens.surfaceBase,
+        color: colors.surfaceBase,
         borderRadius: BorderRadius.circular(
           embedded ? AppTokens.radiusSmall : AppTokens.radiusMedium,
         ),
         border: Border.all(
-          color: processing ? AppTokens.brandAccent : AppTokens.borderSubtle,
+          color: processing ? colors.brandAccent : colors.borderSubtle,
         ),
         boxShadow: embedded
             ? const []
-            : const [
+            : [
                 BoxShadow(
-                  color: Color(0x1A000000),
-                  blurRadius: 24,
-                  offset: Offset(0, 14),
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
                 ),
               ],
       ),
