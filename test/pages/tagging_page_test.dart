@@ -28,7 +28,7 @@ void main() {
 
     await tester.pumpWidget(
       GetMaterialApp(
-        theme: AppTheme.dark(),
+        theme: AppTheme.light(),
         home: TaggingPage(controller: controller, errors: AppErrorController()),
       ),
     );
@@ -37,6 +37,13 @@ void main() {
     expect(find.text('#摄影'), findsOneWidget);
     expect(find.text('撤销上一步'), findsNothing);
     expect(find.text('重试下一条'), findsNothing);
+    final tagButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '#摄影'),
+    );
+    expect(
+      tagButton.style?.backgroundColor?.resolve(const <WidgetState>{}),
+      const Color(0xFF3390EC),
+    );
 
     await tester.tap(find.text('#摄影'));
     await tester.pumpAndSettle();

@@ -137,7 +137,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1280, 900));
       await tester.pumpWidget(
         GetMaterialApp(
-          theme: AppTheme.dark(),
+          theme: AppTheme.light(),
           home: PipelinePage(
             pipeline: pipelineController,
             settings: settingsController,
@@ -163,6 +163,22 @@ void main() {
       expect(find.text('控制台'), findsNothing);
       expect(find.text('消息工作区'), findsNothing);
       expect(find.text('操作面板'), findsNothing);
+      final appBarMaterial = tester.widget<Material>(
+        find.byWidgetPredicate(
+          (widget) => widget is Material && widget.child is SafeArea,
+        ).first,
+      );
+      expect(appBarMaterial.color, const Color(0xFFF4F5F7));
+      final messagePanelBox = tester.widget<DecoratedBox>(
+        find
+            .descendant(
+              of: find.byKey(const Key('desktop-message-panel')),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+      final panelDecoration = messagePanelBox.decoration as BoxDecoration;
+      expect(panelDecoration.color, const Color(0xFFFFFFFF));
       expect(find.byType(AnimatedSwitcher), findsWidgets);
       await tester.binding.setSurfaceSize(null);
     });

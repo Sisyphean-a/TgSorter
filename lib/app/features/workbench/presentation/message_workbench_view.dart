@@ -162,7 +162,7 @@ class _MobileWorkbench extends StatelessWidget {
         children: [
           Expanded(child: _messageCard()),
           const SizedBox(height: 8),
-          _mobileActions(),
+          _mobileActions(context),
         ],
       ),
     );
@@ -179,12 +179,13 @@ class _MobileWorkbench extends StatelessWidget {
     );
   }
 
-  Widget _mobileActions() {
+  Widget _mobileActions(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTokens.panelBackground,
+        color: colors.panelBackground,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTokens.borderSubtle),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
