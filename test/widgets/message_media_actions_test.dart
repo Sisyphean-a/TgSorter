@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_media_actions.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_media_shell.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/platform_file_actions.dart';
+import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
   testWidgets('media shell renders primary and more actions', (tester) async {
@@ -34,6 +35,24 @@ void main() {
     expect(find.text('Header'), findsOneWidget);
     expect(find.byKey(const ValueKey('media-action-全屏')), findsOneWidget);
     expect(find.byKey(const Key('media-actions-more-menu')), findsOneWidget);
+  });
+
+  testWidgets('media shell follows light theme surface colors', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const Scaffold(
+          body: MessageMediaShell(child: SizedBox(height: 100)),
+        ),
+      ),
+    );
+
+    final shell = tester.widget<DecoratedBox>(find.byType(DecoratedBox).first);
+    final decoration = shell.decoration as BoxDecoration;
+    final border = decoration.border as Border;
+
+    expect(decoration.color, const Color(0xFFFFFFFF));
+    expect(border.top.color, const Color(0xFFD9E1E8));
   });
 
   test('platform file actions expose expected capabilities', () {

@@ -21,11 +21,12 @@ class MessageMediaShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasActions = actions.isNotEmpty || moreActions.isNotEmpty;
+    final colors = AppTokens.colorsOf(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTokens.surfaceBase,
+        color: colors.surfaceBase,
         borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
-        border: Border.all(color: AppTokens.borderSubtle),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

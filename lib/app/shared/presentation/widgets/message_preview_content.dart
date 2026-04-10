@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/pipeline/application/media_session_state.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
+import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_audio.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_link.dart';
@@ -24,122 +25,137 @@ class MessagePreviewContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = vm.content;
     if (data == null) {
-      return const Column(
-        key: Key('message-preview-empty-state'),
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(height: 100),
-          Icon(Icons.check_circle, color: Colors.green, size: 96),
-          SizedBox(height: 16),
-          Text('暂无消息', style: TextStyle(fontSize: 18)),
-        ],
-      );
+      return _buildEmptyState();
     }
+    return _buildContent(data);
+  }
 
+  Widget _buildEmptyState() {
+    return const Column(
+      key: Key('message-preview-empty-state'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(height: 100),
+        Icon(Icons.check_circle, color: Colors.green, size: 96),
+        SizedBox(height: 16),
+        Text('暂无消息', style: TextStyle(fontSize: 18)),
+      ],
+    );
+  }
+
+  Widget _buildContent(PipelineMessage data) {
     final preview = data.preview;
     final linkCard = preview.linkCard;
-    final mediaItems = preview.mediaItems;
-    final mediaSession = vm.media;
-    final preparing = mediaSession.requestState == MediaRequestState.preparing;
     if (preview.kind == MessagePreviewKind.photo) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MessagePreviewMedia(
-            items: mediaItems,
-            preparing: preparing,
-            onRequestPlayback: ([messageId]) async {
-              await onMediaAction(OpenInApp(messageId: messageId ?? data.id));
-            },
-            controllerInitializer: videoControllerInitializer,
-            fallbackImagePath: preview.localImagePath,
-            isMediaPreparing: (messageId) =>
-                mediaSession.items[messageId]?.preparing ?? preparing,
-          ),
-          const SizedBox(height: 12),
-          MessagePreviewText(
-            text: preview.text,
-            fallbackText: preview.title,
-            fontSize: 16,
-          ),
-        ],
-      );
+      return _buildPhotoContent(data);
     }
-
     if (preview.kind == MessagePreviewKind.video) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MessagePreviewMedia(
-            items: mediaItems,
-            preparing: preparing,
-            onRequestPlayback: ([messageId]) async {
-              await onMediaAction(OpenInApp(messageId: messageId ?? data.id));
-            },
-            controllerInitializer: videoControllerInitializer,
-            preferVideoFallback: true,
-            fallbackVideoPath: preview.localVideoPath,
-            fallbackThumbnailPath: preview.localVideoThumbnailPath,
-            isMediaPreparing: (messageId) =>
-                mediaSession.items[messageId]?.preparing ?? preparing,
-          ),
-          if (mediaItems.isEmpty) ...[
-            const SizedBox(height: 12),
-            if (preview.videoDurationSeconds != null)
-              PreviewMetaText(
-                text:
-                    '时长 ${formatPreviewDuration(preview.videoDurationSeconds!)}',
-              ),
-            const SizedBox(height: 8),
-          ] else
-            const SizedBox(height: 12),
-          MessagePreviewText(
-            text: preview.text,
-            fallbackText: preview.title,
-            fontSize: 16,
-          ),
-        ],
-      );
+      return _buildVideoContent(data);
     }
-
     if (preview.kind == MessagePreviewKind.audio) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MessagePreviewAudio(
-            audioPath: preview.localAudioPath,
-            preparing: preparing,
-            onRequestPlayback: ([messageId]) async {
-              await onMediaAction(OpenInApp(messageId: messageId ?? data.id));
-            },
-            tracks: preview.audioTracks,
-            isPreparingTrack: (messageId) =>
-                mediaSession.items[messageId]?.preparing ?? preparing,
-          ),
-          const SizedBox(height: 12),
-        ],
-      );
+      return _buildAudioContent(data);
     }
-
     if (linkCard != null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MessagePreviewLinkCard(link: linkCard),
-          const SizedBox(height: 12),
-          MessagePreviewText(
-            text: preview.text,
-            fallbackText: preview.title,
-            fontSize: 18,
-          ),
-        ],
-      );
+      return MessagePreviewLinkCard(link: linkCard);
     }
-
     return MessagePreviewText(
       text: preview.text,
       fallbackText: preview.title,
       fontSize: 18,
     );
+  }
+
+  Widget _buildPhotoContent(PipelineMessage data) {
+    final preview = data.preview;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MessagePreviewMedia(
+          items: preview.mediaItems,
+          preparing: _isPreparing,
+          onRequestPlayback: ([messageId]) => _openMedia(data, messageId),
+          controllerInitializer: videoControllerInitializer,
+          fallbackImagePath: preview.localImagePath,
+          isMediaPreparing: _isMediaPreparing,
+        ),
+        const SizedBox(height: 12),
+        _buildText(preview, fontSize: 16),
+      ],
+    );
+  }
+
+  Widget _buildVideoContent(PipelineMessage data) {
+    final preview = data.preview;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MessagePreviewMedia(
+          items: preview.mediaItems,
+          preparing: _isPreparing,
+          onRequestPlayback: ([messageId]) => _openMedia(data, messageId),
+          controllerInitializer: videoControllerInitializer,
+          preferVideoFallback: true,
+          fallbackVideoPath: preview.localVideoPath,
+          fallbackThumbnailPath: preview.localVideoThumbnailPath,
+          isMediaPreparing: _isMediaPreparing,
+        ),
+        _buildVideoSpacing(preview),
+        _buildText(preview, fontSize: 16),
+      ],
+    );
+  }
+
+  Widget _buildAudioContent(PipelineMessage data) {
+    final preview = data.preview;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MessagePreviewAudio(
+          audioPath: preview.localAudioPath,
+          preparing: _isPreparing,
+          onRequestPlayback: ([messageId]) => _openMedia(data, messageId),
+          tracks: preview.audioTracks,
+          isPreparingTrack: _isMediaPreparing,
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildVideoSpacing(MessagePreview preview) {
+    if (preview.mediaItems.isNotEmpty) {
+      return const SizedBox(height: 12);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        if (preview.videoDurationSeconds != null)
+          PreviewMetaText(
+            text: '时长 ${formatPreviewDuration(preview.videoDurationSeconds!)}',
+          ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Widget _buildText(MessagePreview preview, {required double fontSize}) {
+    return MessagePreviewText(
+      text: preview.text,
+      fallbackText: preview.title,
+      fontSize: fontSize,
+    );
+  }
+
+  bool get _isPreparing {
+    return vm.media.requestState == MediaRequestState.preparing;
+  }
+
+  bool _isMediaPreparing(int? messageId) {
+    return vm.media.items[messageId]?.preparing ?? _isPreparing;
+  }
+
+  Future<void> _openMedia(PipelineMessage data, int? messageId) async {
+    await onMediaAction(OpenInApp(messageId: messageId ?? data.id));
   }
 }

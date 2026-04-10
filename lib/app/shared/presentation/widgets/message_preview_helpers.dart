@@ -1,6 +1,7 @@
 import 'dart:io' as io;
 
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:video_player/video_player.dart';
 
 typedef VideoControllerInitializer =
@@ -50,21 +51,22 @@ class PreviewPlaceholder extends StatelessWidget {
     super.key,
     required this.text,
     this.height = previewMediaHeight,
-    this.textColor = Colors.white,
+    this.textColor,
   });
 
   final String text;
   final double height;
-  final Color textColor;
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     return Container(
       width: double.infinity,
       height: height,
-      color: Colors.black12,
+      color: colors.surfaceRaised,
       alignment: Alignment.center,
-      child: Text(text, style: TextStyle(color: textColor)),
+      child: Text(text, style: TextStyle(color: textColor ?? colors.textMuted)),
     );
   }
 }

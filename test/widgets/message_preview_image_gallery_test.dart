@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_image_gallery.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_media.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/platform_file_actions.dart';
 
 void main() {
@@ -47,6 +48,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(fileActions.copiedPaths, ['C:/demo/a.jpg']);
+  });
+
+  testWidgets('missing image preview keeps fallback copy short', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MessagePreviewMedia(
+            items: const [],
+            preparing: false,
+            onRequestPlayback: ([messageId]) async {},
+            controllerInitializer: null,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('图片已识别（本地文件未就绪）'), findsNothing);
+    expect(find.text('图片未就绪'), findsOneWidget);
   });
 }
 

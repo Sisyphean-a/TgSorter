@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_video.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_video_fullscreen.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/platform_file_actions.dart';
+import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
   testWidgets('video preview shows richer shell and file actions hint', (
@@ -55,6 +57,21 @@ void main() {
         DeviceOrientation.portraitDown,
       ],
     );
+  });
+
+  testWidgets('video placeholder is readable in light theme', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const Scaffold(body: PreviewPlaceholder(text: '点击播放')),
+      ),
+    );
+
+    final placeholder = tester.widget<Container>(find.byType(Container).first);
+    final label = tester.widget<Text>(find.text('点击播放'));
+
+    expect(placeholder.color, const Color(0xFFF8FAFC));
+    expect(label.style?.color, const Color(0xFF74808B));
   });
 
   testWidgets('adaptive fullscreen locks and restores orientations', (

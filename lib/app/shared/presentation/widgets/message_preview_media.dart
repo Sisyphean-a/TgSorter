@@ -10,6 +10,7 @@ const _videoDurationBadgeRadius = 4.0;
 const _videoDurationBadgeHorizontalPadding = 6.0;
 const _videoDurationBadgeVerticalPadding = 2.0;
 const _videoDurationBadgeColor = Color(0x99000000);
+const _imageFallbackText = '图片未就绪';
 const _videoDurationLabelStyle = TextStyle(
   color: Colors.white,
   fontSize: 12,
@@ -55,7 +56,7 @@ class MessagePreviewMedia extends StatelessWidget {
       return MessagePreviewImageGallery(
         items: photoItems,
         initialIndex: 0,
-        fallbackText: '图片已识别（本地文件未就绪）',
+        fallbackText: _imageFallbackText,
       );
     }
     return _buildMosaic(items);
@@ -75,7 +76,7 @@ class MessagePreviewMedia extends StatelessWidget {
     }
     return PreviewImage(
       imagePath: fallbackImagePath,
-      fallbackText: '图片已识别（本地文件未就绪）',
+      fallbackText: _imageFallbackText,
     );
   }
 
@@ -110,7 +111,7 @@ class MessagePreviewMedia extends StatelessWidget {
     return MessagePreviewImageGallery(
       items: photoItems,
       initialIndex: initialIndex < 0 ? 0 : initialIndex,
-      fallbackText: '图片已识别（本地文件未就绪）',
+      fallbackText: _imageFallbackText,
     );
   }
 
@@ -166,7 +167,7 @@ class MessagePreviewMedia extends StatelessWidget {
             )
           : PreviewImage(
               imagePath: item.previewPath ?? item.fullPath,
-              fallbackText: '图片已识别（本地文件未就绪）',
+              fallbackText: _imageFallbackText,
               height: layoutItem.geometry.height,
             ),
     );

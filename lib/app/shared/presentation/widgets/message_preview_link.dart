@@ -2,8 +2,6 @@ import 'dart:io' as io;
 
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
-import 'package:tgsorter/app/shared/presentation/widgets/message_media_actions.dart';
-import 'package:tgsorter/app/shared/presentation/widgets/message_media_shell.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/platform_file_actions.dart';
 
 class MessagePreviewLinkCard extends StatefulWidget {
@@ -24,131 +22,143 @@ class _MessagePreviewLinkCardState extends State<MessagePreviewLinkCard> {
   @override
   Widget build(BuildContext context) {
     final link = widget.link;
-    final image = _buildPreviewImage(link);
+    final image = _buildHeroImage(link);
+    final headline = _headlineFor(link);
+    final summary = _summaryFor(link, headline);
     return KeyedSubtree(
       key: const Key('message-preview-link-card'),
-      child: MessageMediaShell(
-        actions: _buildPrimaryActions(link),
-        moreActions: _buildMoreActions(link),
-        child: Material(
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
-          child: InkWell(
-            onTap: widget.fileActions.canOpenUrl(link.url)
-                ? () => widget.fileActions.openUrl(context, link.url)
-                : null,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (image != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: image,
-                    ),
-                  if (image != null) const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (link.siteName.isNotEmpty)
-                          Text(
-                            link.siteName,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        if (link.title.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              link.title,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        if (link.description.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              link.description,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        const SizedBox(height: 6),
-                        Text(
-                          link.displayUrl.isEmpty ? link.url : link.displayUrl,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ?image,
+          Padding(
+            padding: EdgeInsets.only(top: image == null ? 0 : 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _LinkPreviewText(headline: headline, summary: summary),
+                ),
+                const SizedBox(width: 8),
+                _LinkPreviewActions(
+                  link: link,
+                  fileActions: widget.fileActions,
+                ),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget? _buildPreviewImage(LinkCardPreview link) {
+  Widget? _buildHeroImage(LinkCardPreview link) {
     final localPath = link.localImagePath;
     if (localPath != null && localPath.isNotEmpty) {
-      return Image.file(
-        io.File(localPath),
-        width: 72,
-        height: 72,
-        fit: BoxFit.cover,
-        errorBuilder: (_, error, stackTrace) => const SizedBox(width: 72),
+      return _heroFrame(
+        Image.file(
+          io.File(localPath),
+          fit: BoxFit.cover,
+          errorBuilder: (_, error, stackTrace) => const SizedBox.shrink(),
+        ),
       );
     }
     final remoteUrl = link.remoteImageUrl;
     if (remoteUrl == null || remoteUrl.isEmpty) {
       return null;
     }
-    return Image.network(
-      remoteUrl,
-      width: 72,
-      height: 72,
-      fit: BoxFit.cover,
-      errorBuilder: (_, error, stackTrace) => const SizedBox(width: 72),
+    return _heroFrame(
+      Image.network(
+        remoteUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, error, stackTrace) => const SizedBox.shrink(),
+      ),
     );
   }
 
-  List<MessageMediaAction> _buildPrimaryActions(LinkCardPreview link) {
-    return [
-      if (widget.fileActions.canOpenUrl(link.url))
-        MessageMediaAction(
-          icon: Icons.open_in_new_rounded,
-          label: '打开链接',
-          onPressed: (context) => widget.fileActions.openUrl(context, link.url),
-        ),
-    ];
+  Widget _heroFrame(Widget image) {
+    return ClipRRect(
+      key: const Key('link-preview-hero-image'),
+      borderRadius: BorderRadius.circular(6),
+      child: AspectRatio(aspectRatio: 16 / 10, child: image),
+    );
   }
 
-  List<MessageMediaAction> _buildMoreActions(LinkCardPreview link) {
-    return [
-      MessageMediaAction(
-        icon: Icons.copy_rounded,
-        label: '复制链接',
-        onPressed: (context) => widget.fileActions.copyText(
-          context,
-          link.url,
-          successMessage: '链接已复制',
+  String _headlineFor(LinkCardPreview link) {
+    final title = link.title.trim();
+    if (title.isNotEmpty) {
+      return title;
+    }
+    final description = link.description.trim();
+    if (description.isNotEmpty) {
+      return description;
+    }
+    return link.displayUrl.trim().isEmpty ? link.url : link.displayUrl;
+  }
+
+  String? _summaryFor(LinkCardPreview link, String headline) {
+    final description = link.description.trim();
+    if (description.isEmpty || description == headline) {
+      return null;
+    }
+    return description;
+  }
+}
+
+class _LinkPreviewText extends StatelessWidget {
+  const _LinkPreviewText({required this.headline, required this.summary});
+
+  final String headline;
+  final String? summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          headline,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
         ),
+        if (summary != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              summary!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: colors.onSurfaceVariant),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _LinkPreviewActions extends StatelessWidget {
+  const _LinkPreviewActions({required this.link, required this.fileActions});
+
+  final LinkCardPreview link;
+  final PlatformFileActions fileActions;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!fileActions.canOpenUrl(link.url)) {
+      return const SizedBox.shrink();
+    }
+    return TextButton.icon(
+      key: const ValueKey('media-action-打开链接'),
+      onPressed: () => fileActions.openUrl(context, link.url),
+      icon: const Icon(Icons.open_in_new_rounded, size: 18),
+      label: const Text('外部打开'),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
       ),
-    ];
+    );
   }
 }

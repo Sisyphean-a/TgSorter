@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_audio.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/platform_file_actions.dart';
+import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
   testWidgets('audio preview shows unified shell and track file actions', (
@@ -12,6 +13,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: AppTheme.light(),
         home: Scaffold(
           body: MessagePreviewAudio(
             audioPath: 'C:/demo/a.mp3',
@@ -41,6 +43,11 @@ void main() {
     expect(find.text('支持多轨切换和倍速'), findsNothing);
     expect(find.text('Track A'), findsOneWidget);
     expect(find.text('Track B'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('Track A')).style?.color,
+      const Color(0xFF1F2329),
+    );
+    expect(find.text('音频已识别（点击播放开始下载）'), findsNothing);
     expect(find.text('支持播放、进度拖动、倍速和多轨切换'), findsNothing);
     expect(find.byKey(const Key('media-actions-more-menu')), findsOneWidget);
 

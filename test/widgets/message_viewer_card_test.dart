@@ -405,7 +405,7 @@ void main() {
     },
   );
 
-  testWidgets('link preview renders dedicated link card shell', (tester) async {
+  testWidgets('link preview renders lean article preview', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark(),

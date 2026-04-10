@@ -9,6 +9,7 @@ import 'package:tgsorter/app/shared/presentation/widgets/message_media_actions.d
 import 'package:tgsorter/app/shared/presentation/widgets/message_media_shell.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/platform_file_actions.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 
 typedef AudioPreviewControllerFactory = AudioPreviewController Function();
 
@@ -360,6 +361,7 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
   }
 
   Widget _buildTrackRow(BuildContext context, AudioTrackPreview track) {
+    final colors = AppTokens.colorsOf(context);
     final path = track.localAudioPath;
     final hasLocalFile =
         path != null && path.isNotEmpty && io.File(path).existsSync();
@@ -380,7 +382,7 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
         ? '点击播放音频'
         : trackPreparing
         ? '音频下载中...'
-        : '音频已识别（点击播放开始下载）';
+        : '';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
@@ -398,26 +400,17 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  track.title,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
+                Text(track.title, style: TextStyle(color: colors.textPrimary)),
                 if (track.subtitle != null && track.subtitle!.isNotEmpty)
                   Text(
                     track.subtitle!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                    style: TextStyle(color: colors.textMuted),
                   ),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 12,
+                if (label.isNotEmpty)
+                  Text(
+                    label,
+                    style: TextStyle(color: colors.textMuted, fontSize: 12),
                   ),
-                ),
               ],
             ),
           ),
