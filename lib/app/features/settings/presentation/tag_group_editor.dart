@@ -35,7 +35,6 @@ class _TagGroupEditorState extends State<TagGroupEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppTokens.colorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
