@@ -184,6 +184,40 @@ void main() {
   );
 
   test(
+    'prepareCurrentMedia stops preparing after grouped audio track becomes ready',
+    () async {
+      final state = PipelineRuntimeState();
+      state.currentMessage.value = PipelineMessage(
+        id: 21,
+        messageIds: const <int>[21, 22],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.audio,
+          title: 'album',
+          audioTracks: [
+            AudioTrackPreview(messageId: 21, title: 'track-1'),
+            AudioTrackPreview(messageId: 22, title: 'track-2'),
+          ],
+        ),
+      );
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: _GroupedAudioRefreshService(),
+        videoRefreshInterval: const Duration(milliseconds: 5),
+      );
+
+      await controller.prepareCurrentMedia(22);
+
+      expect(controller.isPreparingMessageId(22), isFalse);
+      expect(state.videoPreparing.value, isFalse);
+      expect(
+        state.currentMessage.value?.preview.audioTracks.last.localAudioPath,
+        'C:/track-22.mp3',
+      );
+    },
+  );
+
+  test(
     'prepareCurrentMedia keeps prepared payload when navigating away and back',
     () async {
       final state = PipelineRuntimeState();
@@ -548,6 +582,48 @@ class _PhotoRefreshMediaService extends PipelineMediaRefreshService {
             previewPath: 'C:/photo-$messageId.jpg',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _GroupedAudioRefreshService extends PipelineMediaRefreshService {
+  _GroupedAudioRefreshService()
+    : super.legacy(
+        mediaGateway: _NoopMediaGateway(),
+        messageGateway: _NoopMessageReadGateway(),
+      );
+
+  @override
+  Future<PipelineMessage> prepareCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    return PipelineMessage(
+      id: messageId,
+      messageIds: <int>[messageId],
+      sourceChatId: sourceChatId,
+      preview: MessagePreview(
+        kind: MessagePreviewKind.audio,
+        title: 'track-$messageId',
+        localAudioPath: 'C:/track-$messageId.mp3',
+      ),
+    );
+  }
+
+  @override
+  Future<PipelineMessage> refreshCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    return PipelineMessage(
+      id: messageId,
+      messageIds: <int>[messageId],
+      sourceChatId: sourceChatId,
+      preview: MessagePreview(
+        kind: MessagePreviewKind.audio,
+        title: 'track-$messageId',
+        localAudioPath: 'C:/track-$messageId.mp3',
       ),
     );
   }

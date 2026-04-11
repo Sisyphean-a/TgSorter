@@ -63,6 +63,8 @@ void main() {
       errorController: errors,
     );
     final tagging = TaggingCoordinator(
+      authStateGateway: authGateway,
+      connectionStateGateway: pipelineGateway,
       messageReadGateway: pipelineGateway,
       mediaGateway: pipelineGateway,
       taggingGateway: pipelineGateway,

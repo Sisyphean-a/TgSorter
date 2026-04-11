@@ -144,6 +144,7 @@ class _CategoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     final options = chats.toList(growable: true);
     if (!options.any((item) => item.id == category.targetChatId)) {
       options.add(
@@ -155,8 +156,8 @@ class _CategoryRow extends StatelessWidget {
     }
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTokens.surfaceBase,
-        border: Border.all(color: Theme.of(context).dividerColor),
+        color: colors.surfaceRaised,
+        border: Border.all(color: colors.borderSubtle),
         borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
       ),
       child: Padding(
@@ -213,7 +214,7 @@ class _CategoryRow extends StatelessWidget {
               icon: const Icon(Icons.delete_outline_rounded),
               tooltip: '删除分类',
               visualDensity: VisualDensity.compact,
-              color: AppTokens.danger,
+              color: colors.danger,
             ),
           ],
         ),

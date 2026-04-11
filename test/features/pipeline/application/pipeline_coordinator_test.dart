@@ -25,6 +25,7 @@ import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
+import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
@@ -139,6 +140,60 @@ void main() {
     },
   );
 
+  test('coordinator loads pending manual review transactions from journal', () {
+    final harness = _PipelineCoordinatorHarness(
+      journalRepository: _FakeOperationJournalRepository(
+        transactions: [
+          ClassifyTransactionEntry(
+            id: 'tx-1',
+            sourceChatId: 8888,
+            sourceMessageIds: const [21, 22],
+            targetChatId: 10001,
+            asCopy: false,
+            targetMessageIds: const [],
+            stage: ClassifyTransactionStage.needsManualReview,
+            createdAtMs: 1,
+            updatedAtMs: 1,
+            lastError: '需要人工核查',
+          ),
+        ],
+      ),
+    );
+
+    harness.coordinator.onInit();
+
+    expect(harness.coordinator.pendingRecoveryTransactions, hasLength(1));
+    expect(harness.coordinator.pendingRecoveryTransactions.single.id, 'tx-1');
+  });
+
+  test('coordinator can mark pending recovery transaction as resolved', () async {
+    final journalRepository = _FakeOperationJournalRepository(
+      transactions: [
+        ClassifyTransactionEntry(
+          id: 'tx-1',
+          sourceChatId: 8888,
+          sourceMessageIds: const [21],
+          targetChatId: 10001,
+          asCopy: false,
+          targetMessageIds: const [],
+          stage: ClassifyTransactionStage.needsManualReview,
+          createdAtMs: 1,
+          updatedAtMs: 1,
+          lastError: '需要人工核查',
+        ),
+      ],
+    );
+    final harness = _PipelineCoordinatorHarness(
+      journalRepository: journalRepository,
+    );
+    harness.coordinator.onInit();
+
+    await harness.coordinator.markPendingRecoveryTransactionResolved('tx-1');
+
+    expect(harness.coordinator.pendingRecoveryTransactions, isEmpty);
+    expect(journalRepository.loadClassifyTransactions(), isEmpty);
+  });
+
   test('coordinator runBatch stops after first classify failure', () async {
     final runtimeState = PipelineRuntimeState();
     final navigation = PipelineNavigationService(state: runtimeState);
@@ -171,6 +226,7 @@ class _PipelineCoordinatorHarness {
     PipelineFeedController? feed,
     PipelineLifecycleCoordinator? lifecycle,
     PipelineMediaSessionController? mediaSession,
+    OperationJournalRepository? journalRepository,
   }) {
     final resolvedState = runtimeState ?? PipelineRuntimeState();
     final resolvedNavigation =
@@ -196,6 +252,8 @@ class _PipelineCoordinatorHarness {
       feed: feed,
       lifecycle: lifecycle,
       mediaSession: mediaSession,
+      journalRepository:
+          journalRepository ?? _FakeOperationJournalRepository(),
     );
   }
 
@@ -208,6 +266,7 @@ class _PipelineCoordinatorHarness {
     required this.recovery,
     required this.mediaRefresh,
     required this.remainingCount,
+    required this.journalRepository,
     this.feed,
     this.lifecycle,
     this.mediaSession,
@@ -220,7 +279,7 @@ class _PipelineCoordinatorHarness {
       classifyGateway: _NoopClassifyGateway(),
       recoveryGateway: _NoopRecoveryGateway(),
       settingsReader: _FakeSettingsReader(),
-      journalRepository: _FakeOperationJournalRepository(),
+      journalRepository: journalRepository,
       errorController: AppErrorController(),
       runtimeState: runtimeState,
       navigation: navigation,
@@ -242,6 +301,7 @@ class _PipelineCoordinatorHarness {
   final PipelineActionService actions;
   final _RecordingPipelineRecoveryService recovery;
   final _RecordingPipelineMediaRefreshService mediaRefresh;
+  final OperationJournalRepository journalRepository;
   final PipelineFeedController? feed;
   final PipelineLifecycleCoordinator? lifecycle;
   final PipelineMediaSessionController? mediaSession;
@@ -467,8 +527,18 @@ class _FakeSettingsReader implements PipelineSettingsReader {
 }
 
 class _FakeOperationJournalRepository implements OperationJournalRepository {
-  final List<ClassifyOperationLog> _logs = <ClassifyOperationLog>[];
-  final List<RetryQueueItem> _retryQueue = <RetryQueueItem>[];
+  _FakeOperationJournalRepository({
+    List<ClassifyOperationLog>? logs,
+    List<RetryQueueItem>? retryQueue,
+    List<ClassifyTransactionEntry>? transactions,
+  }) : _logs = logs?.toList() ?? <ClassifyOperationLog>[],
+       _retryQueue = retryQueue?.toList() ?? <RetryQueueItem>[],
+       _transactions =
+           transactions?.toList() ?? <ClassifyTransactionEntry>[];
+
+  final List<ClassifyOperationLog> _logs;
+  final List<RetryQueueItem> _retryQueue;
+  final List<ClassifyTransactionEntry> _transactions;
 
   @override
   List<ClassifyOperationLog> loadLogs() =>
@@ -490,6 +560,23 @@ class _FakeOperationJournalRepository implements OperationJournalRepository {
     _retryQueue
       ..clear()
       ..addAll(items);
+  }
+
+  @override
+  List<ClassifyTransactionEntry> loadClassifyTransactions() {
+    return List<ClassifyTransactionEntry>.from(_transactions);
+  }
+
+  @override
+  Future<void> saveClassifyTransactions(List<ClassifyTransactionEntry> items) async {
+    _transactions
+      ..clear()
+      ..addAll(items);
+  }
+
+  @override
+  Future<void> removeClassifyTransaction(String id) async {
+    _transactions.removeWhere((item) => item.id == id);
   }
 
   @override

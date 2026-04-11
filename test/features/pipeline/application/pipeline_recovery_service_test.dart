@@ -26,6 +26,18 @@ void main() {
       expect(harness.errorMessages.single, contains('恢复失败'));
     },
   );
+
+  test(
+    'recoverPendingTransactions does not report manual review summary as app error',
+    () async {
+      final harness = _PipelineRecoveryHarness.manualReview();
+      final service = harness.build();
+
+      await service.recoverPendingTransactionsIfNeeded();
+
+      expect(harness.errorMessages, isEmpty);
+    },
+  );
 }
 
 class _PipelineRecoveryHarness {
@@ -48,6 +60,19 @@ class _PipelineRecoveryHarness {
           recoveredCount: 1,
           manualReviewCount: 0,
           failedCount: 2,
+        ),
+      ),
+      errorController: _RecordingErrorController(),
+    );
+  }
+
+  factory _PipelineRecoveryHarness.manualReview() {
+    return _PipelineRecoveryHarness._(
+      recoveryGateway: _FakeRecoveryGateway(
+        summary: const ClassifyRecoverySummary(
+          recoveredCount: 0,
+          manualReviewCount: 3,
+          failedCount: 0,
         ),
       ),
       errorController: _RecordingErrorController(),

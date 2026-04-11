@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
+import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
@@ -160,6 +161,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
   RxBool get videoPreparing => runtimeState.videoPreparing;
   RxBool get isOnline => runtimeState.isOnline;
   final logs = <ClassifyOperationLog>[].obs;
+  final pendingRecoveryTransactions = <ClassifyTransactionEntry>[].obs;
   final retryQueue = <RetryQueueItem>[].obs;
   RxBool get canShowPrevious => runtimeState.canShowPrevious;
   RxBool get canShowNext => runtimeState.canShowNext;
@@ -197,6 +199,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
     super.onInit();
     logs.assignAll(_journalRepository.loadLogs());
     retryQueue.assignAll(_journalRepository.loadRetryQueue());
+    _reloadPendingRecoveryTransactions();
     _connectionSub = _connectionStateGateway.connectionStates.listen((state) {
       lifecycle.updateConnection(state.isReady);
     });
@@ -392,8 +395,27 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
     }
   }
 
-  Future<void> recoverPendingTransactionsIfNeeded() =>
-      recovery.recoverPendingTransactionsIfNeeded();
+  Future<void> recoverPendingTransactionsIfNeeded() async {
+    await _recoverPendingTransactionsAndReload();
+  }
+
+  Future<void> markPendingRecoveryTransactionResolved(String id) async {
+    await _journalRepository.removeClassifyTransaction(id);
+    _reloadPendingRecoveryTransactions();
+  }
+
+  Future<void> markAllPendingRecoveryTransactionsResolved() async {
+    final ids = pendingRecoveryTransactions.map((item) => item.id).toList();
+    for (final id in ids) {
+      await _journalRepository.removeClassifyTransaction(id);
+    }
+    _reloadPendingRecoveryTransactions();
+  }
+
+  Future<void> recheckPendingRecoveryTransactions() async {
+    recovery.reset();
+    await _recoverPendingTransactionsAndReload();
+  }
 
   Future<void> _delayThrottle() async {
     final delayMs = _settingsReader.currentSettings.throttleMs;
@@ -428,12 +450,23 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
     await mediaSessionController.refreshCurrentMediaIfNeeded();
   }
 
+  Future<void> _recoverPendingTransactionsAndReload() async {
+    await recovery.recoverPendingTransactionsIfNeeded();
+    _reloadPendingRecoveryTransactions();
+  }
+
   void _stopVideoRefresh() {
     mediaSessionController.stop();
   }
 
   void _reportError(AppErrorEvent event) {
     _errorController.reportEvent(event);
+  }
+
+  void _reloadPendingRecoveryTransactions() {
+    pendingRecoveryTransactions.assignAll(
+      _journalRepository.loadClassifyTransactions(),
+    );
   }
 
   @override

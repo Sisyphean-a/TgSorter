@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
@@ -10,6 +14,8 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
+import 'package:tgsorter/app/services/td_auth_state.dart';
+import 'package:tgsorter/app/services/td_connection_state.dart';
 
 void main() {
   group('TaggingCoordinator', () {
@@ -41,9 +47,9 @@ void main() {
       expect(coordinator.currentMessage.value?.preview.title, 'first #摄影');
     });
 
-    test('applyTag failure reports error and keeps current message', () async {
-      final errors = AppErrorController();
-      final coordinator = _buildCoordinator(
+  test('applyTag failure reports error and keeps current message', () async {
+    final errors = AppErrorController();
+    final coordinator = _buildCoordinator(
         errors: errors,
         tagging: _FakeTaggingGateway(error: StateError('edit failed')),
       );
@@ -55,6 +61,27 @@ void main() {
       expect(coordinator.currentMessage.value?.preview.title, 'first');
       expect(errors.currentError.value, contains('edit failed'));
     });
+
+    test('becomes online and auto loads after auth and connection are ready', () async {
+      final messages = _FakeMessageReadGateway([_message(1, 'first')]);
+      final auth = _FakeAuthStateGateway();
+      final connection = _FakeConnectionStateGateway();
+      final coordinator = _buildCoordinator(
+        messages: messages,
+        auth: auth,
+        connection: connection,
+      );
+
+      coordinator.onInit();
+      coordinator.onReady();
+      auth.emitReady();
+      connection.emitReady();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(coordinator.isOnline.value, isTrue);
+      expect(messages.lastSourceChatId, -1001);
+      expect(coordinator.currentMessage.value?.id, 1);
+    });
   });
 }
 
@@ -62,6 +89,8 @@ TaggingCoordinator _buildCoordinator({
   _FakeMessageReadGateway? messages,
   _FakeTaggingGateway? tagging,
   AppErrorController? errors,
+  _FakeAuthStateGateway? auth,
+  _FakeConnectionStateGateway? connection,
 }) {
   return TaggingCoordinator(
     messageReadGateway:
@@ -70,6 +99,8 @@ TaggingCoordinator _buildCoordinator({
     taggingGateway: tagging ?? _FakeTaggingGateway(),
     settingsReader: _SettingsReader(),
     errorController: errors ?? AppErrorController(),
+    authStateGateway: auth ?? _FakeAuthStateGateway(),
+    connectionStateGateway: connection ?? _FakeConnectionStateGateway(),
   );
 }
 
@@ -160,6 +191,32 @@ class _SettingsReader implements PipelineSettingsReader {
 
   @override
   Rx<AppSettings> get settingsStream => settings.obs;
+}
+
+class _FakeAuthStateGateway implements AuthStateGateway {
+  final _controller = StreamController<TdAuthState>.broadcast();
+
+  @override
+  Stream<TdAuthState> get authStates => _controller.stream;
+
+  void emitReady() {
+    _controller.add(
+      TdAuthState.fromJson(const {'@type': 'authorizationStateReady'}),
+    );
+  }
+}
+
+class _FakeConnectionStateGateway implements ConnectionStateGateway {
+  final _controller = StreamController<TdConnectionState>.broadcast();
+
+  @override
+  Stream<TdConnectionState> get connectionStates => _controller.stream;
+
+  void emitReady() {
+    _controller.add(
+      TdConnectionState.fromJson(const {'@type': 'connectionStateReady'}),
+    );
+  }
 }
 
 PipelineMessage _message(int id, String title) {

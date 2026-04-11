@@ -4,6 +4,7 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_desktop_view.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_mobile_view.dart';
+import 'package:tgsorter/app/features/pipeline/presentation/pipeline_recovery_panel.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_error_panel.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
@@ -54,7 +55,12 @@ class PipelineScreen extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: AppErrorPanel(controller: errors),
+          child: Column(
+            children: [
+              PipelineRecoveryPanel(pipeline: pipeline),
+              AppErrorPanel(controller: errors),
+            ],
+          ),
         ),
         Expanded(
           child: PipelineLayoutSwitch(

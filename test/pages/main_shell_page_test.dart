@@ -80,6 +80,8 @@ void main() {
     pipeline.isOnline.value = true;
     pipeline.remainingCount.value = 7;
     final tagging = TaggingCoordinator(
+      authStateGateway: pipelineGateway,
+      connectionStateGateway: pipelineGateway,
       messageReadGateway: pipelineGateway,
       mediaGateway: pipelineGateway,
       taggingGateway: pipelineGateway,
@@ -167,6 +169,8 @@ void main() {
         errorController: errors,
       );
       final tagging = TaggingCoordinator(
+        authStateGateway: pipelineGateway,
+        connectionStateGateway: pipelineGateway,
         messageReadGateway: pipelineGateway,
         mediaGateway: pipelineGateway,
         taggingGateway: pipelineGateway,

@@ -52,13 +52,6 @@ class MessagePreviewMedia extends StatelessWidget {
     if (items.length == 1) {
       return _buildSingle(items.single, photoItems);
     }
-    if (items.every((item) => item.kind == MediaItemKind.photo)) {
-      return MessagePreviewImageGallery(
-        items: photoItems,
-        initialIndex: 0,
-        fallbackText: _imageFallbackText,
-      );
-    }
     return _buildMosaic(items);
   }
 

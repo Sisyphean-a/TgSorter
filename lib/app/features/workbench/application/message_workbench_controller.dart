@@ -110,4 +110,8 @@ class MessageWorkbenchController {
     state.cache[state.currentIndex] = message;
     navigation.syncCurrentMessage();
   }
+
+  void reset() {
+    feedController.reset();
+  }
 }

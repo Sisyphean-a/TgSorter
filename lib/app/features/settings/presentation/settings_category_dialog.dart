@@ -21,6 +21,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     return AlertDialog(
       title: const Text('新增分类'),
       content: SizedBox(
@@ -51,8 +52,8 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
         ),
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: AppTokens.brandAccent,
-            foregroundColor: const Color(0xFF03211C),
+            backgroundColor: colors.brandAccent,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
           ),
           onPressed: _selectedChatId == null
               ? null

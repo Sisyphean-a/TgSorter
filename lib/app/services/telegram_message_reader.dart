@@ -12,6 +12,7 @@ import 'package:tgsorter/app/services/tdlib_failure.dart';
 class TelegramMessageReader {
   static const int _historyBatchSizeDefault = 100;
   static const Duration _defaultTimeoutValue = Duration(seconds: 20);
+  static const int _albumContinuationBatchSize = 20;
 
   TelegramMessageReader({
     required TdlibAdapter adapter,
@@ -53,9 +54,9 @@ class TelegramMessageReader {
     required int? fromMessageId,
     required int limit,
   }) async {
-    final messages = await _historyPaginator.fetchSavedMessagePage(
-      chatId: sourceChatId,
+    final messages = await _fetchPageWithTrailingAlbum(
       direction: direction,
+      sourceChatId: sourceChatId,
       fromMessageId: fromMessageId,
       limit: limit,
     );
@@ -113,6 +114,77 @@ class TelegramMessageReader {
       phase: TdlibPhase.business,
     );
     return TdMessageDto.fromJson(envelope.payload);
+  }
+
+  Future<List<TdMessageDto>> _fetchPageWithTrailingAlbum({
+    required MessageFetchDirection direction,
+    required int sourceChatId,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    final page = await _historyPaginator.fetchSavedMessagePage(
+      chatId: sourceChatId,
+      direction: direction,
+      fromMessageId: fromMessageId,
+      limit: limit,
+    );
+    final trailingAlbumId = _trailingGroupedAlbumId(page);
+    if (trailingAlbumId == null) {
+      return page;
+    }
+    final result = page.toList(growable: true);
+    final seenIds = result.map((item) => item.id).toSet();
+    var cursor = result.last.id;
+    while (true) {
+      final nextPage = await _historyPaginator.fetchSavedMessagePage(
+        chatId: sourceChatId,
+        direction: direction,
+        fromMessageId: cursor,
+        limit: _albumContinuationBatchSize,
+      );
+      if (nextPage.isEmpty) {
+        return result;
+      }
+      final continuation = <TdMessageDto>[];
+      for (final item in nextPage) {
+        if (!seenIds.add(item.id)) {
+          continue;
+        }
+        if (!_belongsToGroupedAlbum(item, trailingAlbumId)) {
+          result.addAll(continuation);
+          return result;
+        }
+        continuation.add(item);
+      }
+      if (continuation.isEmpty) {
+        return result;
+      }
+      result.addAll(continuation);
+      cursor = continuation.last.id;
+    }
+  }
+
+  String? _trailingGroupedAlbumId(List<TdMessageDto> messages) {
+    if (messages.isEmpty) {
+      return null;
+    }
+    final trailing = messages.last;
+    if (!_isGroupedMediaMessage(trailing)) {
+      return null;
+    }
+    return trailing.mediaAlbumId;
+  }
+
+  bool _belongsToGroupedAlbum(TdMessageDto message, String albumId) {
+    return _isGroupedMediaMessage(message) && message.mediaAlbumId == albumId;
+  }
+
+  bool _isGroupedMediaMessage(TdMessageDto message) {
+    final kind = message.content.kind;
+    return message.mediaAlbumId != null &&
+        (kind == TdMessageContentKind.audio ||
+            kind == TdMessageContentKind.photo ||
+            kind == TdMessageContentKind.video);
   }
 
   Future<TdMessageDto> _preparePreview(TdMessageDto message) async {

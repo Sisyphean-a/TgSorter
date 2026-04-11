@@ -173,24 +173,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _removeCategoryDraft(String key) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('删除分类'),
-        content: const Text('这会从当前草稿中移除该分类，保存后才会真正生效。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTokens.danger,
-              foregroundColor: Colors.white,
+      builder: (context) {
+        final colors = AppTokens.colorsOf(context);
+        return AlertDialog(
+          title: const Text('删除分类'),
+          content: const Text('这会从当前草稿中移除该分类，保存后才会真正生效。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
             ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.danger,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('删除'),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true) {
       return;
@@ -212,24 +215,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<bool> _confirmDiscard() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('放弃更改'),
-        content: const Text('离开或放弃后，当前未保存的修改都会丢失。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('继续编辑'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTokens.danger,
-              foregroundColor: Colors.white,
+      builder: (context) {
+        final colors = AppTokens.colorsOf(context);
+        return AlertDialog(
+          title: const Text('放弃更改'),
+          content: const Text('离开或放弃后，当前未保存的修改都会丢失。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('继续编辑'),
             ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('放弃'),
-          ),
-        ],
-      ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.danger,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('放弃'),
+            ),
+          ],
+        );
+      },
     );
     return confirmed ?? false;
   }

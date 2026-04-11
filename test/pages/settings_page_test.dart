@@ -8,6 +8,7 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 import 'package:tgsorter/app/features/settings/presentation/settings_common_editors.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_list_section.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -277,6 +278,50 @@ void main() {
     expect(controller.savedSettings.value.themeMode, AppThemeMode.light);
     expect(controller.draftSettings.value.themeMode, AppThemeMode.dark);
     expect(controller.isDirty.value, isTrue);
+  });
+
+  testWidgets('category rows follow dark theme palette', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: SettingsCategoryContent(
+            categories: const [
+              CategoryConfig(
+                key: 'cat_1',
+                targetChatId: -1001,
+                targetChatTitle: '星空',
+              ),
+            ],
+            savedCategories: const [
+              CategoryConfig(
+                key: 'cat_1',
+                targetChatId: -1001,
+                targetChatTitle: '星空',
+              ),
+            ],
+            chats: const [SelectableChat(id: -1001, title: '星空')],
+            onAdd: () async {},
+            onChanged: (_, chat) {},
+            onRemove: (_) async {},
+          ),
+        ),
+      ),
+    );
+
+    final row = tester.widget<DecoratedBox>(
+      find
+          .descendant(
+            of: find.byType(SettingsCategoryContent),
+            matching: find.byType(DecoratedBox),
+          )
+          .last,
+    );
+    final decoration = row.decoration as BoxDecoration;
+    final border = decoration.border! as Border;
+
+    expect(decoration.color, const Color(0xFF2D3136));
+    expect(border.top.color, const Color(0xFF3B4148));
   });
 }
 

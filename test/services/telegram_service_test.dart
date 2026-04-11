@@ -639,6 +639,10 @@ void main() {
                   _photoMessageJson(11, albumId: '700'),
                 ],
               }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [],
+              }),
             ],
             'downloadFile': <TdWireEnvelope>[
               TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
@@ -674,6 +678,10 @@ void main() {
                   _videoMessageJson(11, albumId: '700'),
                 ],
               }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [],
+              }),
             ],
             'downloadFile': <TdWireEnvelope>[
               TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
@@ -708,6 +716,10 @@ void main() {
                   _videoMessageJson(12, albumId: '700'),
                   _videoMessageJson(11, albumId: '700'),
                 ],
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [],
               }),
               TdWireEnvelope.fromJson(<String, dynamic>{
                 '@type': 'messages',
@@ -881,6 +893,10 @@ void main() {
                   _documentVideoMessageJson(11, albumId: '700'),
                 ],
               }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [],
+              }),
             ],
             'downloadFile': <TdWireEnvelope>[
               TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
@@ -900,6 +916,50 @@ void main() {
         expect(page.length, 1);
         expect(page.first.messageIds, [11, 12]);
         expect(page.first.preview.mediaItems.length, 2);
+      },
+    );
+
+    test(
+      'fetchMessagePage keeps latest-first photo album intact when page ends mid-album',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _photoMessageJson(12, albumId: '900'),
+                  _photoMessageJson(11, albumId: '900'),
+                ],
+              }),
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  _photoMessageJson(11, albumId: '900'),
+                  _photoMessageJson(10, albumId: '900'),
+                  _textMessageJson(9, 'tail'),
+                ],
+              }),
+            ],
+            'downloadFile': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        final page = await service.fetchMessagePage(
+          direction: MessageFetchDirection.latestFirst,
+          sourceChatId: 777,
+          fromMessageId: null,
+          limit: 2,
+        );
+
+        expect(page.length, 1);
+        expect(page.first.messageIds, [10, 11, 12]);
+        expect(page.first.preview.mediaItems.length, 3);
       },
     );
 

@@ -17,6 +17,13 @@ class PipelineRecoveryService {
   bool get isCompleted => _completed;
   bool get isRunning => _running;
 
+  void reset() {
+    if (_running) {
+      return;
+    }
+    _completed = false;
+  }
+
   Future<void> recoverPendingTransactionsIfNeeded() async {
     if (_completed || _running) {
       return;
@@ -30,9 +37,9 @@ class PipelineRecoveryService {
     try {
       final summary = await recoveryGateway.recoverPendingClassifyOperations();
       _completed = true;
-      if (summary.failedCount > 0 || summary.manualReviewCount > 0) {
+      if (summary.failedCount > 0) {
         _errors.report(
-          title: '分类事务恢复提醒',
+          title: '分类事务恢复失败',
           message:
               '自动恢复 ${summary.recoveredCount} 条，'
               '仍有 ${summary.manualReviewCount} 条需要人工核查，'

@@ -71,6 +71,7 @@ class PipelineMediaController implements PipelineLegacyMediaController {
   Future<void> refreshCurrentMediaIfNeeded() async {
     final message = _state.currentMessage.value;
     if (message == null || !_needsMediaRefresh(message.preview)) {
+      _state.preparingMessageIds.clear();
       _state.videoPreparing.value = false;
       _refreshTargetMessageId = null;
       return;
@@ -236,7 +237,7 @@ class PipelineMediaController implements PipelineLegacyMediaController {
       return !_hasPath(preview.localImagePath);
     }
     if (preview.kind == MessagePreviewKind.audio) {
-      return _state.videoPreparing.value && !_hasPath(preview.localAudioPath);
+      return _state.videoPreparing.value && !_hasReadyAudioPath(preview);
     }
     return false;
   }
@@ -266,7 +267,7 @@ class PipelineMediaController implements PipelineLegacyMediaController {
     }
     if (preview.kind == MessagePreviewKind.audio) {
       _state.videoPreparing.value =
-          !_hasPath(preview.localAudioPath) && _state.videoPreparing.value;
+          !_hasReadyAudioPath(preview) && _state.videoPreparing.value;
       if (!_state.videoPreparing.value && targetId != null) {
         _state.preparingMessageIds.remove(targetId);
       }
@@ -291,5 +292,18 @@ class PipelineMediaController implements PipelineLegacyMediaController {
 
   bool _hasPath(String? path) {
     return path != null && path.isNotEmpty;
+  }
+
+  bool _hasReadyAudioPath(MessagePreview preview) {
+    final targetId = _refreshTargetMessageId;
+    if (preview.audioTracks.isEmpty || targetId == null) {
+      return _hasPath(preview.localAudioPath);
+    }
+    for (final track in preview.audioTracks) {
+      if (track.messageId == targetId) {
+        return _hasPath(track.localAudioPath);
+      }
+    }
+    return _hasPath(preview.localAudioPath);
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
@@ -13,6 +15,8 @@ import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
+import 'package:tgsorter/app/services/td_auth_state.dart';
+import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
@@ -75,6 +79,8 @@ void main() {
 
 TaggingCoordinator _buildController({_TaggingPageGateway? tagging}) {
   return TaggingCoordinator(
+    authStateGateway: _TaggingPageLifecycleGateway(),
+    connectionStateGateway: _TaggingPageLifecycleGateway(),
     messageReadGateway: _TaggingPageMessages(),
     mediaGateway: _TaggingPageMedia(),
     taggingGateway: tagging ?? _TaggingPageGateway(),
@@ -136,6 +142,15 @@ class _TaggingPageMedia implements MediaGateway {
   }) async {
     throw UnimplementedError();
   }
+}
+
+class _TaggingPageLifecycleGateway
+    implements AuthStateGateway, ConnectionStateGateway {
+  @override
+  Stream<TdAuthState> get authStates => const Stream.empty();
+
+  @override
+  Stream<TdConnectionState> get connectionStates => const Stream.empty();
 }
 
 class _TaggingPageSettings implements PipelineSettingsReader {
