@@ -198,11 +198,7 @@ void main() {
       await tester.tap(find.text('设置'));
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.widgetWithText(TextField, '代理服务器'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.tap(find.text('连接与网络'));
       await tester.pumpAndSettle();
 
       await tester.enterText(
@@ -214,10 +210,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
-      await tester.tap(find.text('保存更改'));
+      await tester.tap(find.text('保存'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      expect(find.text('已保存'), findsAtLeastNWidgets(1));
+      expect(find.text('设置已保存'), findsOneWidget);
     },
   );
 }

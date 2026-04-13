@@ -86,23 +86,6 @@ class SettingsCategoryContent extends StatelessWidget {
   }
 }
 
-class SettingsUnsavedChangesBanner extends StatelessWidget {
-  const SettingsUnsavedChangesBanner({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppTokens.colorsOf(context);
-    return Material(
-      color: colors.brandAccentSoft,
-      borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
-      child: const Padding(
-        padding: EdgeInsets.all(AppTokens.spaceMd),
-        child: Text('当前有未保存更改，点击底部“保存更改”后才会正式生效。'),
-      ),
-    );
-  }
-}
-
 class SettingsChatListRow extends StatelessWidget {
   const SettingsChatListRow({
     super.key,

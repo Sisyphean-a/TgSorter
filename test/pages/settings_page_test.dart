@@ -11,7 +11,6 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
-import 'package:tgsorter/app/shared/presentation/widgets/sticky_action_bar.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
@@ -47,7 +46,6 @@ void main() {
     expect(find.text('保存更改'), findsNothing);
     expect(find.text('放弃更改'), findsNothing);
     expect(find.byType(StatusBadge), findsNothing);
-    expect(find.byType(StickyActionBar), findsNothing);
     expect(find.byType(SettingsNavigationTile), findsNWidgets(5));
   });
 
