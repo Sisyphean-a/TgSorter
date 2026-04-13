@@ -417,6 +417,18 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
     await _recoverPendingTransactionsAndReload();
   }
 
+  Future<void> clearSessionStateForLogout() async {
+    _stopVideoRefresh();
+    _resetPipelineState();
+    _lastSuccessReceipt = null;
+    logs.clear();
+    retryQueue.clear();
+    pendingRecoveryTransactions.clear();
+    await _journalRepository.saveLogs(const []);
+    await _journalRepository.saveRetryQueue(const []);
+    await _journalRepository.saveClassifyTransactions(const []);
+  }
+
   Future<void> _delayThrottle() async {
     final delayMs = _settingsReader.currentSettings.throttleMs;
     if (delayMs <= 0) {
