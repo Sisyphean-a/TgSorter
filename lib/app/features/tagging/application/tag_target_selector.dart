@@ -18,7 +18,7 @@ class TagTargetSelector {
   const TagTargetSelector();
 
   TagEditTarget select(List<TdMessageDto> messages) {
-    final editable = messages.where((item) => item.canBeEdited).toList();
+    final editable = messages.where((item) => item.isTagEditAllowed).toList();
     if (editable.isEmpty) {
       throw StateError('当前消息不可编辑，无法打标');
     }

@@ -165,15 +165,20 @@ class TdMessageDto {
     required this.id,
     required this.mediaAlbumId,
     required this.canBeEdited,
+    this.hasEditabilityFlag = true,
+    this.isOutgoing = false,
     required this.content,
   });
 
   factory TdMessageDto.fromJson(Map<String, dynamic> payload) {
     final id = TdResponseReader.readInt(payload, 'id');
+    final rawCanBeEdited = payload['can_be_edited'];
     return TdMessageDto(
       id: id,
       mediaAlbumId: _readMediaAlbumId(payload),
-      canBeEdited: _readBool(payload['can_be_edited']),
+      canBeEdited: _readBool(rawCanBeEdited),
+      hasEditabilityFlag: rawCanBeEdited != null,
+      isOutgoing: _readBool(payload['is_outgoing']),
       content: _parseContent(
         TdResponseReader.readMap(payload, 'content'),
         messageId: id,
@@ -184,7 +189,13 @@ class TdMessageDto {
   final int id;
   final String? mediaAlbumId;
   final bool canBeEdited;
+  final bool hasEditabilityFlag;
+  final bool isOutgoing;
   final TdMessageContentDto content;
+
+  bool get isTagEditAllowed {
+    return canBeEdited || (!hasEditabilityFlag && isOutgoing);
+  }
 
   static TdMessageContentDto _parseContent(
     Map<String, dynamic> content, {

@@ -119,6 +119,39 @@ void main() {
         throwsA(isA<StateError>()),
       );
     });
+
+    test(
+      'outgoing message without can_be_edited flag still attempts text edit',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: {
+            'getMessage': [
+              TdWireEnvelope.fromJson(
+                _textMessageJson(
+                  6,
+                  'hello',
+                  includeCanBeEdited: false,
+                  isOutgoing: true,
+                ),
+              ),
+            ],
+            'editMessageText': [
+              TdWireEnvelope.fromJson(_textMessageJson(6, 'hello #摄影')),
+            ],
+          },
+        );
+        final service = TelegramTaggingService(adapter: adapter);
+
+        final result = await service.applyTag(
+          sourceChatId: 777,
+          messageIds: const [6],
+          tagName: '摄影',
+        );
+
+        expect(result.changed, isTrue);
+        expect(adapter.editTextPayloads, ['hello #摄影']);
+      },
+    );
   });
 }
 
@@ -214,15 +247,21 @@ Map<String, dynamic> _textMessageJson(
   int id,
   String text, {
   bool canBeEdited = true,
+  bool includeCanBeEdited = true,
+  bool isOutgoing = false,
 }) {
-  return {
+  final payload = {
     'id': id,
-    'can_be_edited': canBeEdited,
+    'is_outgoing': isOutgoing,
     'content': {
       '@type': 'messageText',
       'text': {'text': text, 'entities': []},
     },
   };
+  if (includeCanBeEdited) {
+    payload['can_be_edited'] = canBeEdited;
+  }
+  return payload;
 }
 
 Map<String, dynamic> _photoMessageJson(int id, String caption) {

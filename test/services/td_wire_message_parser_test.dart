@@ -331,5 +331,27 @@ void main() {
       expect(dto.messages.single.canBeEdited, isTrue);
       expect(dto.messages.single.content.text?.text, '可编辑');
     });
+
+    test('treats outgoing message without editability flag as editable probe', () {
+      final dto = TdMessagesDto.fromEnvelope(
+        TdWireEnvelope.fromJson(<String, dynamic>{
+          '@type': 'messages',
+          'messages': [
+            {
+              'id': 10,
+              'is_outgoing': true,
+              'content': {
+                '@type': 'messageText',
+                'text': {'text': '待打标', 'entities': []},
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(dto.messages.single.hasEditabilityFlag, isFalse);
+      expect(dto.messages.single.isOutgoing, isTrue);
+      expect(dto.messages.single.isTagEditAllowed, isTrue);
+    });
   });
 }

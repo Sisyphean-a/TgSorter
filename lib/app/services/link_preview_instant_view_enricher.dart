@@ -98,6 +98,8 @@ class LinkPreviewInstantViewEnricher {
       id: message.id,
       mediaAlbumId: message.mediaAlbumId,
       canBeEdited: message.canBeEdited,
+      hasEditabilityFlag: message.hasEditabilityFlag,
+      isOutgoing: message.isOutgoing,
       content: TdMessageContentDto(
         kind: content.kind,
         messageId: content.messageId,
