@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/settings/application/category_settings_service.dart';
 import 'package:tgsorter/app/features/settings/application/connection_settings_service.dart';
+import 'package:tgsorter/app/features/settings/application/settings_input_validator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
 import 'package:tgsorter/app/features/settings/application/shortcut_settings_service.dart';
 import 'package:tgsorter/app/features/settings/application/tag_settings_service.dart';
@@ -14,21 +15,27 @@ class SettingsPageDraftSession {
     CategorySettingsService? categories,
     ConnectionSettingsService? connection,
     ShortcutSettingsService? shortcuts,
+    SettingsInputValidator? validator,
     TagSettingsService? tags,
   }) : _categories = categories ?? CategorySettingsService(),
        _connection = connection ?? ConnectionSettingsService(),
        _shortcuts = shortcuts ?? ShortcutSettingsService(),
+       _validator = validator ?? SettingsInputValidator(),
        _tags = tags ?? TagSettingsService();
 
   final CategorySettingsService _categories;
   final ConnectionSettingsService _connection;
   final ShortcutSettingsService _shortcuts;
+  final SettingsInputValidator _validator;
   final TagSettingsService _tags;
 
   final currentRoute = Rxn<SettingsRoute>();
   final savedSettings = AppSettings.defaults().obs;
   final draftSettings = AppSettings.defaults().obs;
   final isDirty = false.obs;
+  final hasValidationErrors = false.obs;
+
+  bool get hasPendingChanges => isDirty.value || hasValidationErrors.value;
 
   void open({
     required SettingsRoute route,
@@ -38,6 +45,7 @@ class SettingsPageDraftSession {
     this.savedSettings.value = savedSettings;
     draftSettings.value = savedSettings;
     isDirty.value = false;
+    hasValidationErrors.value = false;
   }
 
   void markSaved(AppSettings savedSettings) {
@@ -51,6 +59,7 @@ class SettingsPageDraftSession {
   void discard() {
     draftSettings.value = savedSettings.value;
     isDirty.value = false;
+    hasValidationErrors.value = false;
   }
 
   void clear() {
@@ -58,6 +67,7 @@ class SettingsPageDraftSession {
     savedSettings.value = AppSettings.defaults();
     draftSettings.value = AppSettings.defaults();
     isDirty.value = false;
+    hasValidationErrors.value = false;
   }
 
   void updateSourceChat(int? sourceChatId) {
@@ -72,16 +82,11 @@ class SettingsPageDraftSession {
     _update(draftSettings.value.updateForwardAsCopy(value));
   }
 
-  void updateBatchOptions({
-    required int batchSize,
-    required int throttleMs,
-  }) {
-    final safeBatchSize = batchSize < 1 ? 1 : batchSize;
-    final safeThrottleMs = throttleMs < 0 ? 0 : throttleMs;
+  void updateBatchOptions({required int batchSize, required int throttleMs}) {
     _update(
       draftSettings.value.updateBatchOptions(
-        batchSize: safeBatchSize,
-        throttleMs: safeThrottleMs,
+        batchSize: _validator.requireBatchSize(batchSize),
+        throttleMs: _validator.requireThrottleMs(throttleMs),
       ),
     );
   }
@@ -117,10 +122,7 @@ class SettingsPageDraftSession {
     _update(_categories.addCategory(current: draftSettings.value, chat: chat));
   }
 
-  void updateCategory({
-    required String key,
-    required SelectableChat chat,
-  }) {
+  void updateCategory({required String key, required SelectableChat chat}) {
     _update(
       _categories.updateCategory(
         current: draftSettings.value,
@@ -131,9 +133,7 @@ class SettingsPageDraftSession {
   }
 
   void removeCategory(String key) {
-    _update(
-      _categories.removeCategory(current: draftSettings.value, key: key),
-    );
+    _update(_categories.removeCategory(current: draftSettings.value, key: key));
   }
 
   void updateTagSourceChat(int? chatId) {
@@ -171,6 +171,10 @@ class SettingsPageDraftSession {
 
   void resetShortcutDefaults() {
     _update(_shortcuts.resetDefaults(draftSettings.value));
+  }
+
+  void setHasValidationErrors(bool value) {
+    hasValidationErrors.value = value;
   }
 
   void _update(AppSettings next) {

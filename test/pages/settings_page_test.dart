@@ -79,7 +79,10 @@ void main() {
 
     expect(find.text('保存'), findsNothing);
 
-    await tester.enterText(find.widgetWithText(TextField, '代理服务器'), '127.0.0.1');
+    await tester.enterText(
+      find.widgetWithText(TextField, '代理服务器'),
+      '127.0.0.1',
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('保存'), findsOneWidget);
@@ -164,6 +167,56 @@ void main() {
       MessageFetchDirection.oldestFirst,
     );
     expect(find.text('保存'), findsNothing);
+  });
+
+  testWidgets('非法批处理输入会显示错误并阻止保存', (tester) async {
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    await tester.tap(find.text('转发'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.widgetWithText(TextField, '批处理条数 N'), '0');
+    await tester.pumpAndSettle();
+
+    expect(find.text('请输入大于等于 1 的整数'), findsOneWidget);
+
+    final saveButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, '保存'),
+    );
+    expect(saveButton.onPressed, isNull);
+
+    await tester.tap(find.byTooltip('返回'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(FilledButton, '放弃更改'), findsOneWidget);
+  });
+
+  testWidgets('非法代理端口会显示错误并阻止保存', (tester) async {
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    await tester.tap(find.text('连接与网络'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, '代理服务器'),
+      '127.0.0.1',
+    );
+    await tester.pump();
+    await tester.enterText(find.widgetWithText(TextField, '代理端口'), 'abc');
+    await tester.pumpAndSettle();
+
+    expect(find.text('请输入大于 0 的端口'), findsOneWidget);
+
+    final saveButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, '保存'),
+    );
+    expect(saveButton.onPressed, isNull);
   });
 
   testWidgets('其余四个详情页都在两层结构内展示各自字段', (tester) async {

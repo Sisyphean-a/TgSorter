@@ -9,6 +9,7 @@ import 'package:tgsorter/app/features/settings/application/connection_settings_s
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
 import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_input_validator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
 import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
 import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
@@ -33,6 +34,7 @@ class SettingsCoordinator extends GetxController
     CategorySettingsService? categories,
     ShortcutSettingsService? shortcuts,
     ConnectionSettingsService? connection,
+    SettingsInputValidator? validator,
     TagSettingsService? tags,
     SettingsChatLoader? chatLoader,
   }) : _repository = repository,
@@ -45,6 +47,7 @@ class SettingsCoordinator extends GetxController
        _categories = categories ?? CategorySettingsService(),
        _shortcuts = shortcuts ?? ShortcutSettingsService(),
        _connection = connection ?? ConnectionSettingsService(),
+       _validator = validator ?? SettingsInputValidator(),
        _tags = tags ?? TagSettingsService(),
        _chatLoader =
            chatLoader ?? SettingsChatLoader(sessionQueryGateway: sessions);
@@ -58,6 +61,7 @@ class SettingsCoordinator extends GetxController
   final CategorySettingsService _categories;
   final ShortcutSettingsService _shortcuts;
   final ConnectionSettingsService _connection;
+  final SettingsInputValidator _validator;
   final TagSettingsService _tags;
   final SettingsChatLoader _chatLoader;
   Future<SettingsSaveResult>? _pendingSaveDraft;
@@ -114,12 +118,10 @@ class SettingsCoordinator extends GetxController
     required int batchSize,
     required int throttleMs,
   }) {
-    final safeBatchSize = batchSize < 1 ? 1 : batchSize;
-    final safeThrottleMs = throttleMs < 0 ? 0 : throttleMs;
     _draftCoordinator.update(
       draftSettings.value.updateBatchOptions(
-        batchSize: safeBatchSize,
-        throttleMs: safeThrottleMs,
+        batchSize: _validator.requireBatchSize(batchSize),
+        throttleMs: _validator.requireThrottleMs(throttleMs),
       ),
     );
   }

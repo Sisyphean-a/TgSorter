@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/features/settings/application/settings_input_validator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
@@ -128,12 +129,14 @@ class BatchOptionsDraftEditor extends StatefulWidget {
     required this.batchSize,
     required this.throttleMs,
     required this.onChanged,
+    this.onValidationChanged,
   });
 
   final int batchSize;
   final int throttleMs;
   final void Function({required int batchSize, required int throttleMs})
   onChanged;
+  final ValueChanged<bool>? onValidationChanged;
 
   @override
   State<BatchOptionsDraftEditor> createState() =>
@@ -174,14 +177,18 @@ class PreviewPrefetchDraftEditor extends StatelessWidget {
 }
 
 class _BatchOptionsDraftEditorState extends State<BatchOptionsDraftEditor> {
+  final _validator = SettingsInputValidator();
   late final TextEditingController _batchCtrl;
   late final TextEditingController _throttleCtrl;
+  String? _batchError;
+  String? _throttleError;
 
   @override
   void initState() {
     super.initState();
     _batchCtrl = TextEditingController(text: widget.batchSize.toString());
     _throttleCtrl = TextEditingController(text: widget.throttleMs.toString());
+    _syncValidationState(notifyModel: false);
   }
 
   @override
@@ -193,6 +200,7 @@ class _BatchOptionsDraftEditorState extends State<BatchOptionsDraftEditor> {
     if (oldWidget.throttleMs != widget.throttleMs) {
       _throttleCtrl.text = widget.throttleMs.toString();
     }
+    _syncValidationState(notifyModel: false);
   }
 
   @override
@@ -209,24 +217,41 @@ class _BatchOptionsDraftEditorState extends State<BatchOptionsDraftEditor> {
         TextField(
           controller: _batchCtrl,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: '批处理条数 N'),
-          onChanged: (_) => _notifyChange(),
+          decoration: InputDecoration(
+            labelText: '批处理条数 N',
+            errorText: _batchError,
+          ),
+          onChanged: (_) => _syncValidationState(),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _throttleCtrl,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: '节流毫秒'),
-          onChanged: (_) => _notifyChange(),
+          decoration: InputDecoration(
+            labelText: '节流毫秒',
+            errorText: _throttleError,
+          ),
+          onChanged: (_) => _syncValidationState(),
         ),
       ],
     );
   }
 
-  void _notifyChange() {
-    final batch = int.tryParse(_batchCtrl.text.trim()) ?? 1;
-    final throttle = int.tryParse(_throttleCtrl.text.trim()) ?? 0;
-    widget.onChanged(batchSize: batch, throttleMs: throttle);
+  bool get _hasErrors => _batchError != null || _throttleError != null;
+
+  void _syncValidationState({bool notifyModel = true}) {
+    setState(() {
+      _batchError = _validator.validateBatchSizeText(_batchCtrl.text);
+      _throttleError = _validator.validateThrottleText(_throttleCtrl.text);
+    });
+    widget.onValidationChanged?.call(_hasErrors);
+    if (!notifyModel || _hasErrors) {
+      return;
+    }
+    widget.onChanged(
+      batchSize: int.parse(_batchCtrl.text.trim()),
+      throttleMs: int.parse(_throttleCtrl.text.trim()),
+    );
   }
 }
 
@@ -235,6 +260,7 @@ class ProxySettingsDraftEditor extends StatefulWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.onValidationChanged,
   });
 
   final ProxySettings value;
@@ -245,6 +271,7 @@ class ProxySettingsDraftEditor extends StatefulWidget {
     required String password,
   })
   onChanged;
+  final ValueChanged<bool>? onValidationChanged;
 
   @override
   State<ProxySettingsDraftEditor> createState() =>
@@ -252,10 +279,12 @@ class ProxySettingsDraftEditor extends StatefulWidget {
 }
 
 class _ProxySettingsDraftEditorState extends State<ProxySettingsDraftEditor> {
+  final _validator = SettingsInputValidator();
   late final TextEditingController _serverCtrl;
   late final TextEditingController _portCtrl;
   late final TextEditingController _usernameCtrl;
   late final TextEditingController _passwordCtrl;
+  String? _portError;
 
   @override
   void initState() {
@@ -266,6 +295,7 @@ class _ProxySettingsDraftEditorState extends State<ProxySettingsDraftEditor> {
     );
     _usernameCtrl = TextEditingController(text: widget.value.username);
     _passwordCtrl = TextEditingController(text: widget.value.password);
+    _syncValidationState(notifyModel: false);
   }
 
   @override
@@ -278,6 +308,7 @@ class _ProxySettingsDraftEditorState extends State<ProxySettingsDraftEditor> {
     _portCtrl.text = widget.value.port?.toString() ?? '';
     _usernameCtrl.text = widget.value.username;
     _passwordCtrl.text = widget.value.password;
+    _syncValidationState(notifyModel: false);
   }
 
   @override
@@ -302,8 +333,8 @@ class _ProxySettingsDraftEditorState extends State<ProxySettingsDraftEditor> {
         TextField(
           controller: _portCtrl,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: '代理端口'),
-          onChanged: (_) => _notifyChange(),
+          decoration: InputDecoration(labelText: '代理端口', errorText: _portError),
+          onChanged: (_) => _syncValidationState(),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -323,6 +354,22 @@ class _ProxySettingsDraftEditorState extends State<ProxySettingsDraftEditor> {
   }
 
   void _notifyChange() {
+    widget.onChanged(
+      server: _serverCtrl.text,
+      port: _portCtrl.text,
+      username: _usernameCtrl.text,
+      password: _passwordCtrl.text,
+    );
+  }
+
+  void _syncValidationState({bool notifyModel = true}) {
+    setState(() {
+      _portError = _validator.validatePortText(_portCtrl.text);
+    });
+    widget.onValidationChanged?.call(_portError != null);
+    if (!notifyModel || _portError != null) {
+      return;
+    }
     widget.onChanged(
       server: _serverCtrl.text,
       port: _portCtrl.text,

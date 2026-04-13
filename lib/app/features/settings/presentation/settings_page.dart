@@ -42,8 +42,16 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _handleSave(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
+    if (draftSession.hasValidationErrors.value) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('请先修正输入错误')));
+      return;
+    }
     try {
-      final result = await controller.savePageDraft(draftSession.draftSettings.value);
+      final result = await controller.savePageDraft(
+        draftSession.draftSettings.value,
+      );
       draftSession.markSaved(controller.savedSettings.value);
       if (!context.mounted) {
         return;

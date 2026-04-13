@@ -75,6 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onUpdateFetchDirection: widget.draftSession.updateFetchDirection,
             onUpdateForwardAsCopy: widget.draftSession.updateForwardAsCopy,
             onUpdateBatchOptions: widget.draftSession.updateBatchOptions,
+            onValidationChanged: widget.draftSession.setHasValidationErrors,
             onUpdatePreviewPrefetchCount:
                 widget.draftSession.updatePreviewPrefetchCount,
             onUpdateCategory: widget.draftSession.updateCategory,
@@ -99,6 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SettingsConnectionContent(
                 draft: draft,
                 onChanged: widget.draftSession.updateProxy,
+                onValidationChanged: widget.draftSession.setHasValidationErrors,
               ),
               const SizedBox(height: 12),
               const SettingsSectionHeader(title: '会话列表'),
@@ -192,7 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (didPop || widget.navigation.currentRoute.value == SettingsRoute.home) {
       return;
     }
-    if (!widget.draftSession.isDirty.value) {
+    if (!widget.draftSession.hasPendingChanges) {
       widget.draftSession.clear();
       widget.navigation.backToHome();
       return;

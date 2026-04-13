@@ -23,6 +23,7 @@ class SettingsForwardingContent extends StatelessWidget {
     required this.onUpdateFetchDirection,
     required this.onUpdateForwardAsCopy,
     required this.onUpdateBatchOptions,
+    required this.onValidationChanged,
     required this.onUpdatePreviewPrefetchCount,
     required this.onUpdateCategory,
   });
@@ -37,6 +38,7 @@ class SettingsForwardingContent extends StatelessWidget {
   final ValueChanged<bool> onUpdateForwardAsCopy;
   final void Function({required int batchSize, required int throttleMs})
   onUpdateBatchOptions;
+  final ValueChanged<bool> onValidationChanged;
   final ValueChanged<int> onUpdatePreviewPrefetchCount;
   final void Function({required String key, required SelectableChat chat})
   onUpdateCategory;
@@ -54,6 +56,7 @@ class SettingsForwardingContent extends StatelessWidget {
           onUpdateFetchDirection: onUpdateFetchDirection,
           onUpdateForwardAsCopy: onUpdateForwardAsCopy,
           onUpdateBatchOptions: onUpdateBatchOptions,
+          onValidationChanged: onValidationChanged,
           onUpdatePreviewPrefetchCount: onUpdatePreviewPrefetchCount,
         ),
         const SizedBox(height: 12),
@@ -151,6 +154,7 @@ class SettingsWorkflowContent extends StatelessWidget {
     required this.onUpdateFetchDirection,
     required this.onUpdateForwardAsCopy,
     required this.onUpdateBatchOptions,
+    required this.onValidationChanged,
     required this.onUpdatePreviewPrefetchCount,
   });
 
@@ -161,6 +165,7 @@ class SettingsWorkflowContent extends StatelessWidget {
   final ValueChanged<bool> onUpdateForwardAsCopy;
   final void Function({required int batchSize, required int throttleMs})
   onUpdateBatchOptions;
+  final ValueChanged<bool> onValidationChanged;
   final ValueChanged<int> onUpdatePreviewPrefetchCount;
 
   @override
@@ -188,6 +193,7 @@ class SettingsWorkflowContent extends StatelessWidget {
           batchSize: draft.batchSize,
           throttleMs: draft.throttleMs,
           onChanged: onUpdateBatchOptions,
+          onValidationChanged: onValidationChanged,
         ),
         const SizedBox(height: 12),
         PreviewPrefetchDraftEditor(
@@ -204,6 +210,7 @@ class SettingsConnectionContent extends StatelessWidget {
     super.key,
     required this.draft,
     required this.onChanged,
+    required this.onValidationChanged,
   });
 
   final AppSettings draft;
@@ -214,10 +221,15 @@ class SettingsConnectionContent extends StatelessWidget {
     required String password,
   })
   onChanged;
+  final ValueChanged<bool> onValidationChanged;
 
   @override
   Widget build(BuildContext context) {
-    return ProxySettingsDraftEditor(value: draft.proxy, onChanged: onChanged);
+    return ProxySettingsDraftEditor(
+      value: draft.proxy,
+      onChanged: onChanged,
+      onValidationChanged: onValidationChanged,
+    );
   }
 }
 

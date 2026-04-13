@@ -29,6 +29,7 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
       final palette = AppTokens.colorsOf(context);
       final canPop = navigation.canPop.value;
       final dirty = draftSession.isDirty.value;
+      final hasValidationErrors = draftSession.hasValidationErrors.value;
       final resolvedTitle = title ?? navigation.currentTitle;
       return Material(
         color: palette.settingsAppBar,
@@ -61,9 +62,9 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ),
                   ),
                 ),
-                if (canPop && dirty)
+                if (canPop && (dirty || hasValidationErrors))
                   TextButton(
-                    onPressed: onSave,
+                    onPressed: hasValidationErrors || !dirty ? null : onSave,
                     child: const Text(
                       '保存',
                       style: TextStyle(
