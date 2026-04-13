@@ -90,7 +90,9 @@ class SettingsTaggingContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const SettingsSectionHeader(title: '标签来源'),
         SourceChatDraftEditor(
           label: '标签来源会话',
           sourceChatId: draft.tagSourceChatId,
@@ -98,6 +100,7 @@ class SettingsTaggingContent extends StatelessWidget {
           onChanged: onUpdateSourceChat,
         ),
         const SizedBox(height: 12),
+        const SettingsSectionHeader(title: '默认标签组'),
         TagGroupEditor(
           group: _defaultGroup(draft.tagGroups),
           onAdd: onAddDefaultTag,
@@ -129,7 +132,13 @@ class SettingsAppearanceContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ThemeModeDraftEditor(value: draft.themeMode, onChanged: onChanged);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SettingsSectionHeader(title: '外观偏好'),
+        ThemeModeDraftEditor(value: draft.themeMode, onChanged: onChanged),
+      ],
+    );
   }
 }
 
@@ -231,11 +240,17 @@ class SettingsShortcutsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShortcutBindingsEditor(
-      bindings: draft.shortcutBindings,
-      onChanged: (action, trigger, ctrl) =>
-          onChanged(action: action, trigger: trigger, ctrl: ctrl),
-      onResetDefaults: onResetDefaults,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SettingsSectionHeader(title: '快捷键绑定'),
+        ShortcutBindingsEditor(
+          bindings: draft.shortcutBindings,
+          onChanged: (action, trigger, ctrl) =>
+              onChanged(action: action, trigger: trigger, ctrl: ctrl),
+          onResetDefaults: onResetDefaults,
+        ),
+      ],
     );
   }
 }

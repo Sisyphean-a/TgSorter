@@ -8,6 +8,7 @@ import 'package:tgsorter/app/features/settings/presentation/settings_detail_page
 import 'package:tgsorter/app/features/settings/presentation/settings_home_page.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_sections.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
@@ -92,12 +93,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       case SettingsRoute.connection:
         return SettingsDetailPage(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const SettingsSectionHeader(title: '代理设置'),
               SettingsConnectionContent(
                 draft: draft,
                 onChanged: widget.draftSession.updateProxy,
               ),
               const SizedBox(height: 12),
+              const SettingsSectionHeader(title: '会话列表'),
               SettingsChatListRow(
                 loading: controller.chatsLoading.value,
                 chatsError: controller.chatsError.value,

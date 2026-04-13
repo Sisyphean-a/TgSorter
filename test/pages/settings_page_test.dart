@@ -165,6 +165,47 @@ void main() {
     );
     expect(find.text('保存'), findsNothing);
   });
+
+  testWidgets('其余四个详情页都在两层结构内展示各自字段', (tester) async {
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    await tester.tap(find.text('标签'));
+    await tester.pumpAndSettle();
+    expect(find.text('标签来源'), findsOneWidget);
+    expect(find.text('默认标签组'), findsAtLeastNWidgets(1));
+    expect(find.text('标签来源会话'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('返回'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('连接与网络'));
+    await tester.pumpAndSettle();
+    expect(find.text('代理设置'), findsOneWidget);
+    expect(find.text('会话列表'), findsOneWidget);
+    expect(find.text('代理服务器'), findsOneWidget);
+    expect(find.text('刷新会话'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('返回'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('外观'));
+    await tester.pumpAndSettle();
+    expect(find.text('外观偏好'), findsOneWidget);
+    expect(find.text('主题模式'), findsAtLeastNWidgets(1));
+    expect(find.text('代理服务器'), findsNothing);
+
+    await tester.tap(find.byTooltip('返回'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('快捷键'));
+    await tester.pumpAndSettle();
+    expect(find.text('快捷键绑定'), findsOneWidget);
+    expect(find.text('恢复默认'), findsOneWidget);
+    expect(find.text('主题模式'), findsNothing);
+  });
 }
 
 Future<SettingsCoordinator> _pumpSettingsPage(
