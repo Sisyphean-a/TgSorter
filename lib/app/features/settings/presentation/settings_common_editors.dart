@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/settings/application/settings_input_validator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
-import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 

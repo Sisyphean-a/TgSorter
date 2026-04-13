@@ -18,7 +18,6 @@ import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.da
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';

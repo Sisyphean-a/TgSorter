@@ -8,7 +8,6 @@ import 'package:tgsorter/app/features/settings/application/tag_settings_service.
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
-import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 
 class SettingsPageDraftSession {

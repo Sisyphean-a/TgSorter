@@ -7,7 +7,6 @@ import 'package:tgsorter/app/features/settings/presentation/tag_group_editor.dar
 import 'package:tgsorter/app/features/settings/presentation/theme_mode_draft_editor.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
-import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
 import 'package:tgsorter/app/widgets/shortcut_bindings_editor.dart';

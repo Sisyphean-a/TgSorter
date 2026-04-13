@@ -10,7 +10,6 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
-import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';

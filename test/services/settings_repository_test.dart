@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';

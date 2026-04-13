@@ -20,6 +20,7 @@ class SettingsScreen extends StatefulWidget {
     required this.navigation,
     required this.draftSession,
     this.pipeline,
+    this.onLogoutSuccess,
     super.key,
   });
 
@@ -27,6 +28,7 @@ class SettingsScreen extends StatefulWidget {
   final SettingsNavigationController navigation;
   final SettingsPageDraftSession draftSession;
   final PipelineLogsPort? pipeline;
+  final Future<void> Function()? onLogoutSuccess;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -310,6 +312,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     try {
       await controller.logout();
+      await widget.onLogoutSuccess?.call();
+      if (!mounted) {
+        return;
+      }
+      widget.draftSession.clear();
+      widget.navigation.backToHome();
     } catch (error) {
       if (!mounted) {
         return;

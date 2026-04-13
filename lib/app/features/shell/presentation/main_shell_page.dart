@@ -78,6 +78,7 @@ class _MainShellPageState extends State<MainShellPage> {
             navigation: _settingsNavigation,
             draftSession: _settingsDraftSession,
             pipeline: widget.pipelineLogs,
+            onLogoutSuccess: _handleLogoutSuccess,
           ),
           LogsScreen(pipeline: widget.pipelineLogs),
         ],
@@ -164,6 +165,15 @@ class _MainShellPageState extends State<MainShellPage> {
       return MainShellDestination.taggingWorkbench;
     }
     return MainShellDestination.forwardingWorkbench;
+  }
+
+  Future<void> _handleLogoutSuccess() async {
+    await widget.pipeline.clearSessionStateForLogout();
+    widget.tagging.clearSessionStateForLogout();
+    if (!mounted) {
+      return;
+    }
+    Get.offAllNamed(AppRoutes.auth);
   }
 
   String _saveMessage(SettingsSaveResult result) {
