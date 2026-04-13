@@ -33,6 +33,8 @@ void main() {
     );
 
     expect(find.text('设置'), findsOneWidget);
+    expect(find.text('工作流'), findsOneWidget);
+    expect(find.text('应用'), findsOneWidget);
     expect(find.text('转发'), findsOneWidget);
     expect(find.text('标签'), findsOneWidget);
     expect(find.text('连接与网络'), findsOneWidget);
@@ -173,7 +175,7 @@ void main() {
     await tester.tap(find.text('标签'));
     await tester.pumpAndSettle();
     expect(find.text('标签来源'), findsOneWidget);
-    expect(find.text('默认标签组'), findsAtLeastNWidgets(1));
+    expect(find.text('默认标签组'), findsOneWidget);
     expect(find.text('标签来源会话'), findsOneWidget);
 
     await tester.tap(find.byTooltip('返回'));

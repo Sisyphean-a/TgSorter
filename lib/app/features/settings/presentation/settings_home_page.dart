@@ -16,6 +16,7 @@ class SettingsHomePage extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(0, 16, 0, 24),
         children: [
+          const SettingsSectionHeader(title: '工作流'),
           _SettingsHomeTile(
             route: SettingsRoute.forwarding,
             icon: Icons.forward_to_inbox_rounded,
@@ -26,6 +27,8 @@ class SettingsHomePage extends StatelessWidget {
             icon: Icons.sell_rounded,
             onTap: onOpenRoute,
           ),
+          const SizedBox(height: 12),
+          const SettingsSectionHeader(title: '应用'),
           _SettingsHomeTile(
             route: SettingsRoute.connection,
             icon: Icons.wifi_tethering_rounded,

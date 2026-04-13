@@ -38,13 +38,6 @@ class _TagGroupEditorState extends State<TagGroupEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          '默认标签组',
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
