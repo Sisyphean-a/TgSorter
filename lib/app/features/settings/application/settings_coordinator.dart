@@ -66,6 +66,7 @@ class SettingsCoordinator extends GetxController
   final SettingsChatLoader _chatLoader;
   Future<SettingsSaveResult>? _pendingSaveDraft;
   Future<void>? _pendingChatLoad;
+  final saveState = false.obs;
   final chatsState = <SelectableChat>[].obs;
   final chatsLoading = false.obs;
   final chatsError = RxnString();
@@ -76,6 +77,7 @@ class SettingsCoordinator extends GetxController
   Rx<AppSettings> get savedSettings => _draftCoordinator.saved;
   Rx<AppSettings> get draftSettings => _draftCoordinator.draft;
   RxBool get isDirty => _draftCoordinator.isDirty;
+  RxBool get isSaving => saveState;
   RxList<SelectableChat> get chats => chatsState;
 
   @override
@@ -298,6 +300,7 @@ class SettingsCoordinator extends GetxController
     }
     final completer = Completer<SettingsSaveResult>();
     _pendingSaveDraft = completer.future;
+    saveState.value = true;
     unawaited(() async {
       try {
         completer.complete(
@@ -306,6 +309,7 @@ class SettingsCoordinator extends GetxController
       } catch (error, stackTrace) {
         completer.completeError(error, stackTrace);
       } finally {
+        saveState.value = false;
         if (identical(_pendingSaveDraft, completer.future)) {
           _pendingSaveDraft = null;
         }
@@ -318,6 +322,10 @@ class SettingsCoordinator extends GetxController
     AppSettings next, {
     bool restartOnProxyChange = true,
   }) async {
+    final pending = _pendingSaveDraft;
+    if (pending != null) {
+      return pending;
+    }
     final previousDraft = draftSettings.value;
     _draftCoordinator.update(next);
     try {

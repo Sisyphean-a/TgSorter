@@ -257,6 +257,51 @@ void main() {
     expect(coordinator.savedSettings.value.fetchDirection, MessageFetchDirection.oldestFirst);
     expect(coordinator.draftSettings.value.fetchDirection, MessageFetchDirection.oldestFirst);
   });
+
+  test(
+    'savePageDraft ignores overlapping page saves until the in-flight save completes',
+    () async {
+      final harness = _SettingsCoordinatorHarness()
+        ..persistence.saveCompleter = Completer<void>();
+      final coordinator = harness.build();
+      coordinator.onInit();
+
+      final firstDraft = coordinator.savedSettings.value.updateFetchDirection(
+        MessageFetchDirection.oldestFirst,
+      );
+      final secondDraft = coordinator.savedSettings.value.copyWith(
+        themeMode: AppThemeMode.dark,
+      );
+
+      final firstSave = coordinator.savePageDraft(firstDraft);
+      await Future<void>.delayed(Duration.zero);
+
+      final secondSave = coordinator.savePageDraft(secondDraft);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(harness.persistence.saveCalls, 1);
+      expect(
+        coordinator.draftSettings.value.fetchDirection,
+        MessageFetchDirection.oldestFirst,
+      );
+      expect(coordinator.draftSettings.value.themeMode, isNot(AppThemeMode.dark));
+
+      harness.persistence.saveCompleter!.complete();
+      await firstSave;
+      await secondSave;
+
+      expect(
+        harness.persistence.lastSaved?.fetchDirection,
+        MessageFetchDirection.oldestFirst,
+      );
+      expect(harness.persistence.lastSaved?.themeMode, isNot(AppThemeMode.dark));
+      expect(
+        coordinator.savedSettings.value.fetchDirection,
+        MessageFetchDirection.oldestFirst,
+      );
+      expect(coordinator.savedSettings.value.themeMode, isNot(AppThemeMode.dark));
+    },
+  );
 }
 
 class _SettingsCoordinatorHarness {
@@ -356,6 +401,7 @@ class _FakeSettingsPersistenceService extends SettingsPersistenceService {
   int saveCalls = 0;
   bool throwOnSave = false;
   AppSettings? lastSaved;
+  Completer<void>? saveCompleter;
 
   @override
   AppSettings load() {
@@ -368,6 +414,10 @@ class _FakeSettingsPersistenceService extends SettingsPersistenceService {
     saveCalls++;
     if (throwOnSave) {
       throw StateError('save failed');
+    }
+    final completer = saveCompleter;
+    if (completer != null) {
+      await completer.future;
     }
     lastSaved = next;
   }

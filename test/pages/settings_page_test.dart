@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -219,6 +221,50 @@ void main() {
     expect(saveButton.onPressed, isNull);
   });
 
+  testWidgets('保存进行中会禁用二次保存和返回', (tester) async {
+    final gateway = _SettingsPageFakeGateway(const [
+      SelectableChat(id: -1001, title: '频道一'),
+    ])..restartCompleter = Completer<void>();
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+      gateway: gateway,
+    );
+
+    await tester.tap(find.text('连接与网络'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, '代理服务器'),
+      '127.0.0.1',
+    );
+    await tester.pump();
+    await tester.enterText(find.widgetWithText(TextField, '代理端口'), '7890');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('保存'));
+    await tester.pump();
+
+    final saveButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, '保存'),
+    );
+    final backButton = tester
+        .widgetList<IconButton>(find.byType(IconButton))
+        .firstWhere((button) => button.tooltip == '返回');
+    final detailGuards = tester.widgetList<IgnorePointer>(
+      find.byType(IgnorePointer),
+    );
+
+    expect(saveButton.onPressed, isNull);
+    expect(backButton.onPressed, isNull);
+    expect(detailGuards.any((guard) => guard.ignoring), isTrue);
+
+    gateway.restartCompleter!.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.text('设置已保存'), findsOneWidget);
+  });
+
   testWidgets('其余四个详情页都在两层结构内展示各自字段', (tester) async {
     await _pumpSettingsPage(
       tester,
@@ -298,6 +344,7 @@ class _SettingsPageFakeGateway implements AuthGateway, SessionQueryGateway {
   _SettingsPageFakeGateway(this._chats);
 
   final List<SelectableChat> _chats;
+  Completer<void>? restartCompleter;
 
   @override
   Stream<TdAuthState> get authStates => const Stream.empty();
@@ -306,7 +353,12 @@ class _SettingsPageFakeGateway implements AuthGateway, SessionQueryGateway {
   Future<List<SelectableChat>> listSelectableChats() async => _chats;
 
   @override
-  Future<void> restart() async {}
+  Future<void> restart() async {
+    final completer = restartCompleter;
+    if (completer != null) {
+      await completer.future;
+    }
+  }
 
   @override
   Future<void> start() async {}

@@ -65,6 +65,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return SettingsHomePage(onOpenRoute: _openRoute);
       case SettingsRoute.forwarding:
         return SettingsDetailPage(
+          ignoring: controller.isSaving.value,
           child: SettingsForwardingContent(
             chats: controller.chats.toList(growable: false),
             draft: draft,
@@ -83,6 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       case SettingsRoute.tagging:
         return SettingsDetailPage(
+          ignoring: controller.isSaving.value,
           child: SettingsTaggingContent(
             chats: controller.chats.toList(growable: false),
             draft: draft,
@@ -93,6 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       case SettingsRoute.connection:
         return SettingsDetailPage(
+          ignoring: controller.isSaving.value,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -115,6 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       case SettingsRoute.appearance:
         return SettingsDetailPage(
+          ignoring: controller.isSaving.value,
           child: SettingsAppearanceContent(
             draft: draft,
             onChanged: widget.draftSession.updateThemeMode,
@@ -122,6 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       case SettingsRoute.shortcuts:
         return SettingsDetailPage(
+          ignoring: controller.isSaving.value,
           child: SettingsShortcutsContent(
             draft: draft,
             onChanged: widget.draftSession.updateShortcut,
@@ -192,6 +197,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _handlePopAttempt(bool didPop, void _) async {
     if (didPop || widget.navigation.currentRoute.value == SettingsRoute.home) {
+      return;
+    }
+    if (controller.isSaving.value) {
       return;
     }
     if (!widget.draftSession.hasPendingChanges) {

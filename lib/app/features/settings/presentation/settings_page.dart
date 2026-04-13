@@ -28,6 +28,7 @@ class SettingsPage extends StatelessWidget {
     return AppShell(
       appBar: SettingsAppBar(
         draftSession: draftSession,
+        isSaving: controller.isSaving,
         navigation: navigation,
         onSave: () => _handleSave(context),
       ),
@@ -42,6 +43,9 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _handleSave(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
+    if (controller.isSaving.value) {
+      return;
+    }
     if (draftSession.hasValidationErrors.value) {
       messenger
         ..hideCurrentSnackBar()

@@ -91,6 +91,7 @@ class _MainShellPageState extends State<MainShellPage> {
       case MainShellDestination.settings:
         return SettingsAppBar(
           draftSession: _settingsDraftSession,
+          isSaving: widget.settings.isSaving,
           navigation: _settingsNavigation,
           onSave: _saveSettings,
           leading: leading,
@@ -98,6 +99,7 @@ class _MainShellPageState extends State<MainShellPage> {
       case MainShellDestination.logs:
         return SettingsAppBar(
           draftSession: _settingsDraftSession,
+          isSaving: widget.settings.isSaving,
           navigation: _settingsNavigation,
           onSave: _saveSettings,
           title: '操作日志',
@@ -121,6 +123,9 @@ class _MainShellPageState extends State<MainShellPage> {
 
   Future<void> _saveSettings() async {
     final messenger = ScaffoldMessenger.of(context);
+    if (widget.settings.isSaving.value) {
+      return;
+    }
     try {
       final result = await widget.settings.savePageDraft(
         _settingsDraftSession.draftSettings.value,

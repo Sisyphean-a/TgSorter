@@ -7,6 +7,7 @@ import 'package:tgsorter/app/theme/app_tokens.dart';
 class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
   const SettingsAppBar({
     required this.draftSession,
+    required this.isSaving,
     required this.navigation,
     required this.onSave,
     this.title,
@@ -15,6 +16,7 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   final SettingsPageDraftSession draftSession;
+  final RxBool isSaving;
   final SettingsNavigationController navigation;
   final Future<void> Function() onSave;
   final String? title;
@@ -30,6 +32,7 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
       final canPop = navigation.canPop.value;
       final dirty = draftSession.isDirty.value;
       final hasValidationErrors = draftSession.hasValidationErrors.value;
+      final saving = isSaving.value;
       final resolvedTitle = title ?? navigation.currentTitle;
       return Material(
         color: palette.settingsAppBar,
@@ -41,7 +44,9 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
               children: [
                 if (canPop)
                   IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
+                    onPressed: saving
+                        ? null
+                        : () => Navigator.of(context).maybePop(),
                     icon: const Icon(Icons.arrow_back_rounded),
                     tooltip: '返回',
                     color: Colors.white,
@@ -64,7 +69,9 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
                 if (canPop && (dirty || hasValidationErrors))
                   TextButton(
-                    onPressed: hasValidationErrors || !dirty ? null : onSave,
+                    onPressed: hasValidationErrors || !dirty || saving
+                        ? null
+                        : onSave,
                     child: const Text(
                       '保存',
                       style: TextStyle(
