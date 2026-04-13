@@ -57,8 +57,8 @@ abstract final class AppTheme {
         displayColor: palette.textPrimary,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: palette.pageBackground,
-        foregroundColor: palette.textPrimary,
+        backgroundColor: palette.settingsAppBar,
+        foregroundColor: colorScheme.onPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
@@ -158,8 +158,13 @@ abstract final class AppTheme {
         color: palette.brandAccent,
       ),
       dividerTheme: DividerThemeData(
-        color: palette.borderSubtle,
+        color: palette.settingsDivider,
         thickness: 1,
+      ),
+      listTileTheme: ListTileThemeData(
+        tileColor: palette.settingsSurface,
+        iconColor: palette.brandAccent,
+        textColor: palette.textPrimary,
       ),
     );
   }

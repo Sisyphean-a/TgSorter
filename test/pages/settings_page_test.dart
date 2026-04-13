@@ -6,9 +6,12 @@ import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/sticky_action_bar.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
@@ -43,6 +46,9 @@ void main() {
     expect(find.text('默认标签组'), findsNothing);
     expect(find.text('保存更改'), findsNothing);
     expect(find.text('放弃更改'), findsNothing);
+    expect(find.byType(StatusBadge), findsNothing);
+    expect(find.byType(StickyActionBar), findsNothing);
+    expect(find.byType(SettingsNavigationTile), findsNWidgets(5));
   });
 
   testWidgets('点击目录行后进入对应二级页并显示返回箭头', (tester) async {
@@ -60,6 +66,24 @@ void main() {
     expect(find.text('代理服务器'), findsOneWidget);
     expect(find.text('主题模式'), findsNothing);
     expect(find.text('转发'), findsNothing);
+  });
+
+  testWidgets('二级页 dirty 后显示保存动作且不再显示状态徽标', (tester) async {
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    await tester.tap(find.text('连接与网络'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('保存'), findsNothing);
+
+    await tester.enterText(find.widgetWithText(TextField, '代理服务器'), '127.0.0.1');
+    await tester.pumpAndSettle();
+
+    expect(find.text('保存'), findsOneWidget);
+    expect(find.byType(StatusBadge), findsNothing);
   });
 }
 

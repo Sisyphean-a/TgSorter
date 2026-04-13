@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
-import 'package:tgsorter/app/theme/app_theme.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/brand_app_bar.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
+import 'package:tgsorter/app/theme/app_theme.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 
 void main() {
   test('app theme uses light telegram-inspired palette by default', () {
     final theme = AppTheme.light();
+    final palette = AppTokens.lightPalette;
 
     expect(theme.brightness, Brightness.light);
     expect(theme.scaffoldBackgroundColor, const Color(0xFFF4F5F7));
@@ -17,6 +20,10 @@ void main() {
     expect(theme.inputDecorationTheme.filled, isTrue);
     expect(theme.dialogTheme.backgroundColor, const Color(0xFFFFFFFF));
     expect(theme.snackBarTheme.behavior, SnackBarBehavior.floating);
+    expect(palette.settingsAppBar, const Color(0xFF3390EC));
+    expect(palette.settingsBackground, const Color(0xFFF1F5F9));
+    expect(palette.settingsSurface, const Color(0xFFFFFFFF));
+    expect(palette.settingsDivider, const Color(0xFFD9E1E8));
   });
 
   test('app theme uses neutral dark palette', () {
@@ -183,5 +190,34 @@ void main() {
 
     expect(decoration.color, const Color(0xFFE9F3FF));
     expect(label.style?.color, const Color(0xFF3390EC));
+  });
+
+  testWidgets('settings navigation tile uses telegram list palette', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const Scaffold(
+          body: SettingsNavigationTile(
+            icon: Icons.palette_outlined,
+            title: '外观',
+            subtitle: '浅色模式',
+          ),
+        ),
+      ),
+    );
+
+    final material = tester.widget<Material>(
+      find.descendant(
+        of: find.byType(SettingsNavigationTile),
+        matching: find.byType(Material),
+      ),
+    );
+    final divider = tester.widget<Divider>(find.byType(Divider));
+
+    expect(material.color, const Color(0xFFFFFFFF));
+    expect(divider.color, const Color(0xFFD9E1E8));
+    expect(divider.height, 1);
   });
 }

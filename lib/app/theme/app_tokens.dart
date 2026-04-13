@@ -15,6 +15,10 @@ class AppColorPalette extends ThemeExtension<AppColorPalette> {
     required this.success,
     required this.warning,
     required this.danger,
+    required this.settingsAppBar,
+    required this.settingsBackground,
+    required this.settingsSurface,
+    required this.settingsDivider,
   });
 
   final Color pageBackground;
@@ -29,6 +33,10 @@ class AppColorPalette extends ThemeExtension<AppColorPalette> {
   final Color success;
   final Color warning;
   final Color danger;
+  final Color settingsAppBar;
+  final Color settingsBackground;
+  final Color settingsSurface;
+  final Color settingsDivider;
 
   @override
   AppColorPalette copyWith({
@@ -44,6 +52,10 @@ class AppColorPalette extends ThemeExtension<AppColorPalette> {
     Color? success,
     Color? warning,
     Color? danger,
+    Color? settingsAppBar,
+    Color? settingsBackground,
+    Color? settingsSurface,
+    Color? settingsDivider,
   }) {
     return AppColorPalette(
       pageBackground: pageBackground ?? this.pageBackground,
@@ -58,6 +70,10 @@ class AppColorPalette extends ThemeExtension<AppColorPalette> {
       success: success ?? this.success,
       warning: warning ?? this.warning,
       danger: danger ?? this.danger,
+      settingsAppBar: settingsAppBar ?? this.settingsAppBar,
+      settingsBackground: settingsBackground ?? this.settingsBackground,
+      settingsSurface: settingsSurface ?? this.settingsSurface,
+      settingsDivider: settingsDivider ?? this.settingsDivider,
     );
   }
 
@@ -83,6 +99,14 @@ class AppColorPalette extends ThemeExtension<AppColorPalette> {
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
+      settingsAppBar: Color.lerp(settingsAppBar, other.settingsAppBar, t)!,
+      settingsBackground: Color.lerp(
+        settingsBackground,
+        other.settingsBackground,
+        t,
+      )!,
+      settingsSurface: Color.lerp(settingsSurface, other.settingsSurface, t)!,
+      settingsDivider: Color.lerp(settingsDivider, other.settingsDivider, t)!,
     );
   }
 }
@@ -101,6 +125,10 @@ abstract final class AppTokens {
     success: Color(0xFF2CB67D),
     warning: Color(0xFFE3A008),
     danger: Color(0xFFE24D4D),
+    settingsAppBar: Color(0xFF3390EC),
+    settingsBackground: Color(0xFFF1F5F9),
+    settingsSurface: Color(0xFFFFFFFF),
+    settingsDivider: Color(0xFFD9E1E8),
   );
 
   static const AppColorPalette darkPalette = AppColorPalette(
@@ -116,6 +144,10 @@ abstract final class AppTokens {
     success: Color(0xFF4DD39C),
     warning: Color(0xFFF4BC42),
     danger: Color(0xFFFF8A80),
+    settingsAppBar: Color(0xFF5CA8F5),
+    settingsBackground: Color(0xFF17191C),
+    settingsSurface: Color(0xFF23262A),
+    settingsDivider: Color(0xFF3B4148),
   );
 
   static const Color pageBackground = Color(0xFF091312);

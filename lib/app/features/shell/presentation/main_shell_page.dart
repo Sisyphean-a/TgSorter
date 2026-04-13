@@ -6,7 +6,7 @@ import 'package:tgsorter/app/features/settings/application/settings_coordinator.
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/presentation/logs_screen.dart';
-import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_app_bar.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_screen.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_destination.dart';
 import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
@@ -85,15 +85,17 @@ class _MainShellPageState extends State<MainShellPage> {
           leading: leading,
         );
       case MainShellDestination.settings:
-        return SettingsCompactAppBar(
+        return SettingsAppBar(
           controller: widget.settings,
           navigation: _settingsNavigation,
+          onSave: _saveSettings,
           leading: leading,
         );
       case MainShellDestination.logs:
-        return SettingsCompactAppBar(
+        return SettingsAppBar(
           controller: widget.settings,
           navigation: _settingsNavigation,
+          onSave: _saveSettings,
           title: '操作日志',
           leading: leading,
         );
@@ -111,6 +113,26 @@ class _MainShellPageState extends State<MainShellPage> {
       });
     }
     Navigator.of(context).pop();
+  }
+
+  Future<void> _saveSettings() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.settings.saveDraft();
+      if (!mounted) {
+        return;
+      }
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('设置已保存')));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('保存失败：$error')));
+    }
   }
 }
 
