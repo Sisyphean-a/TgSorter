@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_common_editors.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 import 'package:tgsorter/app/features/settings/presentation/tag_group_editor.dart';
 import 'package:tgsorter/app/features/settings/presentation/theme_mode_draft_editor.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
@@ -43,7 +44,9 @@ class SettingsForwardingContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const SettingsSectionHeader(title: '转发规则'),
         SettingsWorkflowContent(
           chats: chats,
           draft: draft,
@@ -54,6 +57,7 @@ class SettingsForwardingContent extends StatelessWidget {
           onUpdatePreviewPrefetchCount: onUpdatePreviewPrefetchCount,
         ),
         const SizedBox(height: 12),
+        const SettingsSectionHeader(title: '分类目标'),
         SettingsCategoryContent(
           categories: draft.categories,
           savedCategories: saved.categories,

@@ -23,6 +23,7 @@ class SettingsCategoryContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppTokens.colorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -39,10 +40,16 @@ class SettingsCategoryContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        if (categories.isEmpty) const Text('当前没有分类'),
+        if (categories.isEmpty)
+          Text(
+            '当前没有分类',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: colors.textMuted),
+          ),
         for (final item in categories)
           Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.only(bottom: 1),
             child: _CategoryRow(
               category: item,
               statusLabel: _statusLabel(item, savedCategories),
@@ -154,14 +161,10 @@ class _CategoryRow extends StatelessWidget {
         ),
       );
     }
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.surfaceRaised,
-        border: Border.all(color: colors.borderSubtle),
-        borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
-      ),
+    return Material(
+      color: colors.settingsSurface,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
             Expanded(
@@ -201,13 +204,14 @@ class _CategoryRow extends StatelessWidget {
               ),
             ),
             if (statusLabel != null) ...[
-              const SizedBox(width: 6),
-              Chip(
-                label: Text(statusLabel!),
-                visualDensity: VisualDensity.compact,
+              const SizedBox(width: 8),
+              Text(
+                statusLabel!,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.textMuted),
               ),
             ],
-            const SizedBox(width: 6),
             IconButton(
               key: ValueKey('delete-category-${category.key}'),
               onPressed: () => onRemove(category.key),

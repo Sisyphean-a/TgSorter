@@ -242,6 +242,21 @@ void main() {
       await secondSave;
     },
   );
+
+  test('savePageDraft bridges local page draft into persisted settings', () async {
+    final harness = _SettingsCoordinatorHarness();
+    final coordinator = harness.build();
+    coordinator.onInit();
+
+    final next = coordinator.savedSettings.value.updateFetchDirection(
+      MessageFetchDirection.oldestFirst,
+    );
+
+    await coordinator.savePageDraft(next);
+
+    expect(coordinator.savedSettings.value.fetchDirection, MessageFetchDirection.oldestFirst);
+    expect(coordinator.draftSettings.value.fetchDirection, MessageFetchDirection.oldestFirst);
+  });
 }
 
 class _SettingsCoordinatorHarness {

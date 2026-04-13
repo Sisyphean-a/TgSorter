@@ -129,6 +129,42 @@ void main() {
       MessageFetchDirection.latestFirst,
     );
   });
+
+  testWidgets('转发页展示完整设置项并在保存后提交草稿', (tester) async {
+    final controller = await _pumpSettingsPage(
+      tester,
+      chats: const [
+        SelectableChat(id: -1001, title: '频道一'),
+        SelectableChat(id: -1002, title: '频道二'),
+      ],
+    );
+
+    await tester.tap(find.text('转发'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('转发规则'), findsOneWidget);
+    expect(find.text('分类目标'), findsOneWidget);
+    expect(find.text('转发来源会话'), findsOneWidget);
+    expect(find.text('消息拉取方向'), findsOneWidget);
+    expect(find.text('无引用转发'), findsOneWidget);
+    expect(find.text('批处理条数 N'), findsOneWidget);
+    expect(find.text('节流毫秒'), findsOneWidget);
+    expect(find.text('预加载后续预览'), findsOneWidget);
+    expect(find.text('新增分类'), findsOneWidget);
+
+    await tester.tap(find.text('最新优先'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('最旧优先').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    expect(
+      controller.savedSettings.value.fetchDirection,
+      MessageFetchDirection.oldestFirst,
+    );
+    expect(find.text('保存'), findsNothing);
+  });
 }
 
 Future<SettingsCoordinator> _pumpSettingsPage(
