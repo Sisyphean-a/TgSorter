@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
+import 'package:tgsorter/app/features/settings/application/settings_page_draft_session.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
   const SettingsAppBar({
-    required this.controller,
+    required this.draftSession,
     required this.navigation,
     required this.onSave,
     this.title,
@@ -14,7 +14,7 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
   });
 
-  final SettingsCoordinator controller;
+  final SettingsPageDraftSession draftSession;
   final SettingsNavigationController navigation;
   final Future<void> Function() onSave;
   final String? title;
@@ -28,7 +28,7 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
     return Obx(() {
       final palette = AppTokens.colorsOf(context);
       final canPop = navigation.canPop.value;
-      final dirty = controller.isDirty.value;
+      final dirty = draftSession.isDirty.value;
       final resolvedTitle = title ?? navigation.currentTitle;
       return Material(
         color: palette.settingsAppBar,
@@ -40,7 +40,7 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
               children: [
                 if (canPop)
                   IconButton(
-                    onPressed: navigation.backToHome,
+                    onPressed: () => Navigator.of(context).maybePop(),
                     icon: const Icon(Icons.arrow_back_rounded),
                     tooltip: '返回',
                     color: Colors.white,

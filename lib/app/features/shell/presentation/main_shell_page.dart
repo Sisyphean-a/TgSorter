@@ -4,6 +4,8 @@ import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.da
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
+import 'package:tgsorter/app/features/settings/application/settings_page_draft_session.dart';
+import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/presentation/logs_screen.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_app_bar.dart';
@@ -40,6 +42,7 @@ class MainShellPage extends StatefulWidget {
 class _MainShellPageState extends State<MainShellPage> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _settingsNavigation = SettingsNavigationController();
+  final _settingsDraftSession = SettingsPageDraftSession();
   MainShellDestination _current = MainShellDestination.forwardingWorkbench;
 
   @override
@@ -63,6 +66,7 @@ class _MainShellPageState extends State<MainShellPage> {
           SettingsScreen(
             controller: widget.settings,
             navigation: _settingsNavigation,
+            draftSession: _settingsDraftSession,
             pipeline: widget.pipelineLogs,
           ),
           LogsScreen(pipeline: widget.pipelineLogs),
@@ -86,14 +90,14 @@ class _MainShellPageState extends State<MainShellPage> {
         );
       case MainShellDestination.settings:
         return SettingsAppBar(
-          controller: widget.settings,
+          draftSession: _settingsDraftSession,
           navigation: _settingsNavigation,
           onSave: _saveSettings,
           leading: leading,
         );
       case MainShellDestination.logs:
         return SettingsAppBar(
-          controller: widget.settings,
+          draftSession: _settingsDraftSession,
           navigation: _settingsNavigation,
           onSave: _saveSettings,
           title: '操作日志',
@@ -118,13 +122,15 @@ class _MainShellPageState extends State<MainShellPage> {
   Future<void> _saveSettings() async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await widget.settings.saveDraft();
+      final result = await widget.settings.savePageDraft(
+        _settingsDraftSession.draftSettings.value,
+      );
+      _settingsDraftSession.markSaved(widget.settings.savedSettings.value);
       if (!mounted) {
         return;
       }
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('设置已保存')));
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(content: Text(_saveMessage(result))));
     } catch (error) {
       if (!mounted) {
         return;
@@ -132,6 +138,16 @@ class _MainShellPageState extends State<MainShellPage> {
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text('保存失败：$error')));
+    }
+  }
+
+  String _saveMessage(SettingsSaveResult result) {
+    switch (result) {
+      case SettingsSaveResult.saved:
+      case SettingsSaveResult.savedAndRestarted:
+        return '设置已保存';
+      case SettingsSaveResult.savedNeedsRestartAttention:
+        return '设置已保存，但重启失败，请稍后手动重试。';
     }
   }
 }

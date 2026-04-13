@@ -2,28 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
-import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
-import 'package:tgsorter/app/models/app_settings.dart';
-import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
-import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
+import 'package:tgsorter/app/features/settings/application/settings_page_draft_session.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_category_dialog.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_detail_page.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_home_page.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_sections.dart';
+import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
+import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.controller,
     required this.navigation,
+    required this.draftSession,
     this.pipeline,
     super.key,
   });
 
   final SettingsCoordinator controller;
   final SettingsNavigationController navigation;
+  final SettingsPageDraftSession draftSession;
   final PipelineLogsPort? pipeline;
 
   @override
@@ -42,9 +43,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final draft = controller.draftSettings.value;
-      final saved = controller.savedSettings.value;
       final route = widget.navigation.currentRoute.value;
+      final draft = widget.draftSession.draftSettings.value;
+      final saved = controller.savedSettings.value;
       return PopScope<void>(
         canPop: route == SettingsRoute.home,
         onPopInvokedWithResult: _handlePopAttempt,
@@ -60,26 +61,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) {
     switch (route) {
       case SettingsRoute.home:
-        return SettingsHomePage(onOpenRoute: widget.navigation.goTo);
+        return SettingsHomePage(onOpenRoute: _openRoute);
       case SettingsRoute.forwarding:
         return SettingsDetailPage(
           child: SettingsForwardingContent(
-            controller: controller,
+            chats: controller.chats.toList(growable: false),
             draft: draft,
             saved: saved,
             onAddCategory: _showAddCategoryDialog,
             onRemoveCategory: _removeCategoryDraft,
+            onUpdateSourceChat: widget.draftSession.updateSourceChat,
+            onUpdateFetchDirection: widget.draftSession.updateFetchDirection,
+            onUpdateForwardAsCopy: widget.draftSession.updateForwardAsCopy,
+            onUpdateBatchOptions: widget.draftSession.updateBatchOptions,
+            onUpdatePreviewPrefetchCount:
+                widget.draftSession.updatePreviewPrefetchCount,
+            onUpdateCategory: widget.draftSession.updateCategory,
           ),
         );
       case SettingsRoute.tagging:
         return SettingsDetailPage(
-          child: SettingsTaggingContent(controller: controller, draft: draft),
+          child: SettingsTaggingContent(
+            chats: controller.chats.toList(growable: false),
+            draft: draft,
+            onUpdateSourceChat: widget.draftSession.updateTagSourceChat,
+            onAddDefaultTag: widget.draftSession.addDefaultTag,
+            onRemoveDefaultTag: widget.draftSession.removeDefaultTag,
+          ),
         );
       case SettingsRoute.connection:
         return SettingsDetailPage(
           child: Column(
             children: [
-              SettingsConnectionContent(controller: controller, draft: draft),
+              SettingsConnectionContent(
+                draft: draft,
+                onChanged: widget.draftSession.updateProxy,
+              ),
               const SizedBox(height: 12),
               SettingsChatListRow(
                 loading: controller.chatsLoading.value,
@@ -92,11 +109,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       case SettingsRoute.appearance:
         return SettingsDetailPage(
-          child: SettingsAppearanceContent(controller: controller, draft: draft),
+          child: SettingsAppearanceContent(
+            draft: draft,
+            onChanged: widget.draftSession.updateThemeMode,
+          ),
         );
       case SettingsRoute.shortcuts:
         return SettingsDetailPage(
-          child: SettingsShortcutsContent(controller: controller, draft: draft),
+          child: SettingsShortcutsContent(
+            draft: draft,
+            onChanged: widget.draftSession.updateShortcut,
+            onResetDefaults: widget.draftSession.resetShortcutDefaults,
+          ),
         );
     }
   }
@@ -112,44 +136,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _handleSave() async {
-    try {
-      final result = await controller.saveDraft();
-      if (!mounted) {
-        return;
-      }
-      switch (result) {
-        case SettingsSaveResult.saved:
-        case SettingsSaveResult.savedAndRestarted:
-          _showMessage('设置已保存');
-          break;
-        case SettingsSaveResult.savedNeedsRestartAttention:
-          _showMessage('设置已保存，但重启失败，请稍后手动重试。');
-          break;
-      }
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      _showMessage('保存失败：$error');
-    }
-  }
-
-  Future<void> _handleDiscard() async {
-    if (!controller.isDirty.value) {
-      return;
-    }
-    final shouldDiscard = await _confirmDiscard();
-    if (!shouldDiscard) {
-      return;
-    }
-    controller.discardDraft();
-    if (!mounted) {
-      return;
-    }
-    _showMessage('已放弃未保存更改');
-  }
-
   Future<void> _showAddCategoryDialog() async {
     final availableChats = _availableCategoryChats();
     await showDialog<void>(
@@ -158,7 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         chats: availableChats,
         onAdd: (chat) {
           try {
-            controller.addCategoryDraft(chat);
+            widget.draftSession.addCategory(chat);
           } catch (error) {
             _showMessage(error.toString());
           }
@@ -195,16 +181,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirmed != true) {
       return;
     }
-    controller.removeCategoryDraft(key);
+    widget.draftSession.removeCategory(key);
   }
 
   Future<void> _handlePopAttempt(bool didPop, void _) async {
-    if (didPop) {
+    if (didPop || widget.navigation.currentRoute.value == SettingsRoute.home) {
       return;
     }
-    if (widget.navigation.currentRoute.value == SettingsRoute.home) {
+    if (!widget.draftSession.isDirty.value) {
+      widget.draftSession.clear();
+      widget.navigation.backToHome();
       return;
     }
+    final confirmed = await _confirmDiscard();
+    if (!confirmed) {
+      return;
+    }
+    widget.draftSession.clear();
     widget.navigation.backToHome();
   }
 
@@ -227,7 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('放弃'),
+              child: const Text('放弃更改'),
             ),
           ],
         );
@@ -237,7 +230,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   List<SelectableChat> _availableCategoryChats() {
-    final usedIds = controller.draftSettings.value.categories
+    final usedIds = widget.draftSession.draftSettings.value.categories
         .map((item) => item.targetChatId)
         .toSet();
     return controller.chats
@@ -252,48 +245,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  bool _sameCategories(List<CategoryConfig> left, List<CategoryConfig> right) {
-    if (left.length != right.length) {
-      return false;
-    }
-    for (var index = 0; index < left.length; index++) {
-      if (left[index] != right[index]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  bool _forwardingDirty(AppSettings current, AppSettings original) {
-    return current.sourceChatId != original.sourceChatId ||
-        current.fetchDirection != original.fetchDirection ||
-        current.forwardAsCopy != original.forwardAsCopy ||
-        current.batchSize != original.batchSize ||
-        current.throttleMs != original.throttleMs ||
-        current.previewPrefetchCount != original.previewPrefetchCount ||
-        !_sameCategories(current.categories, original.categories);
-  }
-
-  bool _taggingDirty(AppSettings current, AppSettings original) {
-    return current.tagSourceChatId != original.tagSourceChatId ||
-        !_sameTagGroups(current.tagGroups, original.tagGroups);
-  }
-
-  bool _commonDirty(AppSettings current, AppSettings original) {
-    return current.themeMode != original.themeMode ||
-        current.proxy != original.proxy ||
-        current.shortcutBindings != original.shortcutBindings;
-  }
-
-  bool _sameTagGroups(List<Object> left, List<Object> right) {
-    if (left.length != right.length) {
-      return false;
-    }
-    for (var index = 0; index < left.length; index++) {
-      if (left[index] != right[index]) {
-        return false;
-      }
-    }
-    return true;
+  void _openRoute(SettingsRoute route) {
+    widget.draftSession.open(
+      route: route,
+      savedSettings: controller.savedSettings.value,
+    );
+    widget.navigation.goTo(route);
   }
 }

@@ -1,42 +1,65 @@
 import 'package:flutter/material.dart';
-import 'package:tgsorter/app/models/app_settings.dart';
-import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_common_editors.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
-import 'package:tgsorter/app/features/settings/presentation/theme_mode_draft_editor.dart';
 import 'package:tgsorter/app/features/settings/presentation/tag_group_editor.dart';
+import 'package:tgsorter/app/features/settings/presentation/theme_mode_draft_editor.dart';
+import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/app_theme_mode.dart';
+import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
 import 'package:tgsorter/app/widgets/shortcut_bindings_editor.dart';
 
 class SettingsForwardingContent extends StatelessWidget {
   const SettingsForwardingContent({
     super.key,
-    required this.controller,
+    required this.chats,
     required this.draft,
     required this.saved,
     required this.onAddCategory,
     required this.onRemoveCategory,
+    required this.onUpdateSourceChat,
+    required this.onUpdateFetchDirection,
+    required this.onUpdateForwardAsCopy,
+    required this.onUpdateBatchOptions,
+    required this.onUpdatePreviewPrefetchCount,
+    required this.onUpdateCategory,
   });
 
-  final SettingsCoordinator controller;
+  final List<SelectableChat> chats;
   final AppSettings draft;
   final AppSettings saved;
   final Future<void> Function() onAddCategory;
   final Future<void> Function(String key) onRemoveCategory;
+  final ValueChanged<int?> onUpdateSourceChat;
+  final ValueChanged<MessageFetchDirection> onUpdateFetchDirection;
+  final ValueChanged<bool> onUpdateForwardAsCopy;
+  final void Function({required int batchSize, required int throttleMs})
+  onUpdateBatchOptions;
+  final ValueChanged<int> onUpdatePreviewPrefetchCount;
+  final void Function({required String key, required SelectableChat chat})
+  onUpdateCategory;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        SettingsWorkflowContent(controller: controller, draft: draft),
+        SettingsWorkflowContent(
+          chats: chats,
+          draft: draft,
+          onUpdateSourceChat: onUpdateSourceChat,
+          onUpdateFetchDirection: onUpdateFetchDirection,
+          onUpdateForwardAsCopy: onUpdateForwardAsCopy,
+          onUpdateBatchOptions: onUpdateBatchOptions,
+          onUpdatePreviewPrefetchCount: onUpdatePreviewPrefetchCount,
+        ),
         const SizedBox(height: 12),
         SettingsCategoryContent(
           categories: draft.categories,
           savedCategories: saved.categories,
-          chats: controller.chats.toList(growable: false),
+          chats: chats,
           onAdd: onAddCategory,
-          onChanged: (key, chat) =>
-              controller.updateCategoryDraft(key: key, chat: chat),
+          onChanged: (key, chat) => onUpdateCategory(key: key, chat: chat),
           onRemove: onRemoveCategory,
         ),
       ],
@@ -47,12 +70,18 @@ class SettingsForwardingContent extends StatelessWidget {
 class SettingsTaggingContent extends StatelessWidget {
   const SettingsTaggingContent({
     super.key,
-    required this.controller,
+    required this.chats,
     required this.draft,
+    required this.onUpdateSourceChat,
+    required this.onAddDefaultTag,
+    required this.onRemoveDefaultTag,
   });
 
-  final SettingsCoordinator controller;
+  final List<SelectableChat> chats;
   final AppSettings draft;
+  final ValueChanged<int?> onUpdateSourceChat;
+  final ValueChanged<String> onAddDefaultTag;
+  final ValueChanged<String> onRemoveDefaultTag;
 
   @override
   Widget build(BuildContext context) {
@@ -61,14 +90,14 @@ class SettingsTaggingContent extends StatelessWidget {
         SourceChatDraftEditor(
           label: '标签来源会话',
           sourceChatId: draft.tagSourceChatId,
-          chats: controller.chats.toList(growable: false),
-          onChanged: controller.updateTagSourceChatDraft,
+          chats: chats,
+          onChanged: onUpdateSourceChat,
         ),
         const SizedBox(height: 12),
         TagGroupEditor(
           group: _defaultGroup(draft.tagGroups),
-          onAdd: controller.addDefaultTagDraft,
-          onRemove: controller.removeDefaultTagDraft,
+          onAdd: onAddDefaultTag,
+          onRemove: onRemoveDefaultTag,
         ),
       ],
     );
@@ -84,67 +113,42 @@ class SettingsTaggingContent extends StatelessWidget {
   }
 }
 
-class SettingsCommonContent extends StatelessWidget {
-  const SettingsCommonContent({
-    super.key,
-    required this.controller,
-    required this.draft,
-    required this.onReloadChats,
-  });
-
-  final SettingsCoordinator controller;
-  final AppSettings draft;
-  final Future<void> Function() onReloadChats;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ThemeModeDraftEditor(
-          value: draft.themeMode,
-          onChanged: controller.updateThemeModeDraft,
-        ),
-        const SizedBox(height: 12),
-        SettingsConnectionContent(controller: controller, draft: draft),
-        const SizedBox(height: 12),
-        SettingsToolsContent(
-          controller: controller,
-          draft: draft,
-          onReloadChats: onReloadChats,
-        ),
-      ],
-    );
-  }
-}
-
 class SettingsAppearanceContent extends StatelessWidget {
   const SettingsAppearanceContent({
     super.key,
-    required this.controller,
     required this.draft,
+    required this.onChanged,
   });
 
-  final SettingsCoordinator controller;
   final AppSettings draft;
+  final ValueChanged<AppThemeMode> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return ThemeModeDraftEditor(
-      value: draft.themeMode,
-      onChanged: controller.updateThemeModeDraft,
-    );
+    return ThemeModeDraftEditor(value: draft.themeMode, onChanged: onChanged);
   }
 }
 
 class SettingsWorkflowContent extends StatelessWidget {
   const SettingsWorkflowContent({
     super.key,
-    required this.controller,
+    required this.chats,
     required this.draft,
+    required this.onUpdateSourceChat,
+    required this.onUpdateFetchDirection,
+    required this.onUpdateForwardAsCopy,
+    required this.onUpdateBatchOptions,
+    required this.onUpdatePreviewPrefetchCount,
   });
 
-  final SettingsCoordinator controller;
+  final List<SelectableChat> chats;
   final AppSettings draft;
+  final ValueChanged<int?> onUpdateSourceChat;
+  final ValueChanged<MessageFetchDirection> onUpdateFetchDirection;
+  final ValueChanged<bool> onUpdateForwardAsCopy;
+  final void Function({required int batchSize, required int throttleMs})
+  onUpdateBatchOptions;
+  final ValueChanged<int> onUpdatePreviewPrefetchCount;
 
   @override
   Widget build(BuildContext context) {
@@ -153,33 +157,29 @@ class SettingsWorkflowContent extends StatelessWidget {
         SourceChatDraftEditor(
           label: '转发来源会话',
           sourceChatId: draft.sourceChatId,
-          chats: controller.chats.toList(growable: false),
-          onChanged: controller.updateSourceChatDraft,
+          chats: chats,
+          onChanged: onUpdateSourceChat,
         ),
         const SizedBox(height: 12),
         FetchDirectionDraftEditor(
           value: draft.fetchDirection,
-          onChanged: controller.updateFetchDirectionDraft,
+          onChanged: onUpdateFetchDirection,
         ),
         const SizedBox(height: 12),
         ForwardModeDraftEditor(
           value: draft.forwardAsCopy,
-          onChanged: controller.updateForwardAsCopyDraft,
+          onChanged: onUpdateForwardAsCopy,
         ),
         const SizedBox(height: 12),
         BatchOptionsDraftEditor(
           batchSize: draft.batchSize,
           throttleMs: draft.throttleMs,
-          onChanged: ({required batchSize, required throttleMs}) =>
-              controller.updateBatchOptionsDraft(
-                batchSize: batchSize,
-                throttleMs: throttleMs,
-              ),
+          onChanged: onUpdateBatchOptions,
         ),
         const SizedBox(height: 12),
         PreviewPrefetchDraftEditor(
           value: draft.previewPrefetchCount,
-          onChanged: controller.updatePreviewPrefetchCountDraft,
+          onChanged: onUpdatePreviewPrefetchCount,
         ),
       ],
     );
@@ -189,90 +189,49 @@ class SettingsWorkflowContent extends StatelessWidget {
 class SettingsConnectionContent extends StatelessWidget {
   const SettingsConnectionContent({
     super.key,
-    required this.controller,
     required this.draft,
+    required this.onChanged,
   });
 
-  final SettingsCoordinator controller;
   final AppSettings draft;
+  final void Function({
+    required String server,
+    required String port,
+    required String username,
+    required String password,
+  })
+  onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return ProxySettingsDraftEditor(
-      value: draft.proxy,
-      onChanged:
-          ({
-            required server,
-            required port,
-            required username,
-            required password,
-          }) => controller.updateProxyDraft(
-            server: server,
-            port: port,
-            username: username,
-            password: password,
-          ),
-    );
-  }
-}
-
-class SettingsToolsContent extends StatelessWidget {
-  const SettingsToolsContent({
-    super.key,
-    required this.controller,
-    required this.draft,
-    required this.onReloadChats,
-  });
-
-  final SettingsCoordinator controller;
-  final AppSettings draft;
-  final Future<void> Function() onReloadChats;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SettingsChatListRow(
-          loading: controller.chatsLoading.value,
-          chatsError: controller.chatsError.value,
-          chatCount: controller.chats.length,
-          onReload: onReloadChats,
-        ),
-        const SizedBox(height: 12),
-        ShortcutBindingsEditor(
-          bindings: draft.shortcutBindings,
-          onChanged: (action, trigger, ctrl) => controller.updateShortcutDraft(
-            action: action,
-            trigger: trigger,
-            ctrl: ctrl,
-          ),
-          onResetDefaults: controller.resetShortcutDefaultsDraft,
-        ),
-      ],
-    );
+    return ProxySettingsDraftEditor(value: draft.proxy, onChanged: onChanged);
   }
 }
 
 class SettingsShortcutsContent extends StatelessWidget {
   const SettingsShortcutsContent({
     super.key,
-    required this.controller,
     required this.draft,
+    required this.onChanged,
+    required this.onResetDefaults,
   });
 
-  final SettingsCoordinator controller;
   final AppSettings draft;
+  final void Function({
+    required ShortcutAction action,
+    required ShortcutTrigger trigger,
+    required bool ctrl,
+  })
+  onChanged;
+  final VoidCallback onResetDefaults;
 
   @override
   Widget build(BuildContext context) {
     return ShortcutBindingsEditor(
       bindings: draft.shortcutBindings,
-      onChanged: (action, trigger, ctrl) => controller.updateShortcutDraft(
-        action: action,
-        trigger: trigger,
-        ctrl: ctrl,
-      ),
-      onResetDefaults: controller.resetShortcutDefaultsDraft,
+      onChanged: (action, trigger, ctrl) =>
+          onChanged(action: action, trigger: trigger, ctrl: ctrl),
+      onResetDefaults: onResetDefaults,
     );
   }
 }

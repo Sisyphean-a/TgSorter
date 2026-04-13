@@ -85,6 +85,50 @@ void main() {
     expect(find.text('保存'), findsOneWidget);
     expect(find.byType(StatusBadge), findsNothing);
   });
+
+  testWidgets('二级页使用页面本地草稿并在返回时确认放弃', (tester) async {
+    final controller = await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    await tester.tap(find.text('转发'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('最新优先'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('最旧优先').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      controller.savedSettings.value.fetchDirection,
+      MessageFetchDirection.latestFirst,
+    );
+    expect(find.text('保存'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('返回'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('继续编辑'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '放弃更改'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '放弃更改'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('设置'), findsOneWidget);
+    expect(find.text('保存'), findsNothing);
+
+    await tester.tap(find.text('连接与网络'));
+    await tester.pumpAndSettle();
+
+    final serverField = tester.widget<TextField>(
+      find.widgetWithText(TextField, '代理服务器'),
+    );
+    expect(serverField.controller?.text ?? '', isEmpty);
+    expect(
+      controller.savedSettings.value.fetchDirection,
+      MessageFetchDirection.latestFirst,
+    );
+  });
 }
 
 Future<SettingsCoordinator> _pumpSettingsPage(

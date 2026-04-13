@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
+import 'package:tgsorter/app/features/settings/application/settings_page_draft_session.dart';
+import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_app_bar.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_screen.dart';
@@ -11,18 +13,21 @@ class SettingsPage extends StatelessWidget {
     required this.controller,
     this.pipeline,
     SettingsNavigationController? navigation,
+    SettingsPageDraftSession? draftSession,
     super.key,
-  }) : navigation = navigation ?? SettingsNavigationController();
+  }) : navigation = navigation ?? SettingsNavigationController(),
+       draftSession = draftSession ?? SettingsPageDraftSession();
 
   final SettingsCoordinator controller;
   final PipelineLogsPort? pipeline;
   final SettingsNavigationController navigation;
+  final SettingsPageDraftSession draftSession;
 
   @override
   Widget build(BuildContext context) {
     return AppShell(
       appBar: SettingsAppBar(
-        controller: controller,
+        draftSession: draftSession,
         navigation: navigation,
         onSave: () => _handleSave(context),
       ),
@@ -30,6 +35,7 @@ class SettingsPage extends StatelessWidget {
         controller: controller,
         pipeline: pipeline,
         navigation: navigation,
+        draftSession: draftSession,
       ),
     );
   }
@@ -37,13 +43,13 @@ class SettingsPage extends StatelessWidget {
   Future<void> _handleSave(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await controller.saveDraft();
+      final result = await controller.savePageDraft(draftSession.draftSettings.value);
+      draftSession.markSaved(controller.savedSettings.value);
       if (!context.mounted) {
         return;
       }
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('设置已保存')));
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(content: Text(_saveMessage(result))));
     } catch (error) {
       if (!context.mounted) {
         return;
@@ -51,6 +57,16 @@ class SettingsPage extends StatelessWidget {
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text('保存失败：$error')));
+    }
+  }
+
+  String _saveMessage(SettingsSaveResult result) {
+    switch (result) {
+      case SettingsSaveResult.saved:
+      case SettingsSaveResult.savedAndRestarted:
+        return '设置已保存';
+      case SettingsSaveResult.savedNeedsRestartAttention:
+        return '设置已保存，但重启失败，请稍后手动重试。';
     }
   }
 }

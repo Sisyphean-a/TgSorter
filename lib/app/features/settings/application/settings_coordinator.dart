@@ -312,6 +312,20 @@ class SettingsCoordinator extends GetxController
     return completer.future;
   }
 
+  Future<SettingsSaveResult> savePageDraft(
+    AppSettings next, {
+    bool restartOnProxyChange = true,
+  }) async {
+    final previousDraft = draftSettings.value;
+    _draftCoordinator.update(next);
+    try {
+      return await saveDraft(restartOnProxyChange: restartOnProxyChange);
+    } catch (_) {
+      _draftCoordinator.update(previousDraft);
+      rethrow;
+    }
+  }
+
   Future<SettingsSaveResult> _saveDraftInternal({
     required bool restartOnProxyChange,
   }) async {
