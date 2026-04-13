@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_screen.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
@@ -8,16 +9,29 @@ import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({required this.controller, this.pipeline, super.key});
+  SettingsPage({
+    required this.controller,
+    this.pipeline,
+    SettingsNavigationController? navigation,
+    super.key,
+  }) : navigation = navigation ?? SettingsNavigationController();
 
   final SettingsCoordinator controller;
   final PipelineLogsPort? pipeline;
+  final SettingsNavigationController navigation;
 
   @override
   Widget build(BuildContext context) {
     return AppShell(
-      appBar: SettingsCompactAppBar(controller: controller),
-      body: SettingsScreen(controller: controller, pipeline: pipeline),
+      appBar: SettingsCompactAppBar(
+        controller: controller,
+        navigation: navigation,
+      ),
+      body: SettingsScreen(
+        controller: controller,
+        pipeline: pipeline,
+        navigation: navigation,
+      ),
     );
   }
 }
@@ -26,13 +40,15 @@ class SettingsCompactAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const SettingsCompactAppBar({
     required this.controller,
-    this.title = '设置',
+    required this.navigation,
+    this.title,
     this.leading,
     super.key,
   });
 
   final SettingsCoordinator controller;
-  final String title;
+  final SettingsNavigationController navigation;
+  final String? title;
   final Widget? leading;
 
   @override
@@ -44,6 +60,8 @@ class SettingsCompactAppBar extends StatelessWidget
       final theme = Theme.of(context);
       final colors = AppTokens.colorsOf(context);
       final dirty = controller.isDirty.value;
+      final canPop = navigation.canPop.value;
+      final resolvedTitle = title ?? navigation.currentTitle;
       return Material(
         color: colors.pageBackground,
         child: SafeArea(
@@ -52,10 +70,19 @@ class SettingsCompactAppBar extends StatelessWidget
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
             child: Row(
               children: [
-                if (leading != null) ...[leading!, const SizedBox(width: 4)],
+                if (canPop)
+                  IconButton(
+                    onPressed: navigation.backToHome,
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    tooltip: '返回',
+                  )
+                else if (leading != null) ...[
+                  leading!,
+                  const SizedBox(width: 4),
+                ],
                 Expanded(
                   child: Text(
-                    title,
+                    resolvedTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleLarge?.copyWith(

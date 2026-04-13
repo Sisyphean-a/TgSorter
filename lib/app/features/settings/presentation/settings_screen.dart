@@ -1,22 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
 import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_category_dialog.dart';
-import 'package:tgsorter/app/features/settings/presentation/settings_list_section.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_detail_page.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_home_page.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_sections.dart';
-import 'package:tgsorter/app/shared/presentation/widgets/sticky_action_bar.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({required this.controller, this.pipeline, super.key});
+  const SettingsScreen({
+    required this.controller,
+    required this.navigation,
+    this.pipeline,
+    super.key,
+  });
 
   final SettingsCoordinator controller;
+  final SettingsNavigationController navigation;
   final PipelineLogsPort? pipeline;
 
   @override
@@ -37,71 +44,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Obx(() {
       final draft = controller.draftSettings.value;
       final saved = controller.savedSettings.value;
+      final route = widget.navigation.currentRoute.value;
       return PopScope<void>(
-        canPop: !controller.isDirty.value,
+        canPop: route == SettingsRoute.home,
         onPopInvokedWithResult: _handlePopAttempt,
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-                children: [
-                  if (controller.isDirty.value)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 8),
-                      child: SettingsUnsavedChangesBanner(),
-                    ),
-                  SettingsListSection(
-                    key: const ValueKey('settings-section-forwarding'),
-                    title: '转发区设置',
-                    highlighted: _forwardingDirty(draft, saved),
-                    children: [
-                      SettingsForwardingContent(
-                        controller: controller,
-                        draft: draft,
-                        saved: saved,
-                        onAddCategory: _showAddCategoryDialog,
-                        onRemoveCategory: _removeCategoryDraft,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SettingsListSection(
-                    key: const ValueKey('settings-section-tagging'),
-                    title: '标签区设置',
-                    highlighted: _taggingDirty(draft, saved),
-                    children: [
-                      SettingsTaggingContent(
-                        controller: controller,
-                        draft: draft,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SettingsListSection(
-                    key: const ValueKey('settings-section-common'),
-                    title: '通用设置',
-                    highlighted: _commonDirty(draft, saved),
-                    children: [
-                      SettingsCommonContent(
-                        controller: controller,
-                        draft: draft,
-                        onReloadChats: _loadChats,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            StickyActionBar(
-              isDirty: controller.isDirty.value,
-              onDiscard: _handleDiscard,
-              onSave: _handleSave,
-            ),
-          ],
-        ),
+        child: _buildBody(route: route, draft: draft, saved: saved),
       );
     });
+  }
+
+  Widget _buildBody({
+    required SettingsRoute route,
+    required AppSettings draft,
+    required AppSettings saved,
+  }) {
+    switch (route) {
+      case SettingsRoute.home:
+        return SettingsHomePage(onOpenRoute: widget.navigation.goTo);
+      case SettingsRoute.forwarding:
+        return SettingsDetailPage(
+          child: SettingsForwardingContent(
+            controller: controller,
+            draft: draft,
+            saved: saved,
+            onAddCategory: _showAddCategoryDialog,
+            onRemoveCategory: _removeCategoryDraft,
+          ),
+        );
+      case SettingsRoute.tagging:
+        return SettingsDetailPage(
+          child: SettingsTaggingContent(controller: controller, draft: draft),
+        );
+      case SettingsRoute.connection:
+        return SettingsDetailPage(
+          child: Column(
+            children: [
+              SettingsConnectionContent(controller: controller, draft: draft),
+              const SizedBox(height: 12),
+              SettingsChatListRow(
+                loading: controller.chatsLoading.value,
+                chatsError: controller.chatsError.value,
+                chatCount: controller.chats.length,
+                onReload: _loadChats,
+              ),
+            ],
+          ),
+        );
+      case SettingsRoute.appearance:
+        return SettingsDetailPage(
+          child: SettingsAppearanceContent(controller: controller, draft: draft),
+        );
+      case SettingsRoute.shortcuts:
+        return SettingsDetailPage(
+          child: SettingsShortcutsContent(controller: controller, draft: draft),
+        );
+    }
   }
 
   Future<void> _loadChats() async {
@@ -202,14 +199,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handlePopAttempt(bool didPop, void _) async {
-    if (didPop || !controller.isDirty.value) {
+    if (didPop) {
       return;
     }
-    final confirmed = await _confirmDiscard();
-    if (!mounted || !confirmed) {
+    if (widget.navigation.currentRoute.value == SettingsRoute.home) {
       return;
     }
-    Navigator.of(context).pop();
+    widget.navigation.backToHome();
   }
 
   Future<bool> _confirmDiscard() async {

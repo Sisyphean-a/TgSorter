@@ -3,6 +3,7 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/presentation/logs_screen.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
@@ -38,6 +39,7 @@ class MainShellPage extends StatefulWidget {
 
 class _MainShellPageState extends State<MainShellPage> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _settingsNavigation = SettingsNavigationController();
   MainShellDestination _current = MainShellDestination.forwardingWorkbench;
 
   @override
@@ -60,6 +62,7 @@ class _MainShellPageState extends State<MainShellPage> {
           TaggingScreen(controller: widget.tagging, errors: widget.errors),
           SettingsScreen(
             controller: widget.settings,
+            navigation: _settingsNavigation,
             pipeline: widget.pipelineLogs,
           ),
           LogsScreen(pipeline: widget.pipelineLogs),
@@ -84,11 +87,13 @@ class _MainShellPageState extends State<MainShellPage> {
       case MainShellDestination.settings:
         return SettingsCompactAppBar(
           controller: widget.settings,
+          navigation: _settingsNavigation,
           leading: leading,
         );
       case MainShellDestination.logs:
         return SettingsCompactAppBar(
           controller: widget.settings,
+          navigation: _settingsNavigation,
           title: '操作日志',
           leading: leading,
         );

@@ -117,6 +117,25 @@ class SettingsCommonContent extends StatelessWidget {
   }
 }
 
+class SettingsAppearanceContent extends StatelessWidget {
+  const SettingsAppearanceContent({
+    super.key,
+    required this.controller,
+    required this.draft,
+  });
+
+  final SettingsCoordinator controller;
+  final AppSettings draft;
+
+  @override
+  Widget build(BuildContext context) {
+    return ThemeModeDraftEditor(
+      value: draft.themeMode,
+      onChanged: controller.updateThemeModeDraft,
+    );
+  }
+}
+
 class SettingsWorkflowContent extends StatelessWidget {
   const SettingsWorkflowContent({
     super.key,
@@ -230,6 +249,30 @@ class SettingsToolsContent extends StatelessWidget {
           onResetDefaults: controller.resetShortcutDefaultsDraft,
         ),
       ],
+    );
+  }
+}
+
+class SettingsShortcutsContent extends StatelessWidget {
+  const SettingsShortcutsContent({
+    super.key,
+    required this.controller,
+    required this.draft,
+  });
+
+  final SettingsCoordinator controller;
+  final AppSettings draft;
+
+  @override
+  Widget build(BuildContext context) {
+    return ShortcutBindingsEditor(
+      bindings: draft.shortcutBindings,
+      onChanged: (action, trigger, ctrl) => controller.updateShortcutDraft(
+        action: action,
+        trigger: trigger,
+        ctrl: ctrl,
+      ),
+      onResetDefaults: controller.resetShortcutDefaultsDraft,
     );
   }
 }
