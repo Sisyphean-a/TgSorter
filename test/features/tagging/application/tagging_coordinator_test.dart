@@ -47,9 +47,9 @@ void main() {
       expect(coordinator.currentMessage.value?.preview.title, 'first #摄影');
     });
 
-  test('applyTag failure reports error and keeps current message', () async {
-    final errors = AppErrorController();
-    final coordinator = _buildCoordinator(
+    test('applyTag failure reports error and keeps current message', () async {
+      final errors = AppErrorController();
+      final coordinator = _buildCoordinator(
         errors: errors,
         tagging: _FakeTaggingGateway(error: StateError('edit failed')),
       );
@@ -62,26 +62,53 @@ void main() {
       expect(errors.currentError.value, contains('edit failed'));
     });
 
-    test('becomes online and auto loads after auth and connection are ready', () async {
-      final messages = _FakeMessageReadGateway([_message(1, 'first')]);
-      final auth = _FakeAuthStateGateway();
-      final connection = _FakeConnectionStateGateway();
-      final coordinator = _buildCoordinator(
-        messages: messages,
-        auth: auth,
-        connection: connection,
-      );
+    test(
+      'becomes online and auto loads after auth and connection are ready',
+      () async {
+        final messages = _FakeMessageReadGateway([_message(1, 'first')]);
+        final auth = _FakeAuthStateGateway();
+        final connection = _FakeConnectionStateGateway();
+        final coordinator = _buildCoordinator(
+          messages: messages,
+          auth: auth,
+          connection: connection,
+        );
 
-      coordinator.onInit();
-      coordinator.onReady();
-      auth.emitReady();
-      connection.emitReady();
-      await Future<void>.delayed(Duration.zero);
+        coordinator.onInit();
+        coordinator.onReady();
+        auth.emitReady();
+        connection.emitReady();
+        await Future<void>.delayed(Duration.zero);
 
-      expect(coordinator.isOnline.value, isTrue);
-      expect(messages.lastSourceChatId, -1001);
-      expect(coordinator.currentMessage.value?.id, 1);
-    });
+        expect(coordinator.isOnline.value, isTrue);
+        expect(messages.lastSourceChatId, -1001);
+        expect(coordinator.currentMessage.value?.id, 1);
+      },
+    );
+
+    test(
+      'authorization loss clears current tagging workbench message',
+      () async {
+        final auth = _FakeAuthStateGateway();
+        final connection = _FakeConnectionStateGateway();
+        final coordinator = _buildCoordinator(
+          auth: auth,
+          connection: connection,
+        );
+
+        coordinator.onInit();
+        coordinator.onReady();
+        auth.emitReady();
+        connection.emitReady();
+        await Future<void>.delayed(Duration.zero);
+        expect(coordinator.currentMessage.value?.id, 1);
+
+        auth.emitUnauthorized();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(coordinator.currentMessage.value, isNull);
+      },
+    );
   });
 }
 
@@ -202,6 +229,14 @@ class _FakeAuthStateGateway implements AuthStateGateway {
   void emitReady() {
     _controller.add(
       TdAuthState.fromJson(const {'@type': 'authorizationStateReady'}),
+    );
+  }
+
+  void emitUnauthorized() {
+    _controller.add(
+      TdAuthState.fromJson(const {
+        '@type': 'authorizationStateWaitPhoneNumber',
+      }),
     );
   }
 }

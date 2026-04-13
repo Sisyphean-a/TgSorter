@@ -178,6 +178,9 @@ class _ModuleAuthGateway implements AuthGateway, AuthStateGateway {
   Future<void> restart() async {}
 
   @override
+  Future<void> logout() async {}
+
+  @override
   Future<void> start() async {}
 
   @override
@@ -314,4 +317,7 @@ class _ModulePipelineGateway
 class _NoopAuthNavigationPort implements AuthNavigationPort {
   @override
   void goToApp() {}
+
+  @override
+  void goToAuth() {}
 }

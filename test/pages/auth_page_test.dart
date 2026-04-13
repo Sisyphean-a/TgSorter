@@ -197,6 +197,9 @@ class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
   Future<void> restart() async {}
 
   @override
+  Future<void> logout() async {}
+
+  @override
   Future<void> submitCode(String code) async {}
 
   @override
@@ -212,4 +215,7 @@ class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
 class _FakeAuthNavigationPort implements AuthNavigationPort {
   @override
   void goToApp() {}
+
+  @override
+  void goToAuth() {}
 }

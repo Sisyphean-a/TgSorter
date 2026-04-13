@@ -30,18 +30,25 @@ class SettingsHomePage extends StatelessWidget {
           const SizedBox(height: 12),
           const SettingsSectionHeader(title: '应用'),
           _SettingsHomeTile(
+            route: SettingsRoute.common,
+            icon: Icons.tune_rounded,
+            onTap: onOpenRoute,
+          ),
+          _SettingsHomeTile(
             route: SettingsRoute.connection,
             icon: Icons.wifi_tethering_rounded,
             onTap: onOpenRoute,
           ),
           _SettingsHomeTile(
-            route: SettingsRoute.appearance,
-            icon: Icons.palette_outlined,
-            onTap: onOpenRoute,
-          ),
-          _SettingsHomeTile(
             route: SettingsRoute.shortcuts,
             icon: Icons.keyboard_command_key_rounded,
+            onTap: onOpenRoute,
+          ),
+          const SizedBox(height: 12),
+          const SettingsSectionHeader(title: '账号'),
+          _SettingsHomeTile(
+            route: SettingsRoute.accountSession,
+            icon: Icons.shield_moon_outlined,
             onTap: onOpenRoute,
           ),
         ],
@@ -66,7 +73,7 @@ class _SettingsHomeTile extends StatelessWidget {
     return SettingsNavigationTile(
       key: ValueKey('settings-home-${route.name}'),
       icon: icon,
-      title: route.title,
+      title: route.homeLabel,
       onTap: () => onTap(route),
     );
   }

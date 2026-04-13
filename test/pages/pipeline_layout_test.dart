@@ -164,9 +164,11 @@ void main() {
       expect(find.text('消息工作区'), findsNothing);
       expect(find.text('操作面板'), findsNothing);
       final appBarMaterial = tester.widget<Material>(
-        find.byWidgetPredicate(
-          (widget) => widget is Material && widget.child is SafeArea,
-        ).first,
+        find
+            .byWidgetPredicate(
+              (widget) => widget is Material && widget.child is SafeArea,
+            )
+            .first,
       );
       expect(appBarMaterial.color, const Color(0xFFF4F5F7));
       final messagePanelBox = tester.widget<DecoratedBox>(
@@ -294,6 +296,9 @@ class _PipelineLayoutSettingsGateway
 
   @override
   Future<void> restart() async {}
+
+  @override
+  Future<void> logout() async {}
 
   @override
   Future<void> start() async {}

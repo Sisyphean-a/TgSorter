@@ -2,11 +2,12 @@ import 'package:get/get.dart';
 
 enum SettingsRoute {
   home,
+  common,
   forwarding,
   tagging,
   connection,
-  appearance,
   shortcuts,
+  accountSession,
 }
 
 extension SettingsRoutePresentation on SettingsRoute {
@@ -14,16 +15,27 @@ extension SettingsRoutePresentation on SettingsRoute {
     switch (this) {
       case SettingsRoute.home:
         return '设置';
+      case SettingsRoute.common:
+        return '通用';
       case SettingsRoute.forwarding:
         return '转发';
       case SettingsRoute.tagging:
         return '标签';
       case SettingsRoute.connection:
         return '连接与网络';
-      case SettingsRoute.appearance:
-        return '外观';
       case SettingsRoute.shortcuts:
         return '快捷键';
+      case SettingsRoute.accountSession:
+        return '账号与会话';
+    }
+  }
+
+  String get homeLabel {
+    switch (this) {
+      case SettingsRoute.accountSession:
+        return '关于账号与会话';
+      default:
+        return title;
     }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/settings/application/settings_input_validator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
@@ -88,6 +89,43 @@ class FetchDirectionDraftEditor extends StatelessWidget {
         DropdownMenuItem(
           value: MessageFetchDirection.oldestFirst,
           child: Text('最旧优先'),
+        ),
+      ],
+      onChanged: (next) {
+        if (next == null) {
+          return;
+        }
+        onChanged(next);
+      },
+    );
+  }
+}
+
+class DefaultWorkbenchDraftEditor extends StatelessWidget {
+  const DefaultWorkbenchDraftEditor({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final AppDefaultWorkbench value;
+  final ValueChanged<AppDefaultWorkbench> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<AppDefaultWorkbench>(
+      key: ValueKey(value),
+      initialValue: value,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: '首页默认工作台'),
+      items: const [
+        DropdownMenuItem(
+          value: AppDefaultWorkbench.forwarding,
+          child: Text('转发工作台'),
+        ),
+        DropdownMenuItem(
+          value: AppDefaultWorkbench.tagging,
+          child: Text('标签工作台'),
         ),
       ],
       onChanged: (next) {

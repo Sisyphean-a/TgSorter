@@ -93,6 +93,26 @@ void main() {
     expect(emittedStages, [AuthStage.waitPhone, AuthStage.ready]);
     expect(harness.navigation.goToAppCalls, 1);
   });
+
+  test(
+    'initialize routes back to auth when authorization leaves ready state',
+    () async {
+      final harness = await _buildHarness();
+      final emittedStages = <AuthStage>[];
+
+      harness.lifecycle.initialize(onStageChanged: emittedStages.add);
+      harness.gateway.emitState(
+        const TdAuthState(
+          kind: TdAuthStateKind.waitPhoneNumber,
+          rawType: 'authorizationStateWaitPhoneNumber',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(emittedStages, [AuthStage.waitPhone]);
+      expect(harness.navigation.goToAuthCalls, 1);
+    },
+  );
 }
 
 Future<_Harness> _buildHarness() async {
@@ -156,6 +176,9 @@ class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
   Future<void> restart() async {}
 
   @override
+  Future<void> logout() async {}
+
+  @override
   Future<void> submitCode(String code) async {}
 
   @override
@@ -170,9 +193,15 @@ class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
 
 class _FakeAuthNavigationPort implements AuthNavigationPort {
   int goToAppCalls = 0;
+  int goToAuthCalls = 0;
 
   @override
   void goToApp() {
     goToAppCalls++;
+  }
+
+  @override
+  void goToAuth() {
+    goToAuthCalls++;
   }
 }

@@ -10,6 +10,7 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
@@ -37,11 +38,13 @@ void main() {
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('工作流'), findsOneWidget);
     expect(find.text('应用'), findsOneWidget);
+    expect(find.text('账号'), findsOneWidget);
+    expect(find.text('通用'), findsOneWidget);
     expect(find.text('转发'), findsOneWidget);
     expect(find.text('标签'), findsOneWidget);
     expect(find.text('连接与网络'), findsOneWidget);
-    expect(find.text('外观'), findsOneWidget);
     expect(find.text('快捷键'), findsOneWidget);
+    expect(find.text('关于账号与会话'), findsOneWidget);
 
     expect(find.text('转发来源会话'), findsNothing);
     expect(find.text('标签来源会话'), findsNothing);
@@ -50,7 +53,7 @@ void main() {
     expect(find.text('保存更改'), findsNothing);
     expect(find.text('放弃更改'), findsNothing);
     expect(find.byType(StatusBadge), findsNothing);
-    expect(find.byType(SettingsNavigationTile), findsNWidgets(5));
+    expect(find.byType(SettingsNavigationTile), findsNWidgets(6));
   });
 
   testWidgets('点击目录行后进入对应二级页并显示返回箭头', (tester) async {
@@ -265,7 +268,68 @@ void main() {
     expect(find.text('设置已保存'), findsOneWidget);
   });
 
-  testWidgets('其余四个详情页都在两层结构内展示各自字段', (tester) async {
+  testWidgets('通用页承载默认工作台和主题设置', (tester) async {
+    final controller = await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    await tester.tap(find.text('通用'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('通用偏好'), findsOneWidget);
+    expect(find.text('首页默认工作台'), findsOneWidget);
+    expect(find.text('主题模式'), findsAtLeastNWidgets(1));
+
+    await tester.tap(find.text('转发工作台'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('标签工作台').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    expect(
+      controller.savedSettings.value.defaultWorkbench,
+      AppDefaultWorkbench.tagging,
+    );
+  });
+
+  testWidgets('关于账号与会话页提供显式确认的退出登录', (tester) async {
+    final gateway = _SettingsPageFakeGateway(const [
+      SelectableChat(id: -1001, title: '频道一'),
+    ]);
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+      gateway: gateway,
+    );
+
+    await tester.tap(find.text('关于账号与会话'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('账号与会话'), findsAtLeastNWidgets(1));
+    expect(find.text('退出登录'), findsAtLeastNWidgets(1));
+    expect(find.text('刷新会话'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '退出登录'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('确认退出登录'), findsOneWidget);
+    expect(find.textContaining('退出后会返回登录页'), findsAtLeastNWidgets(1));
+
+    await tester.tap(find.widgetWithText(TextButton, '取消'));
+    await tester.pumpAndSettle();
+    expect(gateway.logoutCalls, 0);
+
+    await tester.tap(find.widgetWithText(FilledButton, '退出登录'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '确认退出'));
+    await tester.pumpAndSettle();
+
+    expect(gateway.logoutCalls, 1);
+  });
+
+  testWidgets('其余详情页都在两层结构内展示各自字段', (tester) async {
     await _pumpSettingsPage(
       tester,
       chats: const [SelectableChat(id: -1001, title: '频道一')],
@@ -286,15 +350,6 @@ void main() {
     expect(find.text('会话列表'), findsOneWidget);
     expect(find.text('代理服务器'), findsOneWidget);
     expect(find.text('刷新会话'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('返回'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('外观'));
-    await tester.pumpAndSettle();
-    expect(find.text('外观偏好'), findsOneWidget);
-    expect(find.text('主题模式'), findsAtLeastNWidgets(1));
-    expect(find.text('代理服务器'), findsNothing);
 
     await tester.tap(find.byTooltip('返回'));
     await tester.pumpAndSettle();
@@ -345,6 +400,7 @@ class _SettingsPageFakeGateway implements AuthGateway, SessionQueryGateway {
 
   final List<SelectableChat> _chats;
   Completer<void>? restartCompleter;
+  int logoutCalls = 0;
 
   @override
   Stream<TdAuthState> get authStates => const Stream.empty();
@@ -358,6 +414,11 @@ class _SettingsPageFakeGateway implements AuthGateway, SessionQueryGateway {
     if (completer != null) {
       await completer.future;
     }
+  }
+
+  @override
+  Future<void> logout() async {
+    logoutCalls++;
   }
 
   @override

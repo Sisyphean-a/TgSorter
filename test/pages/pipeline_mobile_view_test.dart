@@ -519,6 +519,9 @@ class _FakeSettingsGateway implements AuthGateway, SessionQueryGateway {
   Future<void> restart() async {}
 
   @override
+  Future<void> logout() async {}
+
+  @override
   Future<void> start() async {}
 
   @override

@@ -236,6 +236,9 @@ class _SettingsFakeGateway implements AuthGateway, SessionQueryGateway {
   }
 
   @override
+  Future<void> logout() async {}
+
+  @override
   Future<void> submitPhoneNumber(String phoneNumber) async {}
 
   @override

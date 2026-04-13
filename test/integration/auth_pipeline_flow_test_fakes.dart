@@ -20,6 +20,9 @@ class _IntegrationAuthGateway implements AuthGateway, AuthStateGateway {
   }
 
   @override
+  Future<void> logout() async {}
+
+  @override
   Future<void> submitCode(String code) async {}
 
   @override
@@ -37,6 +40,9 @@ class _IntegrationSettingsGateway implements SessionQueryGateway {
 class _NoopAuthNavigationPort implements AuthNavigationPort {
   @override
   void goToApp() {}
+
+  @override
+  void goToAuth() {}
 }
 
 class _IntegrationPipelineGateway

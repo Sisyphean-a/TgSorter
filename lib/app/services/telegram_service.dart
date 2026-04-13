@@ -118,6 +118,9 @@ class TelegramService
   Future<void> restart() => _adapter.restart();
 
   @override
+  Future<void> logout() => _adapter.logout();
+
+  @override
   Future<void> submitPhoneNumber(String phoneNumber) =>
       _adapter.submitPhoneNumber(phoneNumber);
 

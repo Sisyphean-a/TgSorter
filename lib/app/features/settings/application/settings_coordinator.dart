@@ -18,6 +18,7 @@ import 'package:tgsorter/app/features/settings/application/tag_settings_service.
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
@@ -155,6 +156,10 @@ class SettingsCoordinator extends GetxController
     _draftCoordinator.update(draftSettings.value.copyWith(themeMode: mode));
   }
 
+  void updateDefaultWorkbenchDraft(AppDefaultWorkbench value) {
+    _draftCoordinator.update(draftSettings.value.updateDefaultWorkbench(value));
+  }
+
   void addCategoryDraft(SelectableChat chat) {
     _draftCoordinator.update(
       _categories.addCategory(current: draftSettings.value, chat: chat),
@@ -289,6 +294,14 @@ class SettingsCoordinator extends GetxController
   Future<void> resetShortcutDefaults() async {
     resetShortcutDefaultsDraft();
     await saveDraft();
+  }
+
+  Future<void> logout() async {
+    final auth = _auth;
+    if (auth == null) {
+      throw StateError('当前环境未提供退出登录能力');
+    }
+    await auth.logout();
   }
 
   Future<SettingsSaveResult> saveDraft({

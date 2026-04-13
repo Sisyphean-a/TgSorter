@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:tgsorter/app/core/routing/app_routes.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
@@ -13,6 +15,8 @@ import 'package:tgsorter/app/features/settings/presentation/settings_screen.dart
 import 'package:tgsorter/app/features/shell/presentation/main_shell_destination.dart';
 import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
 import 'package:tgsorter/app/features/tagging/presentation/tagging_page.dart';
+import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
@@ -43,7 +47,13 @@ class _MainShellPageState extends State<MainShellPage> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _settingsNavigation = SettingsNavigationController();
   final _settingsDraftSession = SettingsPageDraftSession();
-  MainShellDestination _current = MainShellDestination.forwardingWorkbench;
+  late MainShellDestination _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = _resolveInitialDestination();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +155,15 @@ class _MainShellPageState extends State<MainShellPage> {
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text('保存失败：$error')));
     }
+  }
+
+  MainShellDestination _resolveInitialDestination() {
+    final defaultWorkbench =
+        widget.settings.savedSettings.value.defaultWorkbench;
+    if (defaultWorkbench == AppDefaultWorkbench.tagging) {
+      return MainShellDestination.taggingWorkbench;
+    }
+    return MainShellDestination.forwardingWorkbench;
   }
 
   String _saveMessage(SettingsSaveResult result) {

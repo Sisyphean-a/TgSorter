@@ -95,6 +95,26 @@ void main() {
 
     expect(fetchCalls, 1);
   });
+
+  test('authorization loss resets pipeline state immediately', () async {
+    var resetCalls = 0;
+    final lifecycle = PipelineLifecycleCoordinator(
+      state: PipelineRuntimeState()..isOnline.value = true,
+      settings: _FakeSettingsReader(),
+      recovery: _FakeRecoveryService(completed: true),
+      onFetchNext: () async {},
+      onResetPipeline: () {
+        resetCalls++;
+      },
+    );
+
+    lifecycle.updateAuthorization(true);
+    await Future<void>.delayed(Duration.zero);
+
+    lifecycle.updateAuthorization(false);
+
+    expect(resetCalls, 1);
+  });
 }
 
 AppSettings _updatedSettings() {

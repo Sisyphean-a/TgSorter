@@ -9,4 +9,9 @@ class GetxAuthNavigationAdapter implements AuthNavigationPort {
   void goToApp() {
     Get.offNamed(AppRoutes.app);
   }
+
+  @override
+  void goToAuth() {
+    Get.offAllNamed(AppRoutes.auth);
+  }
 }

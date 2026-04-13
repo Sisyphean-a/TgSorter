@@ -71,18 +71,22 @@ class AuthLifecycleCoordinator {
 
   AuthStage _handle(TdAuthState state) {
     if (state.kind == TdAuthStateKind.waitPhoneNumber) {
+      _navigation.goToAuth();
       return AuthStage.waitPhone;
     }
     if (state.kind == TdAuthStateKind.waitCode) {
+      _navigation.goToAuth();
       return AuthStage.waitCode;
     }
     if (state.kind == TdAuthStateKind.waitPassword) {
+      _navigation.goToAuth();
       return AuthStage.waitPassword;
     }
     if (state.kind == TdAuthStateKind.ready) {
       _navigation.goToApp();
       return AuthStage.ready;
     }
+    _navigation.goToAuth();
     return AuthStage.loading;
   }
 

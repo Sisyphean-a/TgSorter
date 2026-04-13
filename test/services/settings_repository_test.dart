@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
@@ -71,6 +72,20 @@ void main() {
       expect(repo.load().themeMode, AppThemeMode.system);
     });
 
+    test('save persists default workbench and load restores it', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().copyWith(
+        defaultWorkbench: AppDefaultWorkbench.tagging,
+      );
+
+      await repo.save(settings);
+
+      expect(prefs.getString('app_default_workbench'), 'tagging');
+      expect(repo.load().defaultWorkbench, AppDefaultWorkbench.tagging);
+    });
+
     test('load uses null sourceChatId by default', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
@@ -106,9 +121,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final repo = SettingsRepository(prefs);
-      final settings = AppSettings.defaults().copyWith(
-        tagSourceChatId: -1001,
-      );
+      final settings = AppSettings.defaults().copyWith(tagSourceChatId: -1001);
 
       await repo.save(settings);
 

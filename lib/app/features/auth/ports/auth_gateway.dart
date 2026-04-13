@@ -6,6 +6,7 @@ abstract class AuthGateway {
 
   Future<void> start();
   Future<void> restart();
+  Future<void> logout();
   Future<void> submitPhoneNumber(String phoneNumber);
   Future<void> submitCode(String code);
   Future<void> submitPassword(String password);

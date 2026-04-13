@@ -71,6 +71,9 @@ class TaggingCoordinator extends GetxController {
     _lastSourceChatId = _settingsReader.currentSettings.tagSourceChatId;
     _lastFetchDirection = _settingsReader.currentSettings.fetchDirection;
     _authSub = _authStateGateway.authStates.listen((state) {
+      if (!state.isReady) {
+        workbench.reset();
+      }
       _authorized = state.isReady;
       _tryAutoFetchNext();
     });
@@ -97,6 +100,10 @@ class TaggingCoordinator extends GetxController {
   Future<void> showNextMessage() => workbench.showNextMessage();
 
   Future<void> skipCurrent() => workbench.skipCurrent();
+
+  void clearSessionStateForLogout() {
+    workbench.reset();
+  }
 
   Future<bool> applyTag(String tagName) async {
     final message = currentMessage.value;

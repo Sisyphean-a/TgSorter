@@ -11,6 +11,7 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -193,6 +194,36 @@ void main() {
   });
 
   test(
+    'updates default workbench in draft and discard restores saved value',
+    () {
+      final harness = _SettingsCoordinatorHarness()
+        ..persistence.loaded = AppSettings.defaults().copyWith(
+          defaultWorkbench: AppDefaultWorkbench.forwarding,
+        );
+      final coordinator = harness.build();
+      coordinator.onInit();
+
+      coordinator.updateDefaultWorkbenchDraft(AppDefaultWorkbench.tagging);
+
+      expect(
+        coordinator.savedSettings.value.defaultWorkbench,
+        AppDefaultWorkbench.forwarding,
+      );
+      expect(
+        coordinator.draftSettings.value.defaultWorkbench,
+        AppDefaultWorkbench.tagging,
+      );
+
+      coordinator.discardDraft();
+
+      expect(
+        coordinator.draftSettings.value.defaultWorkbench,
+        AppDefaultWorkbench.forwarding,
+      );
+    },
+  );
+
+  test(
     'saveDraft still commits saved settings when restart fails after persistence',
     () async {
       final harness = _SettingsCoordinatorHarness()
@@ -243,20 +274,41 @@ void main() {
     },
   );
 
-  test('savePageDraft bridges local page draft into persisted settings', () async {
-    final harness = _SettingsCoordinatorHarness();
-    final coordinator = harness.build();
-    coordinator.onInit();
+  test(
+    'savePageDraft bridges local page draft into persisted settings',
+    () async {
+      final harness = _SettingsCoordinatorHarness();
+      final coordinator = harness.build();
+      coordinator.onInit();
 
-    final next = coordinator.savedSettings.value.updateFetchDirection(
-      MessageFetchDirection.oldestFirst,
-    );
+      final next = coordinator.savedSettings.value.updateFetchDirection(
+        MessageFetchDirection.oldestFirst,
+      );
 
-    await coordinator.savePageDraft(next);
+      await coordinator.savePageDraft(next);
 
-    expect(coordinator.savedSettings.value.fetchDirection, MessageFetchDirection.oldestFirst);
-    expect(coordinator.draftSettings.value.fetchDirection, MessageFetchDirection.oldestFirst);
-  });
+      expect(
+        coordinator.savedSettings.value.fetchDirection,
+        MessageFetchDirection.oldestFirst,
+      );
+      expect(
+        coordinator.draftSettings.value.fetchDirection,
+        MessageFetchDirection.oldestFirst,
+      );
+    },
+  );
+
+  test(
+    'logout delegates to auth gateway when settings requests sign out',
+    () async {
+      final harness = _SettingsCoordinatorHarness();
+      final coordinator = harness.build();
+
+      await coordinator.logout();
+
+      expect(harness.sessions.logoutCalls, 1);
+    },
+  );
 
   test(
     'savePageDraft ignores overlapping page saves until the in-flight save completes',
@@ -284,7 +336,10 @@ void main() {
         coordinator.draftSettings.value.fetchDirection,
         MessageFetchDirection.oldestFirst,
       );
-      expect(coordinator.draftSettings.value.themeMode, isNot(AppThemeMode.dark));
+      expect(
+        coordinator.draftSettings.value.themeMode,
+        isNot(AppThemeMode.dark),
+      );
 
       harness.persistence.saveCompleter!.complete();
       await firstSave;
@@ -294,12 +349,18 @@ void main() {
         harness.persistence.lastSaved?.fetchDirection,
         MessageFetchDirection.oldestFirst,
       );
-      expect(harness.persistence.lastSaved?.themeMode, isNot(AppThemeMode.dark));
+      expect(
+        harness.persistence.lastSaved?.themeMode,
+        isNot(AppThemeMode.dark),
+      );
       expect(
         coordinator.savedSettings.value.fetchDirection,
         MessageFetchDirection.oldestFirst,
       );
-      expect(coordinator.savedSettings.value.themeMode, isNot(AppThemeMode.dark));
+      expect(
+        coordinator.savedSettings.value.themeMode,
+        isNot(AppThemeMode.dark),
+      );
     },
   );
 }
@@ -351,6 +412,7 @@ class _FakeSettingsRepository implements SettingsRepository {
 
 class _FakeSessionGateway implements SessionQueryGateway, AuthGateway {
   int restartCalls = 0;
+  int logoutCalls = 0;
   Object? restartError;
   Completer<void>? restartCompleter;
 
@@ -370,6 +432,11 @@ class _FakeSessionGateway implements SessionQueryGateway, AuthGateway {
     if (completer != null) {
       await completer.future;
     }
+  }
+
+  @override
+  Future<void> logout() async {
+    logoutCalls++;
   }
 
   @override

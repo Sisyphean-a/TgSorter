@@ -63,6 +63,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     switch (route) {
       case SettingsRoute.home:
         return SettingsHomePage(onOpenRoute: _openRoute);
+      case SettingsRoute.common:
+        return SettingsDetailPage(
+          ignoring: controller.isSaving.value,
+          child: SettingsCommonContent(
+            draft: draft,
+            onThemeModeChanged: widget.draftSession.updateThemeMode,
+            onDefaultWorkbenchChanged:
+                widget.draftSession.updateDefaultWorkbench,
+          ),
+        );
       case SettingsRoute.forwarding:
         return SettingsDetailPage(
           ignoring: controller.isSaving.value,
@@ -116,14 +126,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
         );
-      case SettingsRoute.appearance:
-        return SettingsDetailPage(
-          ignoring: controller.isSaving.value,
-          child: SettingsAppearanceContent(
-            draft: draft,
-            onChanged: widget.draftSession.updateThemeMode,
-          ),
-        );
       case SettingsRoute.shortcuts:
         return SettingsDetailPage(
           ignoring: controller.isSaving.value,
@@ -131,6 +133,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             draft: draft,
             onChanged: widget.draftSession.updateShortcut,
             onResetDefaults: widget.draftSession.resetShortcutDefaults,
+          ),
+        );
+      case SettingsRoute.accountSession:
+        return SettingsDetailPage(
+          ignoring: controller.isSaving.value,
+          child: SettingsAccountSessionContent(
+            chatsLoading: controller.chatsLoading.value,
+            chatsError: controller.chatsError.value,
+            chatCount: controller.chats.length,
+            onReloadChats: _loadChats,
+            onLogout: _handleLogout,
           ),
         );
     }
@@ -265,5 +278,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
       savedSettings: controller.savedSettings.value,
     );
     widget.navigation.goTo(route);
+  }
+
+  Future<void> _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final colors = AppTokens.colorsOf(context);
+        return AlertDialog(
+          title: const Text('确认退出登录'),
+          content: const Text('退出后会返回登录页。当前工作台缓存、待重试队列和恢复事务会被清空，应用设置会保留。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.danger,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('确认退出'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) {
+      return;
+    }
+    try {
+      await controller.logout();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage('退出登录失败：$error');
+    }
   }
 }

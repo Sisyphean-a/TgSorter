@@ -7,6 +7,7 @@ import 'package:tgsorter/app/features/settings/presentation/tag_group_editor.dar
 import 'package:tgsorter/app/features/settings/presentation/theme_mode_draft_editor.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
 import 'package:tgsorter/app/widgets/shortcut_bindings_editor.dart';
@@ -123,23 +124,33 @@ class SettingsTaggingContent extends StatelessWidget {
   }
 }
 
-class SettingsAppearanceContent extends StatelessWidget {
-  const SettingsAppearanceContent({
+class SettingsCommonContent extends StatelessWidget {
+  const SettingsCommonContent({
     super.key,
     required this.draft,
-    required this.onChanged,
+    required this.onThemeModeChanged,
+    required this.onDefaultWorkbenchChanged,
   });
 
   final AppSettings draft;
-  final ValueChanged<AppThemeMode> onChanged;
+  final ValueChanged<AppThemeMode> onThemeModeChanged;
+  final ValueChanged<AppDefaultWorkbench> onDefaultWorkbenchChanged;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SettingsSectionHeader(title: '外观偏好'),
-        ThemeModeDraftEditor(value: draft.themeMode, onChanged: onChanged),
+        const SettingsSectionHeader(title: '通用偏好'),
+        DefaultWorkbenchDraftEditor(
+          value: draft.defaultWorkbench,
+          onChanged: onDefaultWorkbenchChanged,
+        ),
+        const SizedBox(height: 12),
+        ThemeModeDraftEditor(
+          value: draft.themeMode,
+          onChanged: onThemeModeChanged,
+        ),
       ],
     );
   }
@@ -261,6 +272,51 @@ class SettingsShortcutsContent extends StatelessWidget {
           onChanged: (action, trigger, ctrl) =>
               onChanged(action: action, trigger: trigger, ctrl: ctrl),
           onResetDefaults: onResetDefaults,
+        ),
+      ],
+    );
+  }
+}
+
+class SettingsAccountSessionContent extends StatelessWidget {
+  const SettingsAccountSessionContent({
+    super.key,
+    required this.chatsLoading,
+    required this.chatsError,
+    required this.chatCount,
+    required this.onReloadChats,
+    required this.onLogout,
+  });
+
+  final bool chatsLoading;
+  final String? chatsError;
+  final int chatCount;
+  final Future<void> Function() onReloadChats;
+  final Future<void> Function() onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SettingsSectionHeader(title: '账号与会话'),
+        SettingsChatListRow(
+          loading: chatsLoading,
+          chatsError: chatsError,
+          chatCount: chatCount,
+          onReload: onReloadChats,
+        ),
+        const SizedBox(height: 12),
+        const SettingsSectionHeader(title: '登录控制'),
+        Text('退出后会返回登录页，并清空当前工作台缓存、待重试队列和恢复事务。应用设置会保留。'),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.tonalIcon(
+            onPressed: onLogout,
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text('退出登录'),
+          ),
         ),
       ],
     );

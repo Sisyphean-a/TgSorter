@@ -1,9 +1,12 @@
-import 'package:tgsorter/app/models/proxy_settings.dart';
-import 'package:tgsorter/app/models/shortcut_binding.dart';
+import 'package:tgsorter/app/models/app_theme_mode.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 
 class CommonSettings {
-  const CommonSettings({required this.proxy, required this.shortcutBindings});
+  const CommonSettings({
+    required this.themeMode,
+    required this.defaultWorkbench,
+  });
 
-  final ProxySettings proxy;
-  final Map<ShortcutAction, ShortcutBinding> shortcutBindings;
+  final AppThemeMode themeMode;
+  final AppDefaultWorkbench defaultWorkbench;
 }

@@ -178,6 +178,18 @@ class TdlibAdapter {
     await start();
   }
 
+  Future<void> logout() async {
+    if (!isRunning) {
+      await start();
+    }
+    await _sendExpectOk(
+      const LogOut(),
+      request: 'logOut',
+      phase: TdlibPhase.business,
+    );
+    _authorizationReady = Completer<void>();
+  }
+
   Future<void> submitPhoneNumber(String phoneNumber) =>
       _authManager.submitPhoneNumber(phoneNumber);
 

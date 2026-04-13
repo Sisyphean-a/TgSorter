@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
@@ -16,12 +17,15 @@ class SettingsRepository {
   static const _chatTitlePrefix = 'category_chat_title_';
   static const _fetchDirectionKey = 'message_fetch_direction';
   static const _themeModeKey = 'app_theme_mode';
+  static const _defaultWorkbenchKey = 'app_default_workbench';
   static const _forwardAsCopyKey = 'forward_as_copy';
   static const _sourceChatIdKey = 'source_chat_id';
   static const _tagSourceChatIdKey = 'tag_source_chat_id';
   static const _tagDefaultGroupTagsKey = 'tag_default_group_tags';
   static const _fetchDirectionLatest = 'latest_first';
   static const _fetchDirectionOldest = 'oldest_first';
+  static const _defaultWorkbenchForwarding = 'forwarding';
+  static const _defaultWorkbenchTagging = 'tagging';
   static const _batchSizeKey = 'pipeline_batch_size';
   static const _throttleMsKey = 'pipeline_throttle_ms';
   static const _previewPrefetchCountKey = 'preview_prefetch_count';
@@ -42,6 +46,9 @@ class SettingsRepository {
     final themeModeRaw = _prefs.getString(_themeModeKey);
     settings = settings.copyWith(
       themeMode: appThemeModeFromStorage(themeModeRaw),
+      defaultWorkbench: _parseDefaultWorkbench(
+        _prefs.getString(_defaultWorkbenchKey),
+      ),
     );
     settings = settings.updateForwardAsCopy(
       _prefs.getBool(_forwardAsCopyKey) ?? false,
@@ -97,6 +104,10 @@ class SettingsRepository {
       _encodeFetchDirection(settings.fetchDirection),
     );
     await _prefs.setString(_themeModeKey, settings.themeMode.storageValue);
+    await _prefs.setString(
+      _defaultWorkbenchKey,
+      _encodeDefaultWorkbench(settings.defaultWorkbench),
+    );
     await _prefs.setBool(_forwardAsCopyKey, settings.forwardAsCopy);
     final sourceChatId = settings.sourceChatId;
     if (sourceChatId == null) {
@@ -215,6 +226,20 @@ class SettingsRepository {
       return _fetchDirectionOldest;
     }
     return _fetchDirectionLatest;
+  }
+
+  AppDefaultWorkbench _parseDefaultWorkbench(String? raw) {
+    if (raw == _defaultWorkbenchTagging) {
+      return AppDefaultWorkbench.tagging;
+    }
+    return AppDefaultWorkbench.forwarding;
+  }
+
+  String _encodeDefaultWorkbench(AppDefaultWorkbench value) {
+    if (value == AppDefaultWorkbench.tagging) {
+      return _defaultWorkbenchTagging;
+    }
+    return _defaultWorkbenchForwarding;
   }
 
   ShortcutBinding _parseShortcutBinding(ShortcutAction action, String? raw) {

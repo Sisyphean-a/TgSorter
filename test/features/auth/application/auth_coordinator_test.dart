@@ -185,6 +185,9 @@ class _FakeAuthGateway implements AuthGateway, SessionQueryGateway {
   }
 
   @override
+  Future<void> logout() async {}
+
+  @override
   Future<void> submitCode(String code) async {}
 
   @override
@@ -250,4 +253,7 @@ class _SpyAuthLifecycleCoordinator extends AuthLifecycleCoordinator {
 class _FakeAuthNavigationPort implements AuthNavigationPort {
   @override
   void goToApp() {}
+
+  @override
+  void goToAuth() {}
 }

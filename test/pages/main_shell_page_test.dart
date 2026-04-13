@@ -18,6 +18,7 @@ import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.da
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
@@ -138,6 +139,87 @@ void main() {
 
     expect(find.text('剩余 7'), findsOneWidget);
   });
+
+  testWidgets(
+    'main shell uses saved default workbench as initial landing page',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      Get.testMode = true;
+      Get.reset();
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final settingsGateway = _ShellSettingsGateway();
+      final pipelineGateway = _ShellPipelineGateway();
+      final settingsController = SettingsCoordinator(
+        SettingsRepository(prefs),
+        settingsGateway,
+        auth: settingsGateway,
+      );
+      settingsController.onInit();
+      settingsController.settings.value = const AppSettings(
+        categories: [
+          CategoryConfig(key: 'a', targetChatId: 1001, targetChatTitle: '收纳'),
+        ],
+        sourceChatId: 888,
+        fetchDirection: MessageFetchDirection.latestFirst,
+        forwardAsCopy: false,
+        batchSize: 2,
+        throttleMs: 0,
+        proxy: ProxySettings.empty,
+        defaultWorkbench: AppDefaultWorkbench.tagging,
+      );
+      final errors = AppErrorController();
+      final pipeline = PipelineCoordinator(
+        authStateGateway: pipelineGateway,
+        connectionStateGateway: pipelineGateway,
+        messageReadGateway: pipelineGateway,
+        mediaGateway: pipelineGateway,
+        classifyGateway: pipelineGateway,
+        recoveryGateway: pipelineGateway,
+        settingsReader: settingsController,
+        journalRepository: OperationJournalRepository(prefs),
+        errorController: errors,
+      );
+      pipeline.currentMessage.value = PipelineMessage(
+        id: 1,
+        messageIds: const [1],
+        sourceChatId: 888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.text,
+          title: '待分类消息',
+        ),
+      );
+      pipeline.isOnline.value = true;
+      final tagging = TaggingCoordinator(
+        authStateGateway: pipelineGateway,
+        connectionStateGateway: pipelineGateway,
+        messageReadGateway: pipelineGateway,
+        mediaGateway: pipelineGateway,
+        taggingGateway: pipelineGateway,
+        settingsReader: settingsController,
+        errorController: errors,
+      );
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          theme: AppTheme.light(),
+          home: MainShellPage(
+            pipeline: pipeline,
+            tagging: tagging,
+            pipelineSettings: settingsController,
+            errors: errors,
+            settings: settingsController,
+            pipelineLogs: pipeline,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('标签工作台'), findsOneWidget);
+      expect(find.text('待分类消息'), findsNothing);
+    },
+  );
 
   testWidgets(
     'mobile settings proxy edit and save does not trigger framework exceptions',
@@ -317,6 +399,9 @@ class _ShellSettingsGateway implements AuthGateway, SessionQueryGateway {
 
   @override
   Future<void> restart() async {}
+
+  @override
+  Future<void> logout() async {}
 
   @override
   Future<void> start() async {}

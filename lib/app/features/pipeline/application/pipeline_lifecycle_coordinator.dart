@@ -37,6 +37,10 @@ class PipelineLifecycleCoordinator {
   }
 
   void updateAuthorization(bool isReady) {
+    if (!isReady) {
+      _onResetPipeline();
+      _pendingAutoFetchAfterLoad = false;
+    }
     _isAuthorized = isReady;
     tryAutoFetchNext();
   }

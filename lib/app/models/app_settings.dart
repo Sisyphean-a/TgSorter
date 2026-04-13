@@ -6,9 +6,12 @@ import 'package:tgsorter/app/features/settings/domain/tagging_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/workflow_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
+import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
+export 'package:tgsorter/app/models/default_workbench.dart'
+    show AppDefaultWorkbench, DefaultWorkbench;
 
 enum MessageFetchDirection { latestFirst, oldestFirst }
 
@@ -24,6 +27,7 @@ class AppSettings {
     required this.throttleMs,
     required this.proxy,
     this.themeMode = AppThemeMode.light,
+    this.defaultWorkbench = AppDefaultWorkbench.forwarding,
     this.tagSourceChatId,
     this.tagGroups = const <TagGroupConfig>[TagGroupConfig.emptyDefault],
     this.previewPrefetchCount = defaultPreviewPrefetchCount,
@@ -38,6 +42,7 @@ class AppSettings {
   final int throttleMs;
   final ProxySettings proxy;
   final AppThemeMode themeMode;
+  final AppDefaultWorkbench defaultWorkbench;
   final int? tagSourceChatId;
   final List<TagGroupConfig> tagGroups;
   final int previewPrefetchCount;
@@ -72,7 +77,7 @@ class AppSettings {
       TaggingSettings(sourceChatId: tagSourceChatId, groups: tagGroups);
 
   CommonSettings get common =>
-      CommonSettings(proxy: proxy, shortcutBindings: shortcutBindings);
+      CommonSettings(themeMode: themeMode, defaultWorkbench: defaultWorkbench);
 
   static AppSettings defaults() {
     return const AppSettings(
@@ -84,6 +89,7 @@ class AppSettings {
       throttleMs: 1200,
       proxy: ProxySettings.empty,
       themeMode: AppThemeMode.light,
+      defaultWorkbench: AppDefaultWorkbench.forwarding,
       tagSourceChatId: null,
       tagGroups: <TagGroupConfig>[TagGroupConfig.emptyDefault],
       previewPrefetchCount: defaultPreviewPrefetchCount,
@@ -129,6 +135,7 @@ class AppSettings {
     int? throttleMs,
     ProxySettings? proxy,
     AppThemeMode? themeMode,
+    AppDefaultWorkbench? defaultWorkbench,
     int? tagSourceChatId,
     bool clearTagSourceChatId = false,
     List<TagGroupConfig>? tagGroups,
@@ -146,6 +153,7 @@ class AppSettings {
       throttleMs: throttleMs ?? this.throttleMs,
       proxy: proxy ?? this.proxy,
       themeMode: themeMode ?? this.themeMode,
+      defaultWorkbench: defaultWorkbench ?? this.defaultWorkbench,
       tagSourceChatId: clearTagSourceChatId
           ? null
           : tagSourceChatId ?? this.tagSourceChatId,
@@ -193,6 +201,10 @@ class AppSettings {
     return copyWith(previewPrefetchCount: value);
   }
 
+  AppSettings updateDefaultWorkbench(AppDefaultWorkbench value) {
+    return copyWith(defaultWorkbench: value);
+  }
+
   AppSettings updateProxySettings(ProxySettings nextProxy) {
     return copyWith(proxy: nextProxy.sanitize());
   }
@@ -222,6 +234,7 @@ class AppSettings {
             throttleMs == other.throttleMs &&
             proxy == other.proxy &&
             themeMode == other.themeMode &&
+            defaultWorkbench == other.defaultWorkbench &&
             tagSourceChatId == other.tagSourceChatId &&
             _listEquals(tagGroups, other.tagGroups) &&
             previewPrefetchCount == other.previewPrefetchCount &&
@@ -239,6 +252,7 @@ class AppSettings {
       throttleMs,
       proxy,
       themeMode,
+      defaultWorkbench,
       tagSourceChatId,
       Object.hashAll(tagGroups),
       previewPrefetchCount,

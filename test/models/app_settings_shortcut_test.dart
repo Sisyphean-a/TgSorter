@@ -80,6 +80,8 @@ void main() {
 
     test('semantic sections expose forwarding tagging and common settings', () {
       final settings = AppSettings.defaults().copyWith(
+        themeMode: AppThemeMode.dark,
+        defaultWorkbench: AppDefaultWorkbench.tagging,
         tagSourceChatId: -1001,
         tagGroups: [
           TagGroupConfig.fromRaw(
@@ -94,8 +96,8 @@ void main() {
       expect(settings.forwarding.categories, settings.categories);
       expect(settings.tagging.sourceChatId, -1001);
       expect(settings.tagging.defaultGroup.tags.single.name, '摄影');
-      expect(settings.common.proxy, settings.proxy);
-      expect(settings.common.shortcutBindings, settings.shortcutBindings);
+      expect(settings.common.themeMode, AppThemeMode.dark);
+      expect(settings.common.defaultWorkbench, AppDefaultWorkbench.tagging);
     });
   });
 
