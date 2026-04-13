@@ -216,6 +216,94 @@ void main() {
       expect(find.text('设置已保存'), findsOneWidget);
     },
   );
+
+  testWidgets('logs page app bar does not inherit settings detail actions', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.testMode = true;
+    Get.reset();
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final settingsGateway = _ShellSettingsGateway();
+    final pipelineGateway = _ShellPipelineGateway();
+    final settingsController = SettingsCoordinator(
+      SettingsRepository(prefs),
+      settingsGateway,
+      auth: settingsGateway,
+    );
+    settingsController.onInit();
+    final errors = AppErrorController();
+    final pipeline = PipelineCoordinator(
+      authStateGateway: pipelineGateway,
+      connectionStateGateway: pipelineGateway,
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      classifyGateway: pipelineGateway,
+      recoveryGateway: pipelineGateway,
+      settingsReader: settingsController,
+      journalRepository: OperationJournalRepository(prefs),
+      errorController: errors,
+    );
+    final tagging = TaggingCoordinator(
+      authStateGateway: pipelineGateway,
+      connectionStateGateway: pipelineGateway,
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      taggingGateway: pipelineGateway,
+      settingsReader: settingsController,
+      errorController: errors,
+    );
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        theme: AppTheme.dark(),
+        home: MainShellPage(
+          pipeline: pipeline,
+          tagging: tagging,
+          pipelineSettings: settingsController,
+          errors: errors,
+          settings: settingsController,
+          pipelineLogs: pipeline,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('打开导航'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('设置'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('连接与网络'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, '代理服务器'),
+      '127.0.0.1',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('保存'), findsOneWidget);
+
+    await tester.dragFrom(const Offset(0, 200), const Offset(320, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('日志'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('操作日志'), findsAtLeastNWidgets(1));
+    expect(find.byTooltip('打开导航'), findsOneWidget);
+    expect(find.byTooltip('返回'), findsNothing);
+    expect(find.text('保存'), findsNothing);
+
+    await tester.tap(find.byTooltip('打开导航'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('设置'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('连接与网络'), findsAtLeastNWidgets(1));
+    expect(find.byTooltip('返回'), findsOneWidget);
+    expect(find.text('保存'), findsOneWidget);
+  });
 }
 
 class _ShellSettingsGateway implements AuthGateway, SessionQueryGateway {

@@ -10,6 +10,7 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.isSaving,
     required this.navigation,
     required this.onSave,
+    this.canPopOverride,
     this.title,
     this.leading,
     super.key,
@@ -19,6 +20,7 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
   final RxBool isSaving;
   final SettingsNavigationController navigation;
   final Future<void> Function() onSave;
+  final bool? canPopOverride;
   final String? title;
   final Widget? leading;
 
@@ -29,7 +31,7 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final palette = AppTokens.colorsOf(context);
-      final canPop = navigation.canPop.value;
+      final canPop = canPopOverride ?? navigation.canPop.value;
       final dirty = draftSession.isDirty.value;
       final hasValidationErrors = draftSession.hasValidationErrors.value;
       final saving = isSaving.value;

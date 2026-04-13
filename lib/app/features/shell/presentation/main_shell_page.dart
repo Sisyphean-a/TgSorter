@@ -102,6 +102,7 @@ class _MainShellPageState extends State<MainShellPage> {
           isSaving: widget.settings.isSaving,
           navigation: _settingsNavigation,
           onSave: _saveSettings,
+          canPopOverride: false,
           title: '操作日志',
           leading: leading,
         );
