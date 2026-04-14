@@ -6,6 +6,7 @@ import 'package:tgsorter/app/services/skipped_message_repository.dart';
 
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'pipeline_prepared_message_merger.dart';
 import 'pipeline_navigation_service.dart';
 import 'pipeline_runtime_state.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
@@ -179,7 +180,6 @@ class PipelineFeedController {
           return;
         }
         final item = items[nextIndex++];
-        var shouldRefreshItem = false;
         for (final messageId in item.messageIds) {
           if (session != _feedSession) {
             return;
@@ -195,19 +195,20 @@ class PipelineFeedController {
               sourceChatId: item.sourceChatId,
               messageId: messageId,
             );
-            shouldRefreshItem = true;
             if (session != _feedSession) {
               _previewPreparedMessageIds.remove(messageId);
               return;
             }
+            await _refreshPreparedMessage(
+              session: session,
+              sourceChatId: item.sourceChatId,
+              messageId: messageId,
+            );
           } catch (error) {
             _previewPreparedMessageIds.remove(messageId);
             firstError ??= error;
             return;
           }
-        }
-        if (shouldRefreshItem) {
-          await _refreshPreparedItem(session: session, item: item);
         }
       }
     }
@@ -227,18 +228,23 @@ class PipelineFeedController {
     unawaited(_prepareUpcomingPreviewsSafely());
   }
 
-  Future<void> _refreshPreparedItem({
+  Future<void> _refreshPreparedMessage({
     required int session,
-    required PipelineMessage item,
+    required int sourceChatId,
+    required int messageId,
   }) async {
     final refreshed = await _messages.refreshMessage(
-      sourceChatId: item.sourceChatId,
-      messageId: item.id,
+      sourceChatId: sourceChatId,
+      messageId: messageId,
     );
     if (session != _feedSession) {
       return;
     }
-    _replaceCachedMessage(refreshed);
+    final current = _messageContaining(messageId);
+    if (current == null) {
+      return;
+    }
+    _replaceCachedMessage(mergePreparedMessage(current, refreshed));
   }
 
   Future<void> _prepareUpcomingPreviewsSafely() async {
@@ -280,6 +286,15 @@ class PipelineFeedController {
   bool _shouldAppendMoreMessages() {
     final remaining = _messageCache.length - _currentIndex - 1;
     return remaining <= 2;
+  }
+
+  PipelineMessage? _messageContaining(int messageId) {
+    for (final item in _messageCache) {
+      if (item.messageIds.contains(messageId)) {
+        return item;
+      }
+    }
+    return null;
   }
 
   void _replaceCachedMessage(PipelineMessage message) {

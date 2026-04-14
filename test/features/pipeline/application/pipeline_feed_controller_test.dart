@@ -221,6 +221,51 @@ void main() {
       expect(state.cache[1].preview.mediaItems.first.previewPath, 'C:/preview-2.jpg');
     },
   );
+
+  test(
+    'prepareUpcomingPreviews preserves grouped audio items while refreshing tracks',
+    () async {
+      final state = PipelineRuntimeState();
+      final navigation = PipelineNavigationService(state: state);
+      final messages = _GroupedAudioRefreshMessageReadGateway();
+      final media = _PreparedPreviewMediaGateway();
+      final controller = PipelineFeedController(
+        state: state,
+        navigation: navigation,
+        messages: messages,
+        media: media,
+        settings: _FakeSettingsReader(),
+        remainingCount: _FakeRemainingCountService(),
+        reportGeneralError: (_) {},
+      );
+      navigation.replaceMessages(<PipelineMessage>[
+        _message(1, 'first'),
+        PipelineMessage(
+          id: 21,
+          messageIds: const <int>[21, 22, 23],
+          sourceChatId: 8888,
+          preview: const MessagePreview(
+            kind: MessagePreviewKind.audio,
+            title: '音频组 (3 条)',
+            audioTracks: <AudioTrackPreview>[
+              AudioTrackPreview(messageId: 21, title: 'track-21'),
+              AudioTrackPreview(messageId: 22, title: 'track-22'),
+              AudioTrackPreview(messageId: 23, title: 'track-23'),
+            ],
+          ),
+        ),
+      ]);
+
+      await controller.prepareUpcomingPreviews();
+
+      expect(state.cache[1].messageIds, const <int>[21, 22, 23]);
+      expect(state.cache[1].preview.audioTracks, hasLength(3));
+      expect(
+        state.cache[1].preview.audioTracks.map((item) => item.localAudioPath),
+        <String?>['C:/audio-21.mp3', 'C:/audio-22.mp3', 'C:/audio-23.mp3'],
+      );
+    },
+  );
 }
 
 PipelineMessage _message(int id, String title) {
@@ -322,6 +367,36 @@ class _RefreshableMessageReadGateway extends _FakeMessageReadGateway {
             kind: MediaItemKind.photo,
             previewPath: 'C:/preview-$messageId.jpg',
             fullPath: 'C:/full-$messageId.jpg',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupedAudioRefreshMessageReadGateway extends _FakeMessageReadGateway {
+  @override
+  Future<PipelineMessage> refreshMessage({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    return PipelineMessage(
+      id: messageId,
+      messageIds: <int>[messageId],
+      sourceChatId: sourceChatId,
+      preview: MessagePreview(
+        kind: MessagePreviewKind.audio,
+        title: 'track-$messageId',
+        subtitle: 'artist-$messageId',
+        localAudioPath: 'C:/audio-$messageId.mp3',
+        audioDurationSeconds: 180,
+        audioTracks: <AudioTrackPreview>[
+          AudioTrackPreview(
+            messageId: messageId,
+            title: 'track-$messageId',
+            subtitle: 'artist-$messageId',
+            localAudioPath: 'C:/audio-$messageId.mp3',
+            audioDurationSeconds: 180,
           ),
         ],
       ),
