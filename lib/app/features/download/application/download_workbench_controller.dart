@@ -35,6 +35,7 @@ class DownloadWorkbenchController extends GetxController {
   Worker? _settingsWorker;
   bool _pendingResync = false;
   int _syncSession = 0;
+  int _chatLoadRequest = 0;
 
   bool get canRun =>
       activeSettings.value.downloadWorkbenchEnabled &&
@@ -52,11 +53,19 @@ class DownloadWorkbenchController extends GetxController {
   }
 
   Future<void> loadChats() async {
+    final session = _syncSession;
+    final request = ++_chatLoadRequest;
     chatsLoading.value = true;
     try {
-      chats.assignAll(await _sessions.listSelectableChats());
+      final nextChats = await _sessions.listSelectableChats();
+      if (session != _syncSession || request != _chatLoadRequest) {
+        return;
+      }
+      chats.assignAll(nextChats);
     } finally {
-      chatsLoading.value = false;
+      if (session == _syncSession && request == _chatLoadRequest) {
+        chatsLoading.value = false;
+      }
     }
   }
 
@@ -85,6 +94,7 @@ class DownloadWorkbenchController extends GetxController {
     _syncSession++;
     _pendingResync = false;
     syncing.value = false;
+    chatsLoading.value = false;
     chats.clear();
     selectedSourceChatId.value = null;
     targetDirectory.value = '';

@@ -147,6 +147,59 @@ void main() {
       expect(sync.clearCalls, 1);
     },
   );
+
+  test('clearSessionStateForLogout ignores stale chat load result', () async {
+    final sessions = _FakeSessionGateway();
+    final pendingChats = Completer<List<SelectableChat>>();
+    sessions.nextChats = pendingChats.future;
+    final controller = DownloadWorkbenchController(
+      sessions: sessions,
+      settings: _FakeSettingsReader(AppSettings.defaults()),
+      sync: _FakeDownloadSyncPort(),
+    );
+
+    controller.onInit();
+    final loadFuture = controller.loadChats();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.chatsLoading.value, isTrue);
+
+    await controller.clearSessionStateForLogout();
+    pendingChats.complete(const [SelectableChat(id: 99, title: '旧会话来源')]);
+    await loadFuture;
+
+    expect(controller.chats, isEmpty);
+    expect(controller.chatsLoading.value, isFalse);
+    expect(controller.selectedSourceChatId.value, isNull);
+  });
+
+  test('loadChats keeps latest result when multiple loads overlap', () async {
+    final sessions = _FakeSessionGateway();
+    final firstChats = Completer<List<SelectableChat>>();
+    final secondChats = Completer<List<SelectableChat>>();
+    sessions.queuedChats.addAll([firstChats.future, secondChats.future]);
+    final controller = DownloadWorkbenchController(
+      sessions: sessions,
+      settings: _FakeSettingsReader(AppSettings.defaults()),
+      sync: _FakeDownloadSyncPort(),
+    );
+
+    controller.onInit();
+    final firstLoad = controller.loadChats();
+    final secondLoad = controller.loadChats();
+    await Future<void>.delayed(Duration.zero);
+
+    secondChats.complete(const [SelectableChat(id: 2, title: '新列表')]);
+    await secondLoad;
+    expect(controller.chats.single.id, 2);
+
+    firstChats.complete(const [SelectableChat(id: 1, title: '旧列表')]);
+    await firstLoad;
+
+    expect(controller.chats, hasLength(1));
+    expect(controller.chats.single.id, 2);
+    expect(controller.chatsLoading.value, isFalse);
+  });
 }
 
 class _FakeSettingsReader implements PipelineSettingsReader {
@@ -165,8 +218,19 @@ class _FakeSettingsReader implements PipelineSettingsReader {
 }
 
 class _FakeSessionGateway implements SessionQueryGateway {
+  Future<List<SelectableChat>>? nextChats;
+  final queuedChats = <Future<List<SelectableChat>>>[];
+
   @override
   Future<List<SelectableChat>> listSelectableChats() async {
+    if (queuedChats.isNotEmpty) {
+      return queuedChats.removeAt(0);
+    }
+    final result = nextChats;
+    nextChats = null;
+    if (result != null) {
+      return result;
+    }
     return const [SelectableChat(id: 777, title: '下载来源')];
   }
 }
