@@ -12,9 +12,9 @@ import 'package:tgsorter/app/services/download_sync_service.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 
 void main() {
-  testWidgets('download workbench reloads chats when screen is mounted again', (
-    tester,
-  ) async {
+  testWidgets(
+    'download workbench loads chats on mount and reloads them on remount',
+    (tester) async {
     Get.testMode = true;
     Get.reset();
     final sessions = _MutableSessionGateway(
@@ -36,10 +36,29 @@ void main() {
     )..onInit();
     addTearDown(controller.onClose);
     await tester.pump();
+    expect(sessions.loadCalls, 0);
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(body: DownloadWorkbenchScreen(controller: controller)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
     expect(sessions.loadCalls, 1);
+    expect(controller.chats, hasLength(1));
+    expect(controller.chats.single.id, 1);
+    expect(controller.chats.single.title, '会话一');
+    controller.selectSourceChat(1);
 
     controller.chats.clear();
     sessions.availableChats = const [SelectableChat(id: 2, title: '会话二')];
+
+    await tester.pumpWidget(
+      const GetMaterialApp(home: SizedBox.shrink()),
+    );
+    await tester.pumpAndSettle();
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -53,7 +72,8 @@ void main() {
     expect(controller.chats, hasLength(1));
     expect(controller.chats.single.id, 2);
     expect(controller.chats.single.title, '会话二');
-  });
+    },
+  );
 }
 
 class _FakeSettingsReader implements PipelineSettingsReader {

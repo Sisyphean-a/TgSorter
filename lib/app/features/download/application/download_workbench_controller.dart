@@ -49,7 +49,6 @@ class DownloadWorkbenchController extends GetxController {
       activeSettings.value = settings;
       _scheduleSyncIfReady();
     });
-    unawaited(loadChats());
   }
 
   Future<void> loadChats() async {

@@ -39,6 +39,7 @@ class _DownloadWorkbenchScreenState extends State<DownloadWorkbenchScreen> {
   Widget build(BuildContext context) {
     return Obx(() {
       final colors = AppTokens.colorsOf(context);
+      final selectedSourceChatId = _selectedSourceChatId();
       return ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -60,7 +61,8 @@ class _DownloadWorkbenchScreenState extends State<DownloadWorkbenchScreen> {
           const SizedBox(height: 16),
           const SettingsSectionHeader(title: '同步来源'),
           DropdownButtonFormField<int?>(
-            initialValue: controller.selectedSourceChatId.value,
+            key: ValueKey(selectedSourceChatId),
+            initialValue: selectedSourceChatId,
             isExpanded: true,
             decoration: const InputDecoration(labelText: '来源会话'),
             items: [
@@ -113,5 +115,18 @@ class _DownloadWorkbenchScreenState extends State<DownloadWorkbenchScreen> {
         ],
       );
     });
+  }
+
+  int? _selectedSourceChatId() {
+    final selectedSourceChatId = controller.selectedSourceChatId.value;
+    if (selectedSourceChatId == null) {
+      return null;
+    }
+    for (final chat in controller.chats) {
+      if (chat.id == selectedSourceChatId) {
+        return selectedSourceChatId;
+      }
+    }
+    return null;
   }
 }
