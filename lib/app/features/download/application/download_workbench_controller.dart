@@ -34,6 +34,7 @@ class DownloadWorkbenchController extends GetxController {
 
   Worker? _settingsWorker;
   bool _pendingResync = false;
+  int _syncSession = 0;
 
   bool get canRun =>
       activeSettings.value.downloadWorkbenchEnabled &&
@@ -82,6 +83,7 @@ class DownloadWorkbenchController extends GetxController {
   }
 
   Future<void> clearSessionStateForLogout() async {
+    _syncSession++;
     _pendingResync = false;
     syncing.value = false;
     selectedSourceChatId.value = null;
@@ -101,6 +103,7 @@ class DownloadWorkbenchController extends GetxController {
     if (!canRun) {
       return;
     }
+    final session = _syncSession;
     syncing.value = true;
     do {
       _pendingResync = false;
@@ -118,6 +121,9 @@ class DownloadWorkbenchController extends GetxController {
           targetDirectory: targetDir,
           settings: activeSettings.value.download,
         );
+        if (session != _syncSession) {
+          return;
+        }
         scannedMessages.value = result.scannedMessages;
         copiedFiles.value = result.copiedFiles;
         skippedFiles.value = result.skippedFiles;
@@ -126,11 +132,16 @@ class DownloadWorkbenchController extends GetxController {
             '已扫描 ${result.scannedMessages} 条，新增 ${result.copiedFiles} 个，'
             '跳过 ${result.skippedFiles} 个，清理 ${result.deletedFiles} 个。';
       } catch (error) {
+        if (session != _syncSession) {
+          return;
+        }
         lastError.value = '$error';
         lastSummary.value = '同步失败，请检查目录权限和 TDLib 本地文件状态。';
       }
-    } while (_pendingResync && canRun);
-    syncing.value = false;
+    } while (_pendingResync && canRun && session == _syncSession);
+    if (session == _syncSession) {
+      syncing.value = false;
+    }
   }
 
   String _sourceTitleOf(int sourceChatId) {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
@@ -86,6 +88,64 @@ void main() {
     expect(controller.targetDirectory.value, isEmpty);
     expect(sync.clearCalls, 1);
   });
+
+  test(
+    'clearSessionStateForLogout ignores stale sync result from previous session',
+    () async {
+      final settings = _FakeSettingsReader(
+        AppSettings.defaults().updateDownloadSettings(
+          workbenchEnabled: true,
+          skipExistingFiles: true,
+          syncDeletedFiles: false,
+          conflictStrategy: DownloadConflictStrategy.rename,
+          mediaFilter: DownloadMediaFilter.all,
+          directoryMode: DownloadDirectoryMode.flat,
+        ),
+      );
+      final sync = _FakeDownloadSyncPort();
+      final pendingResult = Completer<DownloadSyncResult>();
+      sync.nextResult = pendingResult.future;
+      final controller = DownloadWorkbenchController(
+        sessions: _FakeSessionGateway(),
+        settings: settings,
+        sync: sync,
+      );
+
+      controller.onInit();
+      controller.selectSourceChat(777);
+      controller.updateTargetDirectory('/tmp/downloads');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(sync.calls, hasLength(1));
+      expect(controller.syncing.value, isTrue);
+
+      await controller.clearSessionStateForLogout();
+
+      pendingResult.complete(
+        const DownloadSyncResult(
+          scannedMessages: 9,
+          copiedFiles: 6,
+          skippedFiles: 2,
+          deletedFiles: 1,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.syncing.value, isFalse);
+      expect(controller.selectedSourceChatId.value, isNull);
+      expect(controller.targetDirectory.value, isEmpty);
+      expect(controller.scannedMessages.value, 0);
+      expect(controller.copiedFiles.value, 0);
+      expect(controller.skippedFiles.value, 0);
+      expect(controller.deletedFiles.value, 0);
+      expect(
+        controller.lastSummary.value,
+        '选择来源和目标目录后会自动开始同步。',
+      );
+      expect(controller.lastError.value, isNull);
+      expect(sync.clearCalls, 1);
+    },
+  );
 }
 
 class _FakeSettingsReader implements PipelineSettingsReader {
@@ -114,6 +174,7 @@ class _FakeDownloadSyncPort
     implements DownloadSyncPort, DownloadSyncSessionPort {
   final calls = <_SyncCall>[];
   int clearCalls = 0;
+  Future<DownloadSyncResult>? nextResult;
 
   @override
   Future<DownloadSyncResult> sync({
@@ -129,6 +190,11 @@ class _FakeDownloadSyncPort
         targetDirectory: targetDirectory,
       ),
     );
+    final result = nextResult;
+    nextResult = null;
+    if (result != null) {
+      return result;
+    }
     return const DownloadSyncResult(
       scannedMessages: 3,
       copiedFiles: 2,

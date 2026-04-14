@@ -23,6 +23,7 @@ class LoginAlertWorkbenchController extends GetxController {
 
   final entries = <TelegramLoginAlert>[].obs;
   StreamSubscription<Map<String, dynamic>>? _subscription;
+  int _restoreSession = 0;
 
   static int _defaultNowMs() => DateTime.now().millisecondsSinceEpoch;
 
@@ -34,7 +35,11 @@ class LoginAlertWorkbenchController extends GetxController {
   }
 
   Future<void> _restore() async {
+    final session = _restoreSession;
     final restored = await _repository.load();
+    if (session != _restoreSession) {
+      return;
+    }
     final merged = <String, TelegramLoginAlert>{};
     for (final item in restored) {
       merged[item.identityKey] = item;
@@ -127,6 +132,7 @@ class LoginAlertWorkbenchController extends GetxController {
   }
 
   Future<void> clearSessionStateForLogout() async {
+    _restoreSession++;
     entries.clear();
     await _repository.clear();
   }
