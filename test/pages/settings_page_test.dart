@@ -461,9 +461,13 @@ Future<SettingsCoordinator> _pumpSettingsPage(
       ),
   });
   final prefs = await SharedPreferences.getInstance();
+  final repository = SettingsRepository(prefs);
+  if (initialSettings != null) {
+    await repository.save(initialSettings);
+  }
   final resolvedGateway = gateway ?? _SettingsPageFakeGateway(chats);
   final controller = SettingsCoordinator(
-    SettingsRepository(prefs),
+    repository,
     resolvedGateway,
     auth: resolvedGateway,
     skippedMessageRepository: SkippedMessageRepository(prefs),
@@ -471,11 +475,6 @@ Future<SettingsCoordinator> _pumpSettingsPage(
   final navigation = SettingsNavigationController();
   final draftSession = SettingsPageDraftSession();
   controller.onInit();
-  if (initialSettings != null) {
-    controller.savedSettings.value = initialSettings;
-    controller.draftSettings.value = initialSettings;
-    controller.isDirty.value = false;
-  }
   Get.put<SettingsCoordinator>(controller);
 
   await tester.pumpWidget(

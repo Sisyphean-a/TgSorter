@@ -99,7 +99,6 @@ void main() {
         proxy: ProxySettings.empty,
       );
       settingsController.savedSettings.value = seededSettings;
-      settingsController.draftSettings.value = seededSettings;
       errorController = AppErrorController();
       pipelineController = PipelineCoordinator(
         authStateGateway: pipelineGateway,

@@ -32,32 +32,66 @@ void main() {
   });
 
   test(
-    'saveDraft lets coordinator evaluate restart policy after persistence',
+    'saveProxySettings lets coordinator evaluate restart policy after persistence',
     () async {
       final harness = _SettingsCoordinatorHarness()
         ..restartPolicy.shouldRestartResult = true;
       final coordinator = harness.build();
       coordinator.onInit();
-      coordinator.updateProxyDraft(
+      await coordinator.saveProxySettings(
         server: '127.0.0.1',
         port: '7890',
         username: '',
         password: '',
+        restart: true,
       );
 
-      await coordinator.saveDraft();
-
       expect(harness.persistence.saveCalls, 1);
-      expect(coordinator.isDirty.value, isFalse);
+      expect(harness.draftCoordinator.isDirty.value, isFalse);
       expect(harness.restartPolicy.calls, 1);
       expect(harness.restartPolicy.previous?.proxy, ProxySettings.empty);
       expect(harness.restartPolicy.next?.proxy.server, '127.0.0.1');
       expect(harness.restartCalls, 1);
-      await coordinator.saveDraft(restartOnProxyChange: false);
+      await coordinator.saveProxySettings(
+        server: '127.0.0.1',
+        port: '7891',
+        username: '',
+        password: '',
+        restart: false,
+      );
 
       expect(harness.persistence.saveCalls, 2);
       expect(harness.restartPolicy.calls, 2);
       expect(harness.restartCalls, 1);
+    },
+  );
+
+  test(
+    'saveProxySettings persists proxy only and does not leak unrelated draft edits',
+    () async {
+      final harness = _SettingsCoordinatorHarness();
+      final coordinator = harness.build();
+      coordinator.onInit();
+      harness.draftCoordinator.update(
+        coordinator.savedSettings.value.copyWith(
+          defaultWorkbench: AppDefaultWorkbench.tagging,
+        ),
+      );
+
+      await coordinator.saveProxySettings(
+        server: '127.0.0.1',
+        port: '7890',
+        username: '',
+        password: '',
+        restart: false,
+      );
+
+      expect(
+        coordinator.savedSettings.value.defaultWorkbench,
+        AppDefaultWorkbench.forwarding,
+      );
+      expect(coordinator.savedSettings.value.proxy.server, '127.0.0.1');
+      expect(coordinator.savedSettings.value.proxy.port, 7890);
     },
   );
 
@@ -97,22 +131,22 @@ void main() {
   );
 
   test(
-    'saveDraft does not commit or evaluate restart when persistence save fails',
+    'saveProxySettings does not commit or evaluate restart when persistence save fails',
     () async {
       final harness = _SettingsCoordinatorHarness()
         ..persistence.throwOnSave = true
         ..restartPolicy.shouldRestartResult = true;
       final coordinator = harness.build();
       coordinator.onInit();
-      coordinator.updateProxyDraft(
-        server: '127.0.0.1',
-        port: '7890',
-        username: '',
-        password: '',
-      );
 
       await expectLater(
-        coordinator.saveDraft(),
+        coordinator.saveProxySettings(
+          server: '127.0.0.1',
+          port: '7890',
+          username: '',
+          password: '',
+          restart: true,
+        ),
         throwsA(
           isA<StateError>().having(
             (error) => error.message,
@@ -123,9 +157,8 @@ void main() {
       );
 
       expect(harness.persistence.saveCalls, 1);
-      expect(coordinator.isDirty.value, isTrue);
       expect(coordinator.savedSettings.value.proxy, ProxySettings.empty);
-      expect(coordinator.draftSettings.value.proxy.server, '127.0.0.1');
+      expect(harness.draftCoordinator.draft.value.proxy.server, '127.0.0.1');
       expect(harness.restartPolicy.calls, 0);
       expect(harness.restartCalls, 0);
     },
@@ -151,142 +184,61 @@ void main() {
     final coordinator = harness.build();
     coordinator.onInit();
 
-    coordinator.updateCategoryDraft(
-      key: 'news',
-      chat: const SelectableChat(id: 2002, title: '草稿目标'),
+    harness.draftCoordinator.update(
+      coordinator.savedSettings.value.updateCategory(
+        const CategoryConfig(
+          key: 'news',
+          targetChatId: 2002,
+          targetChatTitle: '草稿目标',
+        ),
+      ),
     );
 
     expect(coordinator.getCategory('news').targetChatId, 1001);
   });
 
-  test('updates tag source and default tags in draft only', () {
-    final harness = _SettingsCoordinatorHarness();
-    final coordinator = harness.build();
-    coordinator.onInit();
-
-    coordinator.updateTagSourceChatDraft(-1001);
-    coordinator.addDefaultTagDraft('#摄影');
-
-    expect(coordinator.isDirty.value, isTrue);
-    expect(coordinator.savedSettings.value.tagSourceChatId, isNull);
-    expect(coordinator.draftSettings.value.tagSourceChatId, -1001);
-    expect(
-      coordinator.draftSettings.value.tagGroups.single.tags.single.name,
-      '摄影',
-    );
-  });
-
-  test('updates media load options in draft only', () {
-    final harness = _SettingsCoordinatorHarness();
-    final coordinator = harness.build();
-    coordinator.onInit();
-
-    coordinator.updateMediaLoadOptionsDraft(
-      backgroundConcurrency: 4,
-      retryLimit: 3,
-      retryDelayMs: 900,
-    );
-
-    expect(coordinator.isDirty.value, isTrue);
-    expect(
-      coordinator.savedSettings.value.mediaBackgroundDownloadConcurrency,
-      AppSettings.defaultMediaBackgroundDownloadConcurrency,
-    );
-    expect(
-      coordinator.draftSettings.value.mediaBackgroundDownloadConcurrency,
-      4,
-    );
-    expect(coordinator.draftSettings.value.mediaRetryLimit, 3);
-    expect(coordinator.draftSettings.value.mediaRetryDelayMs, 900);
-  });
-
-  test('updates theme mode in draft and discard restores saved value', () {
-    final harness = _SettingsCoordinatorHarness()
-      ..persistence.loaded = AppSettings.defaults().copyWith(
-        themeMode: AppThemeMode.light,
-      );
-    final coordinator = harness.build();
-    coordinator.onInit();
-
-    coordinator.updateThemeModeDraft(AppThemeMode.dark);
-
-    expect(coordinator.savedSettings.value.themeMode, AppThemeMode.light);
-    expect(coordinator.draftSettings.value.themeMode, AppThemeMode.dark);
-
-    coordinator.discardDraft();
-
-    expect(coordinator.draftSettings.value.themeMode, AppThemeMode.light);
-  });
-
   test(
-    'updates default workbench in draft and discard restores saved value',
-    () {
-      final harness = _SettingsCoordinatorHarness()
-        ..persistence.loaded = AppSettings.defaults().copyWith(
-          defaultWorkbench: AppDefaultWorkbench.forwarding,
-        );
-      final coordinator = harness.build();
-      coordinator.onInit();
-
-      coordinator.updateDefaultWorkbenchDraft(AppDefaultWorkbench.tagging);
-
-      expect(
-        coordinator.savedSettings.value.defaultWorkbench,
-        AppDefaultWorkbench.forwarding,
-      );
-      expect(
-        coordinator.draftSettings.value.defaultWorkbench,
-        AppDefaultWorkbench.tagging,
-      );
-
-      coordinator.discardDraft();
-
-      expect(
-        coordinator.draftSettings.value.defaultWorkbench,
-        AppDefaultWorkbench.forwarding,
-      );
-    },
-  );
-
-  test(
-    'saveDraft still commits saved settings when restart fails after persistence',
+    'saveProxySettings still commits saved settings when restart fails after persistence',
     () async {
       final harness = _SettingsCoordinatorHarness()
         ..restartPolicy.shouldRestartResult = true
         ..sessions.restartError = StateError('restart failed');
       final coordinator = harness.build();
       coordinator.onInit();
-      coordinator.updateProxyDraft(
+      await coordinator.saveProxySettings(
         server: '127.0.0.1',
         port: '7890',
         username: '',
         password: '',
+        restart: true,
       );
-
-      await expectLater(coordinator.saveDraft(), completes);
-      expect(coordinator.isDirty.value, isFalse);
       expect(coordinator.savedSettings.value.proxy.server, '127.0.0.1');
       expect(harness.restartCalls, 1);
     },
   );
 
   test(
-    'saveDraft coalesces duplicate requests while a save is already running',
+    'saveProxySettings coalesces duplicate requests while a save is already running',
     () async {
       final harness = _SettingsCoordinatorHarness()
         ..restartPolicy.shouldRestartResult = true
         ..sessions.restartCompleter = Completer<void>();
       final coordinator = harness.build();
       coordinator.onInit();
-      coordinator.updateProxyDraft(
+      final firstSave = coordinator.saveProxySettings(
         server: '127.0.0.1',
         port: '7890',
         username: '',
         password: '',
+        restart: true,
       );
-
-      final firstSave = coordinator.saveDraft();
-      final secondSave = coordinator.saveDraft();
+      final secondSave = coordinator.saveProxySettings(
+        server: '127.0.0.1',
+        port: '7891',
+        username: '',
+        password: '',
+        restart: true,
+      );
 
       await Future<void>.delayed(Duration.zero);
 
@@ -316,10 +268,6 @@ void main() {
         coordinator.savedSettings.value.fetchDirection,
         MessageFetchDirection.oldestFirst,
       );
-      expect(
-        coordinator.draftSettings.value.fetchDirection,
-        MessageFetchDirection.oldestFirst,
-      );
     },
   );
 
@@ -335,28 +283,31 @@ void main() {
     },
   );
 
-  test('clearSessionStateForLogout drops skipped records and refreshes summary', () async {
-    final harness = _SettingsCoordinatorHarness()
-      ..skippedRepository.records = <SkippedMessageRecord>[
-        SkippedMessageRecord(
-          id: 'forwarding:8888:1',
-          workflow: SkippedMessageWorkflow.forwarding,
-          sourceChatId: 8888,
-          primaryMessageId: 1,
-          messageIds: const <int>[1],
-          createdAtMs: 1,
-        ),
-      ];
-    final coordinator = harness.build();
+  test(
+    'clearSessionStateForLogout drops skipped records and refreshes summary',
+    () async {
+      final harness = _SettingsCoordinatorHarness()
+        ..skippedRepository.records = <SkippedMessageRecord>[
+          SkippedMessageRecord(
+            id: 'forwarding:8888:1',
+            workflow: SkippedMessageWorkflow.forwarding,
+            sourceChatId: 8888,
+            primaryMessageId: 1,
+            messageIds: const <int>[1],
+            createdAtMs: 1,
+          ),
+        ];
+      final coordinator = harness.build();
 
-    coordinator.refreshSkippedMessageSummary();
-    expect(coordinator.skippedMessageSummary.value.totalCount, 1);
+      coordinator.refreshSkippedMessageSummary();
+      expect(coordinator.skippedMessageSummary.value.totalCount, 1);
 
-    await coordinator.clearSessionStateForLogout();
+      await coordinator.clearSessionStateForLogout();
 
-    expect(harness.skippedRepository.records, isEmpty);
-    expect(coordinator.skippedMessageSummary.value.totalCount, 0);
-  });
+      expect(harness.skippedRepository.records, isEmpty);
+      expect(coordinator.skippedMessageSummary.value.totalCount, 0);
+    },
+  );
 
   test(
     'savePageDraft ignores overlapping page saves until the in-flight save completes',
@@ -381,11 +332,11 @@ void main() {
 
       expect(harness.persistence.saveCalls, 1);
       expect(
-        coordinator.draftSettings.value.fetchDirection,
+        harness.draftCoordinator.draft.value.fetchDirection,
         MessageFetchDirection.oldestFirst,
       );
       expect(
-        coordinator.draftSettings.value.themeMode,
+        harness.draftCoordinator.draft.value.themeMode,
         isNot(AppThemeMode.dark),
       );
 
@@ -509,6 +460,9 @@ void main() {
 class _SettingsCoordinatorHarness {
   final _FakeSettingsRepository repository = _FakeSettingsRepository();
   final _FakeSessionGateway sessions = _FakeSessionGateway();
+  final SettingsDraftCoordinator draftCoordinator = SettingsDraftCoordinator(
+    AppSettings.defaults(),
+  );
   final _FakeSettingsPersistenceService persistence =
       _FakeSettingsPersistenceService();
   final _FakeSettingsChatLoader chatLoader = _FakeSettingsChatLoader();
@@ -525,7 +479,7 @@ class _SettingsCoordinatorHarness {
       repository,
       sessions,
       auth: sessions,
-      draftCoordinator: SettingsDraftCoordinator(AppSettings.defaults()),
+      draftCoordinator: draftCoordinator,
       persistence: persistence,
       restartPolicy: restartPolicy,
       chatLoader: chatLoader,
