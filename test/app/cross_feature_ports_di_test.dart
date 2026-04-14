@@ -16,6 +16,8 @@ import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
+import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
+import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
@@ -26,6 +28,7 @@ import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.da
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
+import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_registry.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
@@ -34,6 +37,8 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/download_sync_service.dart';
+import 'package:tgsorter/app/services/login_alert_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
@@ -55,6 +60,7 @@ void main() {
       final authGateway = _ModuleAuthGateway();
       final pipelineSettings = _ModulePipelineSettingsReader();
       final pipelineGateway = _ModulePipelineGateway();
+      final skippedRestoreRegistry = SkippedMessageRestoreRegistry();
 
       Get.put<AppErrorController>(AppErrorController());
       Get.put<AuthGateway>(authGateway);
@@ -66,6 +72,7 @@ void main() {
 
       Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
       Get.put<SkippedMessageRepository>(SkippedMessageRepository(prefs));
+      Get.put<SkippedMessageRestoreRegistry>(skippedRestoreRegistry);
       Get.put<AuthStateGateway>(authGateway);
       Get.put<ConnectionStateGateway>(pipelineGateway);
       Get.put<MessageReadGateway>(pipelineGateway);
@@ -89,8 +96,11 @@ void main() {
     final authGateway = _ModuleAuthGateway();
     final sessionGateway = _ModuleSessionGateway();
     final pipelineGateway = _ModulePipelineGateway();
+    final skippedRestoreRegistry = SkippedMessageRestoreRegistry();
 
     Get.put<SettingsRepository>(SettingsRepository(prefs));
+    Get.put<SkippedMessageRepository>(SkippedMessageRepository(prefs));
+    Get.put<SkippedMessageRestoreRegistry>(skippedRestoreRegistry);
     Get.put<AuthGateway>(authGateway);
     Get.put<SessionQueryGateway>(sessionGateway);
     Get.put<AppErrorController>(AppErrorController());
@@ -103,7 +113,6 @@ void main() {
     registerAuthModule();
 
     Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
-    Get.put<SkippedMessageRepository>(SkippedMessageRepository(prefs));
     Get.put<AuthStateGateway>(authGateway);
     Get.put<ConnectionStateGateway>(pipelineGateway);
     Get.put<MessageReadGateway>(pipelineGateway);
@@ -111,6 +120,19 @@ void main() {
     Get.put<ClassifyGateway>(pipelineGateway);
     Get.put<RecoveryGateway>(pipelineGateway);
     Get.put<TaggingGateway>(pipelineGateway);
+    Get.put<DownloadWorkbenchController>(
+      DownloadWorkbenchController(
+        sessions: sessionGateway,
+        settings: Get.find<PipelineSettingsReader>(),
+        sync: const NoopDownloadSyncPort(),
+      ),
+    );
+    Get.put<LoginAlertWorkbenchController>(
+      LoginAlertWorkbenchController(
+        updates: const Stream<Map<String, dynamic>>.empty(),
+        repository: LoginAlertRepository(prefs),
+      ),
+    );
     registerPipelineModule();
     registerTaggingModule();
 
@@ -141,8 +163,11 @@ void main() {
     final authGateway = _ModuleAuthGateway();
     final sessionGateway = _ModuleSessionGateway();
     final pipelineGateway = _ModulePipelineGateway();
+    final skippedRestoreRegistry = SkippedMessageRestoreRegistry();
 
     Get.put<SettingsRepository>(SettingsRepository(prefs));
+    Get.put<SkippedMessageRepository>(SkippedMessageRepository(prefs));
+    Get.put<SkippedMessageRestoreRegistry>(skippedRestoreRegistry);
     Get.put<AuthGateway>(authGateway);
     Get.put<SessionQueryGateway>(sessionGateway);
     Get.put<AppErrorController>(AppErrorController());
@@ -151,7 +176,6 @@ void main() {
     registerAuthModule();
 
     Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
-    Get.put<SkippedMessageRepository>(SkippedMessageRepository(prefs));
     Get.put<AuthStateGateway>(authGateway);
     Get.put<ConnectionStateGateway>(pipelineGateway);
     Get.put<MessageReadGateway>(pipelineGateway);
@@ -159,6 +183,19 @@ void main() {
     Get.put<ClassifyGateway>(pipelineGateway);
     Get.put<RecoveryGateway>(pipelineGateway);
     Get.put<TaggingGateway>(pipelineGateway);
+    Get.put<DownloadWorkbenchController>(
+      DownloadWorkbenchController(
+        sessions: sessionGateway,
+        settings: Get.find<PipelineSettingsReader>(),
+        sync: const NoopDownloadSyncPort(),
+      ),
+    );
+    Get.put<LoginAlertWorkbenchController>(
+      LoginAlertWorkbenchController(
+        updates: const Stream<Map<String, dynamic>>.empty(),
+        repository: LoginAlertRepository(prefs),
+      ),
+    );
     registerPipelineModule();
     registerTaggingModule();
 

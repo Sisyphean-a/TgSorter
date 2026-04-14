@@ -7,35 +7,9 @@ import 'package:tgsorter/app/features/pipeline/presentation/pipeline_mobile_view
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_recovery_panel.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_error_panel.dart';
-import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/widgets/pipeline_layout_switch.dart';
-
-class PipelinePage extends StatelessWidget {
-  const PipelinePage({
-    required this.pipeline,
-    required this.settings,
-    required this.errors,
-    super.key,
-  });
-
-  final PipelineCoordinator pipeline;
-  final PipelineSettingsReader settings;
-  final AppErrorController errors;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppShell(
-      appBar: PipelineCompactAppBar(pipeline: pipeline),
-      body: PipelineScreen(
-        pipeline: pipeline,
-        settings: settings,
-        errors: errors,
-      ),
-    );
-  }
-}
 
 class PipelineScreen extends StatelessWidget {
   const PipelineScreen({

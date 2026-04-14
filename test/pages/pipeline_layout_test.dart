@@ -24,6 +24,7 @@ import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 import 'package:tgsorter/app/widgets/pipeline_layout_switch.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
@@ -67,7 +68,7 @@ void main() {
     });
   });
 
-  group('PipelinePage desktop layout', () {
+  group('Pipeline screen desktop layout', () {
     late SettingsCoordinator settingsController;
     late PipelineCoordinator pipelineController;
     late AppErrorController errorController;
@@ -138,10 +139,13 @@ void main() {
       await tester.pumpWidget(
         GetMaterialApp(
           theme: AppTheme.light(),
-          home: PipelinePage(
-            pipeline: pipelineController,
-            settings: settingsController,
-            errors: errorController,
+          home: AppShell(
+            appBar: PipelineCompactAppBar(pipeline: pipelineController),
+            body: PipelineScreen(
+              pipeline: pipelineController,
+              settings: settingsController,
+              errors: errorController,
+            ),
           ),
         ),
       );
@@ -193,10 +197,13 @@ void main() {
       await tester.pumpWidget(
         GetMaterialApp(
           theme: AppTheme.dark(),
-          home: PipelinePage(
-            pipeline: pipelineController,
-            settings: settingsController,
-            errors: errorController,
+          home: AppShell(
+            appBar: PipelineCompactAppBar(pipeline: pipelineController),
+            body: PipelineScreen(
+              pipeline: pipelineController,
+              settings: settingsController,
+              errors: errorController,
+            ),
           ),
         ),
       );
@@ -218,72 +225,76 @@ void main() {
     });
   });
 
-  testWidgets('pipeline page keeps compact mobile header with remaining only', (
-    tester,
-  ) async {
-    Get.testMode = true;
-    Get.reset();
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final settingsGateway = _PipelineLayoutSettingsGateway();
-    final pipelineGateway = _PipelineLayoutFakeGateway();
-    final settingsController = SettingsCoordinator(
-      SettingsRepository(prefs),
-      settingsGateway,
-      auth: settingsGateway,
-    );
-    settingsController.onInit();
-    settingsController.settings.value = const AppSettings(
-      categories: [],
-      sourceChatId: 888,
-      fetchDirection: MessageFetchDirection.latestFirst,
-      forwardAsCopy: false,
-      batchSize: 2,
-      throttleMs: 0,
-      proxy: ProxySettings.empty,
-    );
-    final errorController = AppErrorController();
-    final pipelineController = PipelineCoordinator(
-      authStateGateway: pipelineGateway,
-      connectionStateGateway: pipelineGateway,
-      messageReadGateway: pipelineGateway,
-      mediaGateway: pipelineGateway,
-      classifyGateway: pipelineGateway,
-      recoveryGateway: pipelineGateway,
-      settingsReader: settingsController,
-      journalRepository: OperationJournalRepository(prefs),
-      errorController: errorController,
-    );
-    pipelineController.isOnline.value = false;
-    pipelineController.processing.value = false;
-    pipelineController.remainingCount.value = 32;
-    Get.put(settingsController);
-    Get.put(pipelineController);
-    Get.put(errorController);
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() {
-      tester.binding.setSurfaceSize(null);
+  testWidgets(
+    'pipeline screen keeps compact mobile header with remaining only',
+    (tester) async {
+      Get.testMode = true;
       Get.reset();
-    });
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final settingsGateway = _PipelineLayoutSettingsGateway();
+      final pipelineGateway = _PipelineLayoutFakeGateway();
+      final settingsController = SettingsCoordinator(
+        SettingsRepository(prefs),
+        settingsGateway,
+        auth: settingsGateway,
+      );
+      settingsController.onInit();
+      settingsController.settings.value = const AppSettings(
+        categories: [],
+        sourceChatId: 888,
+        fetchDirection: MessageFetchDirection.latestFirst,
+        forwardAsCopy: false,
+        batchSize: 2,
+        throttleMs: 0,
+        proxy: ProxySettings.empty,
+      );
+      final errorController = AppErrorController();
+      final pipelineController = PipelineCoordinator(
+        authStateGateway: pipelineGateway,
+        connectionStateGateway: pipelineGateway,
+        messageReadGateway: pipelineGateway,
+        mediaGateway: pipelineGateway,
+        classifyGateway: pipelineGateway,
+        recoveryGateway: pipelineGateway,
+        settingsReader: settingsController,
+        journalRepository: OperationJournalRepository(prefs),
+        errorController: errorController,
+      );
+      pipelineController.isOnline.value = false;
+      pipelineController.processing.value = false;
+      pipelineController.remainingCount.value = 32;
+      Get.put(settingsController);
+      Get.put(pipelineController);
+      Get.put(errorController);
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() {
+        tester.binding.setSurfaceSize(null);
+        Get.reset();
+      });
 
-    await tester.pumpWidget(
-      GetMaterialApp(
-        theme: AppTheme.dark(),
-        home: PipelinePage(
-          pipeline: pipelineController,
-          settings: settingsController,
-          errors: errorController,
+      await tester.pumpWidget(
+        GetMaterialApp(
+          theme: AppTheme.dark(),
+          home: AppShell(
+            appBar: PipelineCompactAppBar(pipeline: pipelineController),
+            body: PipelineScreen(
+              pipeline: pipelineController,
+              settings: settingsController,
+              errors: errorController,
+            ),
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('TgSorter'), findsOneWidget);
-    expect(find.text('剩余 32'), findsOneWidget);
-    expect(find.text('离线'), findsNothing);
-    expect(find.text('待命'), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.text('TgSorter'), findsOneWidget);
+      expect(find.text('剩余 32'), findsOneWidget);
+      expect(find.text('离线'), findsNothing);
+      expect(find.text('待命'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 class _PipelineLayoutSettingsGateway

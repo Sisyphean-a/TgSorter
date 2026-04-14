@@ -7,13 +7,18 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
+import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
+import 'package:tgsorter/app/features/settings/application/settings_page_draft_session.dart';
+import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
-import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_app_bar.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_screen.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 
@@ -323,10 +328,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(controller.savedSettings.value.downloadWorkbenchEnabled, isTrue);
-    expect(
-      controller.savedSettings.value.downloadDirectoryMode.name,
-      'flat',
-    );
+    expect(controller.savedSettings.value.downloadDirectoryMode.name, 'flat');
   });
 
   testWidgets('关于账号与会话页提供显式确认的退出登录', (tester) async {
@@ -466,6 +468,8 @@ Future<SettingsCoordinator> _pumpSettingsPage(
     auth: resolvedGateway,
     skippedMessageRepository: SkippedMessageRepository(prefs),
   );
+  final navigation = SettingsNavigationController();
+  final draftSession = SettingsPageDraftSession();
   controller.onInit();
   if (initialSettings != null) {
     controller.savedSettings.value = initialSettings;
@@ -478,11 +482,85 @@ Future<SettingsCoordinator> _pumpSettingsPage(
     GetMaterialApp(
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      home: SettingsPage(controller: controller),
+      home: _SettingsTestShell(
+        controller: controller,
+        navigation: navigation,
+        draftSession: draftSession,
+      ),
     ),
   );
   await tester.pumpAndSettle();
   return controller;
+}
+
+class _SettingsTestShell extends StatelessWidget {
+  const _SettingsTestShell({
+    required this.controller,
+    required this.navigation,
+    required this.draftSession,
+  });
+
+  final SettingsCoordinator controller;
+  final SettingsNavigationController navigation;
+  final SettingsPageDraftSession draftSession;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppShell(
+      appBar: SettingsAppBar(
+        draftSession: draftSession,
+        isSaving: controller.isSaving,
+        navigation: navigation,
+        onSave: () => _handleSave(context),
+      ),
+      body: SettingsScreen(
+        controller: controller,
+        navigation: navigation,
+        draftSession: draftSession,
+      ),
+    );
+  }
+
+  Future<void> _handleSave(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (controller.isSaving.value) {
+      return;
+    }
+    if (draftSession.hasValidationErrors.value) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('请先修正输入错误')));
+      return;
+    }
+    try {
+      final result = await controller.savePageDraft(
+        draftSession.draftSettings.value,
+      );
+      draftSession.markSaved(controller.savedSettings.value);
+      if (!context.mounted) {
+        return;
+      }
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(content: Text(_saveMessage(result))));
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('保存失败：$error')));
+    }
+  }
+
+  String _saveMessage(SettingsSaveResult result) {
+    switch (result) {
+      case SettingsSaveResult.saved:
+      case SettingsSaveResult.savedAndRestarted:
+        return '设置已保存';
+      case SettingsSaveResult.savedNeedsRestartAttention:
+        return '设置已保存，但重启失败，请稍后手动重试。';
+    }
+  }
 }
 
 class _SettingsPageFakeGateway implements AuthGateway, SessionQueryGateway {

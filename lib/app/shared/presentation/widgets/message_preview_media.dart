@@ -114,16 +114,6 @@ class MessagePreviewMedia extends StatelessWidget {
         onRetry: () => onRequestPlayback(item.messageId),
       );
     }
-    if (!_hasPhotoReadyPath(item)) {
-      return _PhotoStatusTile(
-        item: item,
-        text: _preparing(item.messageId) ? '图片下载中...' : _imageFallbackText,
-        preparing: _preparing(item.messageId),
-        onRetry: _preparing(item.messageId)
-            ? null
-            : () => onRequestPlayback(item.messageId),
-      );
-    }
     return MessagePreviewImageGallery(
       items: photoItems,
       initialIndex: initialIndex < 0 ? 0 : initialIndex,
@@ -209,11 +199,6 @@ class MessagePreviewMedia extends StatelessWidget {
 
   bool _preparing(int? messageId) {
     return isMediaPreparing?.call(messageId) ?? preparing;
-  }
-
-  bool _hasPhotoReadyPath(MediaItemPreview item) {
-    final path = item.previewPath ?? item.fullPath;
-    return path != null && path.isNotEmpty;
   }
 }
 

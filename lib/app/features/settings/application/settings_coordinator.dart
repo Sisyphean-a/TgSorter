@@ -256,47 +256,6 @@ class SettingsCoordinator extends GetxController
 
   void discardDraft() => _draftCoordinator.discard();
 
-  Future<void> addCategory(SelectableChat chat) async {
-    addCategoryDraft(chat);
-    await saveDraft();
-  }
-
-  Future<void> updateCategoryTarget({
-    required String key,
-    required SelectableChat chat,
-  }) async {
-    updateCategoryDraft(key: key, chat: chat);
-    await saveDraft();
-  }
-
-  Future<void> removeCategory(String key) async {
-    removeCategoryDraft(key);
-    await saveDraft();
-  }
-
-  Future<void> saveSourceChat(int? sourceChatId) async {
-    updateSourceChatDraft(sourceChatId);
-    await saveDraft();
-  }
-
-  Future<void> saveFetchDirection(MessageFetchDirection direction) async {
-    updateFetchDirectionDraft(direction);
-    await saveDraft();
-  }
-
-  Future<void> saveForwardAsCopy(bool value) async {
-    updateForwardAsCopyDraft(value);
-    await saveDraft();
-  }
-
-  Future<void> saveBatchOptions({
-    required int batchSize,
-    required int throttleMs,
-  }) async {
-    updateBatchOptionsDraft(batchSize: batchSize, throttleMs: throttleMs);
-    await saveDraft();
-  }
-
   @override
   Future<void> saveProxySettings({
     required String server,
@@ -312,20 +271,6 @@ class SettingsCoordinator extends GetxController
       password: password,
     );
     await saveDraft(restartOnProxyChange: restart);
-  }
-
-  Future<void> saveShortcutBinding({
-    required ShortcutAction action,
-    required ShortcutTrigger trigger,
-    required bool ctrl,
-  }) async {
-    updateShortcutDraft(action: action, trigger: trigger, ctrl: ctrl);
-    await saveDraft();
-  }
-
-  Future<void> resetShortcutDefaults() async {
-    resetShortcutDefaultsDraft();
-    await saveDraft();
   }
 
   Future<void> logout() async {

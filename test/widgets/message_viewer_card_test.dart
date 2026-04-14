@@ -132,7 +132,7 @@ void main() {
       ),
     );
 
-    expect(find.text('视频下载中...'), findsOneWidget);
+    expect(find.text('后台准备中，待本地文件完成后自动起播'), findsOneWidget);
     final playButton = tester.widget<IconButton>(
       find.byKey(const Key('message-video-play')),
     );
@@ -769,65 +769,66 @@ void main() {
     );
   });
 
-  testWidgets('photo group renders telegram mosaic tiles instead of single image', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData.dark(),
-        home: Scaffold(
-          body: MessageViewerCard(
-            message: PipelineMessage(
-              id: 101,
-              messageIds: const [101, 102, 103],
-              sourceChatId: 100,
-              preview: MessagePreview(
-                kind: MessagePreviewKind.photo,
-                title: '图片组 (3 张)',
-                mediaItems: const [
-                  MediaItemPreview(
-                    messageId: 101,
-                    kind: MediaItemKind.photo,
-                    previewPath: null,
-                    fullPath: null,
-                  ),
-                  MediaItemPreview(
-                    messageId: 102,
-                    kind: MediaItemKind.photo,
-                    previewPath: null,
-                    fullPath: null,
-                  ),
-                  MediaItemPreview(
-                    messageId: 103,
-                    kind: MediaItemKind.photo,
-                    previewPath: null,
-                    fullPath: null,
-                  ),
-                ],
+  testWidgets(
+    'photo group renders telegram mosaic tiles instead of single image',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: Scaffold(
+            body: MessageViewerCard(
+              message: PipelineMessage(
+                id: 101,
+                messageIds: const [101, 102, 103],
+                sourceChatId: 100,
+                preview: MessagePreview(
+                  kind: MessagePreviewKind.photo,
+                  title: '图片组 (3 张)',
+                  mediaItems: const [
+                    MediaItemPreview(
+                      messageId: 101,
+                      kind: MediaItemKind.photo,
+                      previewPath: null,
+                      fullPath: null,
+                    ),
+                    MediaItemPreview(
+                      messageId: 102,
+                      kind: MediaItemKind.photo,
+                      previewPath: null,
+                      fullPath: null,
+                    ),
+                    MediaItemPreview(
+                      messageId: 103,
+                      kind: MediaItemKind.photo,
+                      previewPath: null,
+                      fullPath: null,
+                    ),
+                  ],
+                ),
               ),
+              processing: false,
+              videoPreparing: false,
+              onRequestMediaPlayback: ([messageId]) async {},
             ),
-            processing: false,
-            videoPreparing: false,
-            onRequestMediaPlayback: ([messageId]) async {},
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.byType(PageView), findsNothing);
-    expect(
-      find.byKey(const ValueKey('message-preview-media-tile-101')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('message-preview-media-tile-102')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('message-preview-media-tile-103')),
-      findsOneWidget,
-    );
-  });
+      expect(find.byType(PageView), findsNothing);
+      expect(
+        find.byKey(const ValueKey('message-preview-media-tile-101')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('message-preview-media-tile-102')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('message-preview-media-tile-103')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('grouped video preparing spinner is scoped to selected item', (
     tester,
