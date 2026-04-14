@@ -91,7 +91,7 @@ class PipelineFeedController {
     if (_shouldAppendMoreMessages()) {
       await appendMoreMessages();
     }
-    await prepareUpcomingPreviews();
+    _startBackgroundPreviewPrefetch();
   }
 
   Future<void> ensureVisibleMessage() async {
@@ -134,35 +134,66 @@ class PipelineFeedController {
     if (prefetchCount <= 0 || _currentIndex < 0) {
       return;
     }
+    final backgroundConcurrency = math.max(
+      1,
+      _settings.currentSettings.mediaBackgroundDownloadConcurrency,
+    );
     final session = _feedSession;
     final start = _currentIndex + 1;
     final end = math.min(_messageCache.length, start + prefetchCount);
     final items = _messageCache.sublist(start, end).toList(growable: false);
-    for (final item in items) {
-      if (session != _feedSession) {
-        return;
-      }
-      for (final messageId in item.messageIds) {
+    if (items.isEmpty) {
+      return;
+    }
+
+    var nextIndex = 0;
+    Object? firstError;
+
+    Future<void> worker() async {
+      while (nextIndex < items.length) {
         if (session != _feedSession) {
           return;
         }
-        if (!_previewPreparedMessageIds.add(messageId)) {
-          continue;
+        if (firstError != null) {
+          return;
         }
-        try {
-          await _media.prepareMediaPreview(
-            sourceChatId: item.sourceChatId,
-            messageId: messageId,
-          );
+        final item = items[nextIndex++];
+        for (final messageId in item.messageIds) {
           if (session != _feedSession) {
-            _previewPreparedMessageIds.remove(messageId);
             return;
           }
-        } catch (_) {
-          _previewPreparedMessageIds.remove(messageId);
-          rethrow;
+          if (firstError != null) {
+            return;
+          }
+          if (!_previewPreparedMessageIds.add(messageId)) {
+            continue;
+          }
+          try {
+            await _media.prepareMediaPreview(
+              sourceChatId: item.sourceChatId,
+              messageId: messageId,
+            );
+            if (session != _feedSession) {
+              _previewPreparedMessageIds.remove(messageId);
+              return;
+            }
+          } catch (error) {
+            _previewPreparedMessageIds.remove(messageId);
+            firstError ??= error;
+            return;
+          }
         }
       }
+    }
+
+    await Future.wait(
+      List<Future<void>>.generate(
+        math.min(backgroundConcurrency, items.length),
+        (_) => worker(),
+      ),
+    );
+    if (firstError != null) {
+      throw firstError!;
     }
   }
 

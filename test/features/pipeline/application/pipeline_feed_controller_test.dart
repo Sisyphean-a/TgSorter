@@ -119,11 +119,54 @@ void main() {
   );
 
   test(
-    'prepareUpcomingPreviews stops stale work after pipeline reset',
+    'ensureVisibleMessage waits for current refresh but leaves upcoming prefetch in background',
     () async {
       final state = PipelineRuntimeState();
       final navigation = PipelineNavigationService(state: state);
       final media = _BlockingMediaGateway();
+      final refreshStarted = Completer<void>();
+      final releaseRefresh = Completer<void>();
+      final controller = PipelineFeedController(
+        state: state,
+        navigation: navigation,
+        messages: _FakeMessageReadGateway(),
+        media: media,
+        settings: _FakeSettingsReader(),
+        remainingCount: _FakeRemainingCountService(),
+        reportGeneralError: (_) {},
+        refreshCurrentMediaIfNeeded: () async {
+          if (!refreshStarted.isCompleted) {
+            refreshStarted.complete();
+          }
+          await releaseRefresh.future;
+        },
+      );
+      navigation.replaceMessages(<PipelineMessage>[
+        _message(1, 'first'),
+        _message(2, 'second'),
+        _message(3, 'third'),
+      ]);
+
+      final ensureTask = controller.ensureVisibleMessage();
+      await refreshStarted.future;
+      await Future<void>.delayed(Duration.zero);
+      expect(media.prepareCalls, isEmpty);
+
+      releaseRefresh.complete();
+      await media.firstPrepareStarted.future;
+      await expectLater(ensureTask, completes);
+
+      expect(media.prepareCalls, [2, 3]);
+      media.releaseFirstPrepare();
+    },
+  );
+
+  test(
+    'prepareUpcomingPreviews respects background concurrency and stops stale work after reset',
+    () async {
+      final state = PipelineRuntimeState();
+      final navigation = PipelineNavigationService(state: state);
+      final media = _ConcurrentBlockingMediaGateway();
       final controller = PipelineFeedController(
         state: state,
         navigation: navigation,
@@ -140,12 +183,14 @@ void main() {
       ]);
 
       final preparing = controller.prepareUpcomingPreviews();
-      await media.firstPrepareStarted.future;
+      await Future<void>.delayed(Duration.zero);
+      expect(media.prepareCalls, [2, 3]);
+      expect(media.maxActive, 2);
       controller.reset();
-      media.releaseFirstPrepare();
+      media.releaseAll();
 
       await expectLater(preparing, completes);
-      expect(media.prepareCalls, [2]);
+      expect(media.prepareCalls, [2, 3]);
     },
   );
 }
@@ -318,6 +363,36 @@ class _BlockingMediaGateway extends _FakeMediaGateway {
   void releaseFirstPrepare() {
     if (!_releaseFirstPrepare.isCompleted) {
       _releaseFirstPrepare.complete();
+    }
+  }
+}
+
+class _ConcurrentBlockingMediaGateway extends _FakeMediaGateway {
+  final List<int> prepareCalls = <int>[];
+  final Map<int, Completer<void>> _releases = <int, Completer<void>>{};
+  int _activeCount = 0;
+  int maxActive = 0;
+
+  @override
+  Future<void> prepareMediaPreview({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    prepareCalls.add(messageId);
+    _activeCount++;
+    if (_activeCount > maxActive) {
+      maxActive = _activeCount;
+    }
+    final release = _releases.putIfAbsent(messageId, Completer<void>.new);
+    await release.future;
+    _activeCount--;
+  }
+
+  void releaseAll() {
+    for (final completer in _releases.values) {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
     }
   }
 }
