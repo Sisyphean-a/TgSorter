@@ -34,9 +34,7 @@ class SettingsCoordinator extends GetxController
     SkippedMessageRepository? skippedMessageRepository,
     SkippedMessageRestoreRegistry? skippedRestoreRegistry,
     List<SkippedMessageRestorePort>? skippedRestoreTargets,
-  }) : _repository = repository,
-       _sessions = sessions,
-       _auth = auth,
+  }) : _auth = auth,
        _draftCoordinator =
            draftCoordinator ?? SettingsDraftCoordinator(AppSettings.defaults()),
        _persistence = persistence ?? SettingsPersistenceService(repository),
@@ -49,8 +47,6 @@ class SettingsCoordinator extends GetxController
        _skippedRestoreRegistry = skippedRestoreRegistry,
        _skippedRestoreTargets = skippedRestoreTargets;
 
-  final SettingsRepository _repository;
-  final SessionQueryGateway _sessions;
   final AuthGateway? _auth;
   final SettingsDraftCoordinator _draftCoordinator;
   final SettingsPersistenceService _persistence;
@@ -68,9 +64,6 @@ class SettingsCoordinator extends GetxController
   final chatsError = RxnString();
   final skippedMessageSummaryState = const SkippedMessageSummary.empty().obs;
 
-  SettingsRepository get repository => _repository;
-  SessionQueryGateway get sessions => _sessions;
-  Rx<AppSettings> get settings => savedSettings;
   Rx<AppSettings> get savedSettings => _draftCoordinator.saved;
   RxBool get isSaving => saveState;
   RxList<SelectableChat> get chats => chatsState;

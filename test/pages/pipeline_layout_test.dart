@@ -239,7 +239,7 @@ void main() {
         auth: settingsGateway,
       );
       settingsController.onInit();
-      settingsController.settings.value = const AppSettings(
+      settingsController.savedSettings.value = const AppSettings(
         categories: [],
         sourceChatId: 888,
         fetchDirection: MessageFetchDirection.latestFirst,

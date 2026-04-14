@@ -43,7 +43,7 @@ void main() {
       auth: settingsGateway,
     );
     settingsController.onInit();
-    settingsController.settings.value = const AppSettings(
+    settingsController.savedSettings.value = const AppSettings(
       categories: [
         CategoryConfig(key: 'a', targetChatId: 10001, targetChatTitle: '分类一'),
       ],
@@ -123,7 +123,7 @@ void main() {
         auth: settingsGateway,
       );
       settingsController.onInit();
-      settingsController.settings.value = const AppSettings(
+      settingsController.savedSettings.value = const AppSettings(
         categories: [
           CategoryConfig(key: 'a', targetChatId: 10001, targetChatTitle: '星空'),
           CategoryConfig(
@@ -258,7 +258,7 @@ void main() {
         auth: settingsGateway,
       );
       settingsController.onInit();
-      settingsController.settings.value = const AppSettings(
+      settingsController.savedSettings.value = const AppSettings(
         categories: [
           CategoryConfig(key: 'a', targetChatId: 1, targetChatTitle: '星空'),
           CategoryConfig(key: 'b', targetChatId: 2, targetChatTitle: 'mi_ASMR'),

@@ -53,7 +53,7 @@ void main() {
       auth: settingsGateway,
     );
     settingsController.onInit();
-    settingsController.settings.value = const AppSettings(
+    settingsController.savedSettings.value = const AppSettings(
       categories: [
         CategoryConfig(key: 'a', targetChatId: 1001, targetChatTitle: '收纳'),
       ],
@@ -177,7 +177,7 @@ void main() {
         auth: settingsGateway,
       );
       settingsController.onInit();
-      settingsController.settings.value = const AppSettings(
+      settingsController.savedSettings.value = const AppSettings(
         categories: [
           CategoryConfig(key: 'a', targetChatId: 1001, targetChatTitle: '收纳'),
         ],
@@ -269,7 +269,7 @@ void main() {
       auth: settingsGateway,
     );
     settingsController.onInit();
-    settingsController.settings.value = const AppSettings(
+    settingsController.savedSettings.value = const AppSettings(
       categories: [
         CategoryConfig(key: 'a', targetChatId: 1001, targetChatTitle: '收纳'),
       ],
@@ -552,7 +552,7 @@ void main() {
       skippedMessageRepository: skippedRepository,
     );
     settingsController.onInit();
-    settingsController.settings.value = const AppSettings(
+    settingsController.savedSettings.value = const AppSettings(
       categories: [
         CategoryConfig(key: 'a', targetChatId: 1001, targetChatTitle: '收纳'),
       ],
