@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
+const double _settingsTileHorizontalPadding = 16;
+const double _settingsTileValueGap = 12;
+const double _settingsTileIndicatorGap = 8;
+const double _settingsTileChevronWidth = 24;
+const double _settingsTileSwitchWidth = 56;
+const double _settingsTileValueWidthFactor = 0.42;
+const double _settingsTileValueMaxWidth = 220;
+
 class SettingsNavigationTile extends StatelessWidget {
   const SettingsNavigationTile({
     required this.icon,
@@ -100,57 +108,77 @@ class SettingsValueTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: titleColor,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: palette.textMuted,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (value != null) ...[
-                const SizedBox(width: 12),
-                Flexible(
-                  child: Text(
-                    value!,
-                    maxLines: 2,
-                    textAlign: TextAlign.end,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: valueColor,
+          padding: const EdgeInsets.symmetric(
+            horizontal: _settingsTileHorizontalPadding,
+            vertical: 14,
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final indicatorWidth = trailing != null
+                  ? _settingsTileSwitchWidth
+                  : onTap != null
+                  ? _settingsTileChevronWidth
+                  : 0.0;
+              final valueWidth = value == null
+                  ? 0.0
+                  : _resolveValueWidth(
+                      maxWidth: constraints.maxWidth,
+                      indicatorWidth: indicatorWidth,
+                    );
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: _SettingsTileTextBlock(
+                      title: title,
+                      subtitle: subtitle,
+                      titleColor: titleColor,
                     ),
                   ),
-                ),
-              ],
-              if (trailing != null) ...[
-                const SizedBox(width: 12),
-                trailing!,
-              ] else if (onTap != null) ...[
-                const SizedBox(width: 8),
-                Icon(Icons.chevron_right_rounded, color: palette.textMuted),
-              ],
-            ],
+                  if (value != null) ...[
+                    const SizedBox(width: _settingsTileValueGap),
+                    SizedBox(
+                      width: valueWidth,
+                      child: Text(
+                        value!,
+                        maxLines: 1,
+                        textAlign: TextAlign.end,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: valueColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (trailing != null) ...[
+                    const SizedBox(width: _settingsTileValueGap),
+                    SizedBox(
+                      width: _settingsTileSwitchWidth,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: trailing!,
+                      ),
+                    ),
+                  ] else if (onTap != null) ...[
+                    const SizedBox(width: _settingsTileIndicatorGap),
+                    const _SettingsTileChevron(),
+                  ],
+                ],
+              );
+            },
           ),
         ),
       ),
     );
+  }
+
+  double _resolveValueWidth({
+    required double maxWidth,
+    required double indicatorWidth,
+  }) {
+    final available = maxWidth - indicatorWidth - _settingsTileValueGap;
+    final proportional = available * _settingsTileValueWidthFactor;
+    return proportional.clamp(96.0, _settingsTileValueMaxWidth);
   }
 }
 
@@ -174,34 +202,34 @@ class SettingsSwitchTile extends StatelessWidget {
     return Material(
       color: palette.settingsSurface,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: _settingsTileHorizontalPadding,
+          vertical: 12,
+        ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: palette.textMuted,
-                      ),
-                    ),
-                  ],
-                ],
+              child: _SettingsTileTextBlock(
+                title: title,
+                subtitle: subtitle,
+                titleColor: palette.textPrimary,
               ),
             ),
-            const SizedBox(width: 12),
-            Switch(
-              value: value,
-              activeThumbColor: Colors.white,
-              activeTrackColor: palette.settingsValue,
-              inactiveThumbColor: Colors.white,
-              inactiveTrackColor: palette.textMuted.withAlpha(110),
-              onChanged: onChanged,
+            const SizedBox(width: _settingsTileValueGap),
+            SizedBox(
+              width: _settingsTileSwitchWidth,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Switch(
+                  value: value,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: palette.settingsValue,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: palette.textMuted.withAlpha(110),
+                  onChanged: onChanged,
+                ),
+              ),
             ),
           ],
         ),
@@ -253,7 +281,7 @@ class SettingsSectionBlock extends StatelessWidget {
             children[index],
             if (index < children.length - 1)
               Padding(
-                padding: const EdgeInsets.only(left: 16),
+                padding: const EdgeInsets.only(left: _settingsTileHorizontalPadding),
                 child: Divider(
                   height: 1,
                   thickness: 1,
@@ -262,6 +290,60 @@ class SettingsSectionBlock extends StatelessWidget {
               ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _SettingsTileTextBlock extends StatelessWidget {
+  const _SettingsTileTextBlock({
+    required this.title,
+    required this.subtitle,
+    required this.titleColor,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Color titleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppTokens.colorsOf(context);
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.bodyLarge?.copyWith(color: titleColor),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle!,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.bodySmall?.copyWith(color: palette.textMuted),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _SettingsTileChevron extends StatelessWidget {
+  const _SettingsTileChevron();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppTokens.colorsOf(context);
+    return SizedBox(
+      width: _settingsTileChevronWidth,
+      child: Icon(
+        Icons.chevron_right_rounded,
+        color: palette.textMuted,
       ),
     );
   }
