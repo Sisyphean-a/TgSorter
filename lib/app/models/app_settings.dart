@@ -1,5 +1,6 @@
 import 'package:tgsorter/app/features/settings/domain/common_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/connection_settings.dart';
+import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/forwarding_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/shortcut_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/tagging_settings.dart';
@@ -29,6 +30,12 @@ class AppSettings {
     required this.batchSize,
     required this.throttleMs,
     required this.proxy,
+    this.downloadWorkbenchEnabled = false,
+    this.downloadSkipExistingFiles = true,
+    this.downloadSyncDeletedFiles = false,
+    this.downloadConflictStrategy = DownloadConflictStrategy.rename,
+    this.downloadMediaFilter = DownloadMediaFilter.all,
+    this.downloadDirectoryMode = DownloadDirectoryMode.byChat,
     this.mediaBackgroundDownloadConcurrency =
         defaultMediaBackgroundDownloadConcurrency,
     this.mediaRetryLimit = defaultMediaRetryLimit,
@@ -48,6 +55,12 @@ class AppSettings {
   final int batchSize;
   final int throttleMs;
   final ProxySettings proxy;
+  final bool downloadWorkbenchEnabled;
+  final bool downloadSkipExistingFiles;
+  final bool downloadSyncDeletedFiles;
+  final DownloadConflictStrategy downloadConflictStrategy;
+  final DownloadMediaFilter downloadMediaFilter;
+  final DownloadDirectoryMode downloadDirectoryMode;
   final int mediaBackgroundDownloadConcurrency;
   final int mediaRetryLimit;
   final int mediaRetryDelayMs;
@@ -95,6 +108,15 @@ class AppSettings {
   CommonSettings get common =>
       CommonSettings(themeMode: themeMode, defaultWorkbench: defaultWorkbench);
 
+  DownloadSettings get download => DownloadSettings(
+    workbenchEnabled: downloadWorkbenchEnabled,
+    skipExistingFiles: downloadSkipExistingFiles,
+    syncDeletedFiles: downloadSyncDeletedFiles,
+    conflictStrategy: downloadConflictStrategy,
+    mediaFilter: downloadMediaFilter,
+    directoryMode: downloadDirectoryMode,
+  );
+
   static AppSettings defaults() {
     return const AppSettings(
       categories: [],
@@ -104,6 +126,12 @@ class AppSettings {
       batchSize: 5,
       throttleMs: 1200,
       proxy: ProxySettings.empty,
+      downloadWorkbenchEnabled: false,
+      downloadSkipExistingFiles: true,
+      downloadSyncDeletedFiles: false,
+      downloadConflictStrategy: DownloadConflictStrategy.rename,
+      downloadMediaFilter: DownloadMediaFilter.all,
+      downloadDirectoryMode: DownloadDirectoryMode.byChat,
       mediaBackgroundDownloadConcurrency:
           defaultMediaBackgroundDownloadConcurrency,
       mediaRetryLimit: defaultMediaRetryLimit,
@@ -154,6 +182,12 @@ class AppSettings {
     int? batchSize,
     int? throttleMs,
     ProxySettings? proxy,
+    bool? downloadWorkbenchEnabled,
+    bool? downloadSkipExistingFiles,
+    bool? downloadSyncDeletedFiles,
+    DownloadConflictStrategy? downloadConflictStrategy,
+    DownloadMediaFilter? downloadMediaFilter,
+    DownloadDirectoryMode? downloadDirectoryMode,
     int? mediaBackgroundDownloadConcurrency,
     int? mediaRetryLimit,
     int? mediaRetryDelayMs,
@@ -175,6 +209,17 @@ class AppSettings {
       batchSize: batchSize ?? this.batchSize,
       throttleMs: throttleMs ?? this.throttleMs,
       proxy: proxy ?? this.proxy,
+      downloadWorkbenchEnabled:
+          downloadWorkbenchEnabled ?? this.downloadWorkbenchEnabled,
+      downloadSkipExistingFiles:
+          downloadSkipExistingFiles ?? this.downloadSkipExistingFiles,
+      downloadSyncDeletedFiles:
+          downloadSyncDeletedFiles ?? this.downloadSyncDeletedFiles,
+      downloadConflictStrategy:
+          downloadConflictStrategy ?? this.downloadConflictStrategy,
+      downloadMediaFilter: downloadMediaFilter ?? this.downloadMediaFilter,
+      downloadDirectoryMode:
+          downloadDirectoryMode ?? this.downloadDirectoryMode,
       mediaBackgroundDownloadConcurrency:
           mediaBackgroundDownloadConcurrency ??
           this.mediaBackgroundDownloadConcurrency,
@@ -237,6 +282,24 @@ class AppSettings {
     );
   }
 
+  AppSettings updateDownloadSettings({
+    required bool workbenchEnabled,
+    required bool skipExistingFiles,
+    required bool syncDeletedFiles,
+    required DownloadConflictStrategy conflictStrategy,
+    required DownloadMediaFilter mediaFilter,
+    required DownloadDirectoryMode directoryMode,
+  }) {
+    return copyWith(
+      downloadWorkbenchEnabled: workbenchEnabled,
+      downloadSkipExistingFiles: skipExistingFiles,
+      downloadSyncDeletedFiles: syncDeletedFiles,
+      downloadConflictStrategy: conflictStrategy,
+      downloadMediaFilter: mediaFilter,
+      downloadDirectoryMode: directoryMode,
+    );
+  }
+
   AppSettings updatePreviewPrefetchCount(int value) {
     return copyWith(previewPrefetchCount: value);
   }
@@ -273,6 +336,12 @@ class AppSettings {
             batchSize == other.batchSize &&
             throttleMs == other.throttleMs &&
             proxy == other.proxy &&
+            downloadWorkbenchEnabled == other.downloadWorkbenchEnabled &&
+            downloadSkipExistingFiles == other.downloadSkipExistingFiles &&
+            downloadSyncDeletedFiles == other.downloadSyncDeletedFiles &&
+            downloadConflictStrategy == other.downloadConflictStrategy &&
+            downloadMediaFilter == other.downloadMediaFilter &&
+            downloadDirectoryMode == other.downloadDirectoryMode &&
             mediaBackgroundDownloadConcurrency ==
                 other.mediaBackgroundDownloadConcurrency &&
             mediaRetryLimit == other.mediaRetryLimit &&
@@ -287,7 +356,7 @@ class AppSettings {
 
   @override
   int get hashCode {
-    return Object.hash(
+    return Object.hashAll([
       Object.hashAll(categories),
       sourceChatId,
       fetchDirection,
@@ -295,6 +364,12 @@ class AppSettings {
       batchSize,
       throttleMs,
       proxy,
+      downloadWorkbenchEnabled,
+      downloadSkipExistingFiles,
+      downloadSyncDeletedFiles,
+      downloadConflictStrategy,
+      downloadMediaFilter,
+      downloadDirectoryMode,
       mediaBackgroundDownloadConcurrency,
       mediaRetryLimit,
       mediaRetryDelayMs,
@@ -304,7 +379,7 @@ class AppSettings {
       Object.hashAll(tagGroups),
       previewPrefetchCount,
       Object.hashAll(shortcutBindings.entries),
-    );
+    ]);
   }
 
   bool _listEquals<T>(List<T> left, List<T> right) {

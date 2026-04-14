@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 enum SettingsRoute {
   home,
   common,
+  downloads,
   forwarding,
   tagging,
   connection,
@@ -18,6 +19,8 @@ extension SettingsRoutePresentation on SettingsRoute {
         return '设置';
       case SettingsRoute.common:
         return '通用';
+      case SettingsRoute.downloads:
+        return '下载';
       case SettingsRoute.forwarding:
         return '转发';
       case SettingsRoute.tagging:

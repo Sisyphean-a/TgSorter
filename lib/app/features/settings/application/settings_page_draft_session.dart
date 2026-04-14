@@ -3,6 +3,7 @@ import 'package:tgsorter/app/features/settings/application/category_settings_ser
 import 'package:tgsorter/app/features/settings/application/connection_settings_service.dart';
 import 'package:tgsorter/app/features/settings/application/settings_input_validator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
+import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/features/settings/application/shortcut_settings_service.dart';
 import 'package:tgsorter/app/features/settings/application/tag_settings_service.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
@@ -135,6 +136,30 @@ class SettingsPageDraftSession {
 
   void updateDefaultWorkbench(AppDefaultWorkbench value) {
     _update(draftSettings.value.updateDefaultWorkbench(value));
+  }
+
+  void updateDownloadWorkbenchEnabled(bool value) {
+    _update(draftSettings.value.copyWith(downloadWorkbenchEnabled: value));
+  }
+
+  void updateDownloadSkipExistingFiles(bool value) {
+    _update(draftSettings.value.copyWith(downloadSkipExistingFiles: value));
+  }
+
+  void updateDownloadSyncDeletedFiles(bool value) {
+    _update(draftSettings.value.copyWith(downloadSyncDeletedFiles: value));
+  }
+
+  void updateDownloadConflictStrategy(DownloadConflictStrategy value) {
+    _update(draftSettings.value.copyWith(downloadConflictStrategy: value));
+  }
+
+  void updateDownloadMediaFilter(DownloadMediaFilter value) {
+    _update(draftSettings.value.copyWith(downloadMediaFilter: value));
+  }
+
+  void updateDownloadDirectoryMode(DownloadDirectoryMode value) {
+    _update(draftSettings.value.copyWith(downloadDirectoryMode: value));
   }
 
   void addCategory(SelectableChat chat) {

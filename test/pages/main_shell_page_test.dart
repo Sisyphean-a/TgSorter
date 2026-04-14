@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
@@ -20,6 +21,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
+import 'package:tgsorter/app/services/download_sync_service.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -88,6 +90,11 @@ void main() {
       settingsReader: settingsController,
       errorController: errors,
     );
+    final downloads = DownloadWorkbenchController(
+      sessions: settingsGateway,
+      settings: settingsController,
+      sync: const NoopDownloadSyncPort(),
+    )..onInit();
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -95,6 +102,7 @@ void main() {
         home: MainShellPage(
           pipeline: pipeline,
           tagging: tagging,
+          downloads: downloads,
           pipelineSettings: settingsController,
           errors: errors,
           settings: settingsController,
@@ -114,6 +122,7 @@ void main() {
     expect(drawerSubtitle.style?.color, const Color(0xFF74808B));
     expect(find.text('转发工作台'), findsOneWidget);
     expect(find.text('标签工作台'), findsOneWidget);
+    expect(find.text('下载工作台'), findsNothing);
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('日志'), findsOneWidget);
 
@@ -199,6 +208,11 @@ void main() {
         settingsReader: settingsController,
         errorController: errors,
       );
+      final downloads = DownloadWorkbenchController(
+        sessions: settingsGateway,
+        settings: settingsController,
+        sync: const NoopDownloadSyncPort(),
+      )..onInit();
 
       await tester.pumpWidget(
         GetMaterialApp(
@@ -206,6 +220,7 @@ void main() {
           home: MainShellPage(
             pipeline: pipeline,
             tagging: tagging,
+            downloads: downloads,
             pipelineSettings: settingsController,
             errors: errors,
             settings: settingsController,
@@ -219,6 +234,84 @@ void main() {
       expect(find.text('待分类消息'), findsNothing);
     },
   );
+
+  testWidgets('main shell shows download destination when enabled', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.testMode = true;
+    Get.reset();
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final settingsGateway = _ShellSettingsGateway();
+    final pipelineGateway = _ShellPipelineGateway();
+    final settingsController = SettingsCoordinator(
+      SettingsRepository(prefs),
+      settingsGateway,
+      auth: settingsGateway,
+    );
+    settingsController.onInit();
+    settingsController.settings.value = const AppSettings(
+      categories: [
+        CategoryConfig(key: 'a', targetChatId: 1001, targetChatTitle: '收纳'),
+      ],
+      sourceChatId: 888,
+      fetchDirection: MessageFetchDirection.latestFirst,
+      forwardAsCopy: false,
+      batchSize: 2,
+      throttleMs: 0,
+      proxy: ProxySettings.empty,
+      downloadWorkbenchEnabled: true,
+    );
+    final errors = AppErrorController();
+    final pipeline = PipelineCoordinator(
+      authStateGateway: pipelineGateway,
+      connectionStateGateway: pipelineGateway,
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      classifyGateway: pipelineGateway,
+      recoveryGateway: pipelineGateway,
+      settingsReader: settingsController,
+      journalRepository: OperationJournalRepository(prefs),
+      errorController: errors,
+    );
+    final tagging = TaggingCoordinator(
+      authStateGateway: pipelineGateway,
+      connectionStateGateway: pipelineGateway,
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      taggingGateway: pipelineGateway,
+      settingsReader: settingsController,
+      errorController: errors,
+    );
+    final downloads = DownloadWorkbenchController(
+      sessions: settingsGateway,
+      settings: settingsController,
+      sync: const NoopDownloadSyncPort(),
+    )..onInit();
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        theme: AppTheme.light(),
+        home: MainShellPage(
+          pipeline: pipeline,
+          tagging: tagging,
+          downloads: downloads,
+          pipelineSettings: settingsController,
+          errors: errors,
+          settings: settingsController,
+          pipelineLogs: pipeline,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('打开导航'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('下载工作台'), findsOneWidget);
+  });
 
   testWidgets(
     'mobile settings proxy edit and save does not trigger framework exceptions',
@@ -258,6 +351,11 @@ void main() {
         settingsReader: settingsController,
         errorController: errors,
       );
+      final downloads = DownloadWorkbenchController(
+        sessions: settingsGateway,
+        settings: settingsController,
+        sync: const NoopDownloadSyncPort(),
+      )..onInit();
 
       await tester.pumpWidget(
         GetMaterialApp(
@@ -265,6 +363,7 @@ void main() {
           home: MainShellPage(
             pipeline: pipeline,
             tagging: tagging,
+            downloads: downloads,
             pipelineSettings: settingsController,
             errors: errors,
             settings: settingsController,
@@ -336,6 +435,11 @@ void main() {
       settingsReader: settingsController,
       errorController: errors,
     );
+    final downloads = DownloadWorkbenchController(
+      sessions: settingsGateway,
+      settings: settingsController,
+      sync: const NoopDownloadSyncPort(),
+    )..onInit();
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -343,6 +447,7 @@ void main() {
         home: MainShellPage(
           pipeline: pipeline,
           tagging: tagging,
+          downloads: downloads,
           pipelineSettings: settingsController,
           errors: errors,
           settings: settingsController,

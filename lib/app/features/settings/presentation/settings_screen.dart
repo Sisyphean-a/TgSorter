@@ -76,6 +76,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 widget.draftSession.updateDefaultWorkbench,
           ),
         );
+      case SettingsRoute.downloads:
+        return SettingsDetailPage(
+          ignoring: controller.isSaving.value,
+          child: SettingsDownloadContent(
+            draft: draft,
+            onWorkbenchEnabledChanged:
+                widget.draftSession.updateDownloadWorkbenchEnabled,
+            onSkipExistingFilesChanged:
+                widget.draftSession.updateDownloadSkipExistingFiles,
+            onSyncDeletedFilesChanged:
+                widget.draftSession.updateDownloadSyncDeletedFiles,
+            onConflictStrategyChanged:
+                widget.draftSession.updateDownloadConflictStrategy,
+            onMediaFilterChanged:
+                widget.draftSession.updateDownloadMediaFilter,
+            onDirectoryModeChanged:
+                widget.draftSession.updateDownloadDirectoryMode,
+          ),
+        );
       case SettingsRoute.skippedMessages:
         return SettingsDetailPage(
           ignoring: controller.isSaving.value,

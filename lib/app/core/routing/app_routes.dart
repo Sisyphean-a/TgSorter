@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
+import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
@@ -28,6 +29,7 @@ List<GetPage<dynamic>> buildAppPages() {
       page: () => MainShellPage(
         pipeline: Get.find<PipelineCoordinator>(),
         tagging: Get.find<TaggingCoordinator>(),
+        downloads: Get.find<DownloadWorkbenchController>(),
         pipelineSettings: Get.find<PipelineSettingsReader>(),
         errors: Get.find<AppErrorController>(),
         settings: Get.find<SettingsCoordinator>(),

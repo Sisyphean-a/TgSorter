@@ -80,6 +80,9 @@ class TelegramMediaService implements MediaPreparationService {
   }
 
   bool _shouldRefreshAfterPrepare(TdMessageContentDto content) {
+    if (content.kind == TdMessageContentKind.photo) {
+      return true;
+    }
     return content.kind == TdMessageContentKind.audio ||
         content.kind == TdMessageContentKind.video;
   }

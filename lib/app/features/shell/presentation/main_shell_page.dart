@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/core/routing/app_routes.dart';
+import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
+import 'package:tgsorter/app/features/download/presentation/download_workbench_page.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
@@ -16,7 +18,6 @@ import 'package:tgsorter/app/features/shell/presentation/main_shell_destination.
 import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
 import 'package:tgsorter/app/features/tagging/presentation/tagging_page.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
-import 'package:tgsorter/app/models/default_workbench.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
@@ -25,6 +26,7 @@ class MainShellPage extends StatefulWidget {
   const MainShellPage({
     required this.pipeline,
     required this.tagging,
+    required this.downloads,
     required this.pipelineSettings,
     required this.errors,
     required this.settings,
@@ -34,6 +36,7 @@ class MainShellPage extends StatefulWidget {
 
   final PipelineCoordinator pipeline;
   final TaggingCoordinator tagging;
+  final DownloadWorkbenchController downloads;
   final PipelineSettingsReader pipelineSettings;
   final AppErrorController errors;
   final SettingsCoordinator settings;
@@ -48,20 +51,35 @@ class _MainShellPageState extends State<MainShellPage> {
   final _settingsNavigation = SettingsNavigationController();
   final _settingsDraftSession = SettingsPageDraftSession();
   late MainShellDestination _current;
+  Worker? _settingsWorker;
 
   @override
   void initState() {
     super.initState();
     _current = _resolveInitialDestination();
+    _settingsWorker = ever<AppSettings>(widget.settings.savedSettings, (
+      settings,
+    ) {
+      if (_current == MainShellDestination.downloads &&
+          !settings.downloadWorkbenchEnabled) {
+        setState(() {
+          _current = _resolveInitialDestination();
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return AppShell(
       scaffoldKey: _scaffoldKey,
-      drawer: _MainShellDrawer(
-        current: _current,
-        onSelected: _selectDestination,
+      drawer: Obx(
+        () => _MainShellDrawer(
+          current: _current,
+          downloadWorkbenchEnabled:
+              widget.settings.savedSettings.value.downloadWorkbenchEnabled,
+          onSelected: _selectDestination,
+        ),
       ),
       appBar: _buildAppBar(),
       body: IndexedStack(
@@ -73,6 +91,7 @@ class _MainShellPageState extends State<MainShellPage> {
             errors: widget.errors,
           ),
           TaggingScreen(controller: widget.tagging, errors: widget.errors),
+          DownloadWorkbenchScreen(controller: widget.downloads),
           SettingsScreen(
             controller: widget.settings,
             navigation: _settingsNavigation,
@@ -97,6 +116,16 @@ class _MainShellPageState extends State<MainShellPage> {
       case MainShellDestination.taggingWorkbench:
         return TaggingCompactAppBar(
           controller: widget.tagging,
+          leading: leading,
+        );
+      case MainShellDestination.downloads:
+        return SettingsAppBar(
+          draftSession: _settingsDraftSession,
+          isSaving: widget.settings.isSaving,
+          navigation: _settingsNavigation,
+          onSave: _saveSettings,
+          canPopOverride: false,
+          title: '下载工作台',
           leading: leading,
         );
       case MainShellDestination.settings:
@@ -125,6 +154,11 @@ class _MainShellPageState extends State<MainShellPage> {
   }
 
   void _selectDestination(MainShellDestination destination) {
+    if (destination == MainShellDestination.downloads &&
+        !widget.settings.savedSettings.value.downloadWorkbenchEnabled) {
+      Navigator.of(context).pop();
+      return;
+    }
     if (_current != destination) {
       setState(() {
         _current = destination;
@@ -176,6 +210,12 @@ class _MainShellPageState extends State<MainShellPage> {
     Get.offAllNamed(AppRoutes.auth);
   }
 
+  @override
+  void dispose() {
+    _settingsWorker?.dispose();
+    super.dispose();
+  }
+
   String _saveMessage(SettingsSaveResult result) {
     switch (result) {
       case SettingsSaveResult.saved:
@@ -188,15 +228,21 @@ class _MainShellPageState extends State<MainShellPage> {
 }
 
 class _MainShellDrawer extends StatelessWidget {
-  const _MainShellDrawer({required this.current, required this.onSelected});
+  const _MainShellDrawer({
+    required this.current,
+    required this.downloadWorkbenchEnabled,
+    required this.onSelected,
+  });
 
   final MainShellDestination current;
+  final bool downloadWorkbenchEnabled;
   final ValueChanged<MainShellDestination> onSelected;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = AppTokens.colorsOf(context);
+    final destinations = _visibleDestinations();
     return Drawer(
       backgroundColor: colors.panelBackground,
       surfaceTintColor: Colors.transparent,
@@ -220,7 +266,7 @@ class _MainShellDrawer extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppTokens.spaceLg),
-              for (final item in MainShellDestination.values)
+              for (final item in destinations)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
                   child: ListTile(
@@ -240,6 +286,15 @@ class _MainShellDrawer extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<MainShellDestination> _visibleDestinations() {
+    return MainShellDestination.values.where((item) {
+      if (item == MainShellDestination.downloads) {
+        return downloadWorkbenchEnabled;
+      }
+      return true;
+    }).toList(growable: false);
   }
 }
 

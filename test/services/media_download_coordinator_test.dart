@@ -135,6 +135,29 @@ void main() {
       expect(adapter.downloadedFileIds, <int>[41]);
     });
 
+    test('preparePlayback downloads full photo file', () async {
+      final adapter = _FakeTdlibAdapter(
+        wireResponses: <String, List<TdWireEnvelope>>{
+          'downloadFile': <TdWireEnvelope>[
+            TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+          ],
+        },
+      );
+      final coordinator = MediaDownloadCoordinator(adapter: adapter);
+
+      final changed = await coordinator.preparePlayback(
+        const TdMessageContentDto(
+          kind: TdMessageContentKind.photo,
+          messageId: 10,
+          remoteFullImageFileId: 210,
+          fullImagePath: '',
+        ),
+      );
+
+      expect(changed, isTrue);
+      expect(adapter.downloadedFileIds, <int>[210]);
+    });
+
     test(
       'preparePlayback skips download when local path already exists',
       () async {

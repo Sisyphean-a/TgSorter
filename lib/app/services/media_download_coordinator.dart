@@ -5,6 +5,7 @@ import 'package:tgsorter/app/services/tdlib_failure.dart';
 
 class MediaDownloadCoordinator {
   static const int _downloadPriorityPhotoPreview = 16;
+  static const int _downloadPriorityPhotoFile = 18;
   static const int _downloadPriorityVideoPreview = 17;
   static const int _downloadPriorityAudioFile = 19;
   static const int _downloadPriorityVideoFile = 20;
@@ -47,6 +48,13 @@ class MediaDownloadCoordinator {
   }
 
   Future<bool> preparePlayback(TdMessageContentDto content) async {
+    if (content.kind == TdMessageContentKind.photo) {
+      return _ensureFileDownloadStarted(
+        fileId: content.remoteFullImageFileId,
+        localPath: content.fullImagePath,
+        priority: _downloadPriorityPhotoFile,
+      );
+    }
     if (content.kind == TdMessageContentKind.audio) {
       return _ensureFileDownloadStarted(
         fileId: content.remoteAudioFileId,

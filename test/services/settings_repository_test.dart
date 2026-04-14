@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -235,6 +236,24 @@ void main() {
       expect(settings.mediaRetryDelayMs, AppSettings.defaultMediaRetryDelayMs);
     });
 
+    test('load uses download defaults when storage is empty', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final settings = repo.load();
+
+      expect(settings.downloadWorkbenchEnabled, isFalse);
+      expect(settings.downloadSkipExistingFiles, isTrue);
+      expect(settings.downloadSyncDeletedFiles, isFalse);
+      expect(
+        settings.downloadConflictStrategy,
+        DownloadConflictStrategy.rename,
+      );
+      expect(settings.downloadMediaFilter, DownloadMediaFilter.all);
+      expect(settings.downloadDirectoryMode, DownloadDirectoryMode.byChat);
+    });
+
     test('save persists batch settings', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
@@ -265,6 +284,42 @@ void main() {
       expect(prefs.getInt('media_background_download_concurrency'), 4);
       expect(prefs.getInt('media_retry_limit'), 3);
       expect(prefs.getInt('media_retry_delay_ms'), 900);
+    });
+
+    test('save persists download workbench settings', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().updateDownloadSettings(
+        workbenchEnabled: true,
+        skipExistingFiles: false,
+        syncDeletedFiles: true,
+        conflictStrategy: DownloadConflictStrategy.overwrite,
+        mediaFilter: DownloadMediaFilter.videoOnly,
+        directoryMode: DownloadDirectoryMode.flat,
+      );
+
+      await repo.save(settings);
+
+      expect(prefs.getBool('download_workbench_enabled'), isTrue);
+      expect(prefs.getBool('download_skip_existing_files'), isFalse);
+      expect(prefs.getBool('download_sync_deleted_files'), isTrue);
+      expect(
+        prefs.getString('download_conflict_strategy'),
+        'overwrite',
+      );
+      expect(prefs.getString('download_media_filter'), 'video_only');
+      expect(prefs.getString('download_directory_mode'), 'flat');
+      final loaded = repo.load();
+      expect(loaded.downloadWorkbenchEnabled, isTrue);
+      expect(loaded.downloadSkipExistingFiles, isFalse);
+      expect(loaded.downloadSyncDeletedFiles, isTrue);
+      expect(
+        loaded.downloadConflictStrategy,
+        DownloadConflictStrategy.overwrite,
+      );
+      expect(loaded.downloadMediaFilter, DownloadMediaFilter.videoOnly);
+      expect(loaded.downloadDirectoryMode, DownloadDirectoryMode.flat);
     });
 
     test('save persists proxy settings', () async {

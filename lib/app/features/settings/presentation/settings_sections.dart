@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/settings/application/skipped_message_summary.dart';
+import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_common_editors.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
@@ -159,6 +160,66 @@ class SettingsCommonContent extends StatelessWidget {
         ThemeModeDraftEditor(
           value: draft.themeMode,
           onChanged: onThemeModeChanged,
+        ),
+      ],
+    );
+  }
+}
+
+class SettingsDownloadContent extends StatelessWidget {
+  const SettingsDownloadContent({
+    super.key,
+    required this.draft,
+    required this.onWorkbenchEnabledChanged,
+    required this.onSkipExistingFilesChanged,
+    required this.onSyncDeletedFilesChanged,
+    required this.onConflictStrategyChanged,
+    required this.onMediaFilterChanged,
+    required this.onDirectoryModeChanged,
+  });
+
+  final AppSettings draft;
+  final ValueChanged<bool> onWorkbenchEnabledChanged;
+  final ValueChanged<bool> onSkipExistingFilesChanged;
+  final ValueChanged<bool> onSyncDeletedFilesChanged;
+  final ValueChanged<DownloadConflictStrategy> onConflictStrategyChanged;
+  final ValueChanged<DownloadMediaFilter> onMediaFilterChanged;
+  final ValueChanged<DownloadDirectoryMode> onDirectoryModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SettingsSectionHeader(title: '下载工作台'),
+        DownloadWorkbenchEnabledEditor(
+          value: draft.downloadWorkbenchEnabled,
+          onChanged: onWorkbenchEnabledChanged,
+        ),
+        const SizedBox(height: 12),
+        DownloadSkipExistingFilesEditor(
+          value: draft.downloadSkipExistingFiles,
+          onChanged: onSkipExistingFilesChanged,
+        ),
+        const SizedBox(height: 12),
+        DownloadSyncDeletedFilesEditor(
+          value: draft.downloadSyncDeletedFiles,
+          onChanged: onSyncDeletedFilesChanged,
+        ),
+        const SizedBox(height: 12),
+        DownloadConflictStrategyEditor(
+          value: draft.downloadConflictStrategy,
+          onChanged: onConflictStrategyChanged,
+        ),
+        const SizedBox(height: 12),
+        DownloadDirectoryModeEditor(
+          value: draft.downloadDirectoryMode,
+          onChanged: onDirectoryModeChanged,
+        ),
+        const SizedBox(height: 12),
+        DownloadMediaFilterEditor(
+          value: draft.downloadMediaFilter,
+          onChanged: onMediaFilterChanged,
         ),
       ],
     );

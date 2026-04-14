@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
+import 'package:tgsorter/app/core/di/download_module.dart';
 import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
 import 'package:tgsorter/app/core/di/tagging_module.dart';
@@ -15,6 +16,8 @@ import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_registry.dart';
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
+import 'package:tgsorter/app/services/download_sync_repository.dart';
+import 'package:tgsorter/app/services/download_sync_service.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/skipped_message_repository.dart';
@@ -32,6 +35,7 @@ Future<void> registerAppBindings() async {
   final prefs = await SharedPreferences.getInstance();
   final settingsRepo = SettingsRepository(prefs);
   final journalRepo = OperationJournalRepository(prefs);
+  final downloadSyncRepo = DownloadSyncRepository(prefs);
   final skippedMessageRepo = SkippedMessageRepository(prefs);
   final skippedRestoreRegistry = SkippedMessageRestoreRegistry();
   final appErrors = AppErrorController();
@@ -72,9 +76,15 @@ Future<void> registerAppBindings() async {
     adapter: adapter,
     journalRepository: journalRepo,
   );
+  final downloadSync = DownloadSyncService(
+    messages: telegram,
+    media: telegram,
+    repository: downloadSyncRepo,
+  );
 
   Get.put(settingsRepo, permanent: true);
   Get.put(journalRepo, permanent: true);
+  Get.put(downloadSyncRepo, permanent: true);
   Get.put(skippedMessageRepo, permanent: true);
   Get.put(skippedRestoreRegistry, permanent: true);
   Get.put(appErrors, permanent: true);
@@ -92,9 +102,11 @@ Future<void> registerAppBindings() async {
   Get.put<ClassifyGateway>(telegram, permanent: true);
   Get.put<RecoveryGateway>(telegram, permanent: true);
   Get.put<TaggingGateway>(telegram, permanent: true);
+  Get.put<DownloadSyncPort>(downloadSync, permanent: true);
 
   registerSettingsModule();
   registerAuthModule();
   registerPipelineModule();
   registerTaggingModule();
+  registerDownloadModule();
 }

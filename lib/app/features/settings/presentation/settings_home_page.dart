@@ -35,6 +35,11 @@ class SettingsHomePage extends StatelessWidget {
             onTap: onOpenRoute,
           ),
           _SettingsHomeTile(
+            route: SettingsRoute.downloads,
+            icon: Icons.download_for_offline_rounded,
+            onTap: onOpenRoute,
+          ),
+          _SettingsHomeTile(
             route: SettingsRoute.skippedMessages,
             icon: Icons.settings_backup_restore_rounded,
             onTap: onOpenRoute,

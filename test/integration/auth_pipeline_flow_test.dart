@@ -13,6 +13,7 @@ import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
+import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
@@ -27,6 +28,7 @@ import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.da
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/download_sync_service.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -77,6 +79,11 @@ void main() {
     Get.put<PipelineCoordinator>(pipeline);
     expect(registerAuthModule, returnsNormally);
     final auth = Get.find<AuthCoordinator>();
+    final downloads = DownloadWorkbenchController(
+      sessions: settingsGateway,
+      settings: settings,
+      sync: const NoopDownloadSyncPort(),
+    )..onInit();
     settings.onInit();
     pipeline.onInit();
     pipelineGateway.emitConnectionReady();
@@ -94,6 +101,7 @@ void main() {
             page: () => MainShellPage(
               pipeline: pipeline,
               tagging: tagging,
+              downloads: downloads,
               pipelineSettings: settings,
               errors: errors,
               settings: settings,

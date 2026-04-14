@@ -45,6 +45,7 @@ void main() {
     expect(find.text('标签'), findsOneWidget);
     expect(find.text('连接与网络'), findsOneWidget);
     expect(find.text('快捷键'), findsOneWidget);
+    expect(find.text('下载'), findsOneWidget);
     expect(find.text('关于账号与会话'), findsOneWidget);
     expect(find.text('恢复已略过数据'), findsOneWidget);
 
@@ -55,7 +56,7 @@ void main() {
     expect(find.text('保存更改'), findsNothing);
     expect(find.text('放弃更改'), findsNothing);
     expect(find.byType(StatusBadge), findsNothing);
-    expect(find.byType(SettingsNavigationTile), findsNWidgets(7));
+    expect(find.byType(SettingsNavigationTile), findsNWidgets(8));
   });
 
   testWidgets('点击目录行后进入对应二级页并显示返回箭头', (tester) async {
@@ -296,6 +297,38 @@ void main() {
     );
   });
 
+  testWidgets('下载页承载工作台开关与同步策略', (tester) async {
+    final controller = await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    await tester.tap(find.text('下载'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('下载工作台'), findsAtLeastNWidgets(1));
+    expect(find.text('启用下载工作台'), findsOneWidget);
+    expect(find.text('已存在文件策略'), findsOneWidget);
+    expect(find.text('命名冲突处理'), findsOneWidget);
+    expect(find.text('目录映射规则'), findsOneWidget);
+    expect(find.text('下载范围'), findsOneWidget);
+
+    await tester.tap(find.byType(Switch).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('按会话分目录'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('平铺到目标目录').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    expect(controller.savedSettings.value.downloadWorkbenchEnabled, isTrue);
+    expect(
+      controller.savedSettings.value.downloadDirectoryMode.name,
+      'flat',
+    );
+  });
+
   testWidgets('关于账号与会话页提供显式确认的退出登录', (tester) async {
     final gateway = _SettingsPageFakeGateway(const [
       SelectableChat(id: -1001, title: '频道一'),
@@ -306,6 +339,8 @@ void main() {
       gateway: gateway,
     );
 
+    await tester.scrollUntilVisible(find.text('关于账号与会话'), 120);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('关于账号与会话'));
     await tester.pumpAndSettle();
 

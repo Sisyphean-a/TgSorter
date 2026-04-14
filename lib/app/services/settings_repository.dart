@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
@@ -18,6 +19,12 @@ class SettingsRepository {
   static const _themeModeKey = 'app_theme_mode';
   static const _defaultWorkbenchKey = 'app_default_workbench';
   static const _forwardAsCopyKey = 'forward_as_copy';
+  static const _downloadWorkbenchEnabledKey = 'download_workbench_enabled';
+  static const _downloadSkipExistingFilesKey = 'download_skip_existing_files';
+  static const _downloadSyncDeletedFilesKey = 'download_sync_deleted_files';
+  static const _downloadConflictStrategyKey = 'download_conflict_strategy';
+  static const _downloadMediaFilterKey = 'download_media_filter';
+  static const _downloadDirectoryModeKey = 'download_directory_mode';
   static const _sourceChatIdKey = 'source_chat_id';
   static const _tagSourceChatIdKey = 'tag_source_chat_id';
   static const _tagDefaultGroupTagsKey = 'tag_default_group_tags';
@@ -55,6 +62,23 @@ class SettingsRepository {
     );
     settings = settings.updateForwardAsCopy(
       _prefs.getBool(_forwardAsCopyKey) ?? false,
+    );
+    settings = settings.updateDownloadSettings(
+      workbenchEnabled:
+          _prefs.getBool(_downloadWorkbenchEnabledKey) ?? false,
+      skipExistingFiles:
+          _prefs.getBool(_downloadSkipExistingFilesKey) ?? true,
+      syncDeletedFiles:
+          _prefs.getBool(_downloadSyncDeletedFilesKey) ?? false,
+      conflictStrategy: _parseDownloadConflictStrategy(
+        _prefs.getString(_downloadConflictStrategyKey),
+      ),
+      mediaFilter: _parseDownloadMediaFilter(
+        _prefs.getString(_downloadMediaFilterKey),
+      ),
+      directoryMode: _parseDownloadDirectoryMode(
+        _prefs.getString(_downloadDirectoryModeKey),
+      ),
     );
     final sourceChatIdRaw = _prefs.getString(_sourceChatIdKey);
     final sourceChatId = int.tryParse(sourceChatIdRaw ?? '');
@@ -123,6 +147,30 @@ class SettingsRepository {
       _encodeDefaultWorkbench(settings.defaultWorkbench),
     );
     await _prefs.setBool(_forwardAsCopyKey, settings.forwardAsCopy);
+    await _prefs.setBool(
+      _downloadWorkbenchEnabledKey,
+      settings.downloadWorkbenchEnabled,
+    );
+    await _prefs.setBool(
+      _downloadSkipExistingFilesKey,
+      settings.downloadSkipExistingFiles,
+    );
+    await _prefs.setBool(
+      _downloadSyncDeletedFilesKey,
+      settings.downloadSyncDeletedFiles,
+    );
+    await _prefs.setString(
+      _downloadConflictStrategyKey,
+      _encodeDownloadConflictStrategy(settings.downloadConflictStrategy),
+    );
+    await _prefs.setString(
+      _downloadMediaFilterKey,
+      _encodeDownloadMediaFilter(settings.downloadMediaFilter),
+    );
+    await _prefs.setString(
+      _downloadDirectoryModeKey,
+      _encodeDownloadDirectoryMode(settings.downloadDirectoryMode),
+    );
     final sourceChatId = settings.sourceChatId;
     if (sourceChatId == null) {
       await _prefs.remove(_sourceChatIdKey);
@@ -260,6 +308,70 @@ class SettingsRepository {
       return _defaultWorkbenchTagging;
     }
     return _defaultWorkbenchForwarding;
+  }
+
+  DownloadConflictStrategy _parseDownloadConflictStrategy(String? raw) {
+    switch (raw) {
+      case 'skip':
+        return DownloadConflictStrategy.skip;
+      case 'overwrite':
+        return DownloadConflictStrategy.overwrite;
+      default:
+        return DownloadConflictStrategy.rename;
+    }
+  }
+
+  String _encodeDownloadConflictStrategy(DownloadConflictStrategy value) {
+    switch (value) {
+      case DownloadConflictStrategy.skip:
+        return 'skip';
+      case DownloadConflictStrategy.rename:
+        return 'rename';
+      case DownloadConflictStrategy.overwrite:
+        return 'overwrite';
+    }
+  }
+
+  DownloadMediaFilter _parseDownloadMediaFilter(String? raw) {
+    switch (raw) {
+      case 'photo_only':
+        return DownloadMediaFilter.photoOnly;
+      case 'video_only':
+        return DownloadMediaFilter.videoOnly;
+      case 'audio_only':
+        return DownloadMediaFilter.audioOnly;
+      default:
+        return DownloadMediaFilter.all;
+    }
+  }
+
+  String _encodeDownloadMediaFilter(DownloadMediaFilter value) {
+    switch (value) {
+      case DownloadMediaFilter.all:
+        return 'all';
+      case DownloadMediaFilter.photoOnly:
+        return 'photo_only';
+      case DownloadMediaFilter.videoOnly:
+        return 'video_only';
+      case DownloadMediaFilter.audioOnly:
+        return 'audio_only';
+    }
+  }
+
+  DownloadDirectoryMode _parseDownloadDirectoryMode(String? raw) {
+    if (raw == 'flat') {
+      return DownloadDirectoryMode.flat;
+    }
+    return DownloadDirectoryMode.byChat;
+  }
+
+  String _encodeDownloadDirectoryMode(DownloadDirectoryMode value) {
+    switch (value) {
+      case DownloadDirectoryMode.byChat:
+        return 'by_chat';
+      case DownloadDirectoryMode.flat:
+        return 'flat';
+    }
   }
 
   ShortcutBinding _parseShortcutBinding(ShortcutAction action, String? raw) {

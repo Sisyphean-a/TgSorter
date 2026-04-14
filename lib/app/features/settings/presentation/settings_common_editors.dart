@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/settings/application/settings_input_validator.dart';
+import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
@@ -155,6 +156,200 @@ class ForwardModeDraftEditor extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       value: value,
       title: const Text('无引用转发'),
+      onChanged: onChanged,
+    );
+  }
+}
+
+class DownloadWorkbenchEnabledEditor extends StatelessWidget {
+  const DownloadWorkbenchEnabledEditor({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      value: value,
+      title: const Text('启用下载工作台'),
+      onChanged: onChanged,
+    );
+  }
+}
+
+class DownloadDirectoryModeEditor extends StatelessWidget {
+  const DownloadDirectoryModeEditor({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final DownloadDirectoryMode value;
+  final ValueChanged<DownloadDirectoryMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<DownloadDirectoryMode>(
+      key: ValueKey(value),
+      initialValue: value,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: '目录映射规则'),
+      items: const [
+        DropdownMenuItem(
+          value: DownloadDirectoryMode.byChat,
+          child: Text('按会话分目录'),
+        ),
+        DropdownMenuItem(
+          value: DownloadDirectoryMode.flat,
+          child: Text('平铺到目标目录'),
+        ),
+      ],
+      onChanged: (next) {
+        if (next == null) {
+          return;
+        }
+        onChanged(next);
+      },
+    );
+  }
+}
+
+class DownloadConflictStrategyEditor extends StatelessWidget {
+  const DownloadConflictStrategyEditor({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final DownloadConflictStrategy value;
+  final ValueChanged<DownloadConflictStrategy> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<DownloadConflictStrategy>(
+      key: ValueKey(value),
+      initialValue: value,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: '命名冲突处理'),
+      items: const [
+        DropdownMenuItem(
+          value: DownloadConflictStrategy.rename,
+          child: Text('自动重命名'),
+        ),
+        DropdownMenuItem(
+          value: DownloadConflictStrategy.skip,
+          child: Text('保留旧文件并跳过'),
+        ),
+        DropdownMenuItem(
+          value: DownloadConflictStrategy.overwrite,
+          child: Text('覆盖旧文件'),
+        ),
+      ],
+      onChanged: (next) {
+        if (next == null) {
+          return;
+        }
+        onChanged(next);
+      },
+    );
+  }
+}
+
+class DownloadMediaFilterEditor extends StatelessWidget {
+  const DownloadMediaFilterEditor({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final DownloadMediaFilter value;
+  final ValueChanged<DownloadMediaFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<DownloadMediaFilter>(
+      key: ValueKey(value),
+      initialValue: value,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: '下载范围'),
+      items: const [
+        DropdownMenuItem(
+          value: DownloadMediaFilter.all,
+          child: Text('全部支持的媒体'),
+        ),
+        DropdownMenuItem(
+          value: DownloadMediaFilter.photoOnly,
+          child: Text('仅图片'),
+        ),
+        DropdownMenuItem(
+          value: DownloadMediaFilter.videoOnly,
+          child: Text('仅视频'),
+        ),
+        DropdownMenuItem(
+          value: DownloadMediaFilter.audioOnly,
+          child: Text('仅音频'),
+        ),
+      ],
+      onChanged: (next) {
+        if (next == null) {
+          return;
+        }
+        onChanged(next);
+      },
+    );
+  }
+}
+
+class DownloadSkipExistingFilesEditor extends StatelessWidget {
+  const DownloadSkipExistingFilesEditor({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      value: value,
+      title: const Text('已存在文件策略'),
+      subtitle: const Text('开启后跳过已成功落盘的目标文件'),
+      onChanged: onChanged,
+    );
+  }
+}
+
+class DownloadSyncDeletedFilesEditor extends StatelessWidget {
+  const DownloadSyncDeletedFilesEditor({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      value: value,
+      title: const Text('同步删除本地文件'),
+      subtitle: const Text('开启后会清理源消息已消失的本地落盘文件'),
       onChanged: onChanged,
     );
   }
