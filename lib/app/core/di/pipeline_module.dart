@@ -9,6 +9,7 @@ import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
+import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_registry.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/skipped_message_repository.dart';
 
@@ -27,4 +28,5 @@ void registerPipelineModule() {
   );
   Get.put(coordinator, permanent: true);
   Get.put<PipelineLogsPort>(coordinator, permanent: true);
+  Get.find<SkippedMessageRestoreRegistry>().register(coordinator);
 }

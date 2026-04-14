@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tgsorter/app/features/settings/application/skipped_message_summary.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_common_editors.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_page_parts.dart';
@@ -9,6 +10,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/widgets/shortcut_bindings_editor.dart';
 
 class SettingsForwardingContent extends StatelessWidget {
@@ -339,6 +341,133 @@ class SettingsAccountSessionContent extends StatelessWidget {
             icon: const Icon(Icons.logout_rounded),
             label: const Text('退出登录'),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class SettingsSkippedMessagesContent extends StatelessWidget {
+  const SettingsSkippedMessagesContent({
+    super.key,
+    required this.chats,
+    required this.summary,
+    required this.onRestoreAll,
+    required this.onRestoreWorkflow,
+    required this.onRestoreSource,
+  });
+
+  final List<SelectableChat> chats;
+  final SkippedMessageSummary summary;
+  final Future<int> Function() onRestoreAll;
+  final Future<int> Function(SkippedMessageWorkflow workflow) onRestoreWorkflow;
+  final Future<int> Function(SkippedMessageWorkflow workflow, int sourceChatId)
+  onRestoreSource;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SettingsSectionHeader(title: '恢复已略过数据'),
+        Text('恢复后，对应来源中的消息会重新回到转发或标签工作流。'),
+        const SizedBox(height: 12),
+        const SettingsSectionHeader(title: '全部恢复'),
+        _SkippedRestoreActionRow(
+          title: '全部略过记录',
+          subtitle: '当前共有 ${summary.totalCount} 条略过记录',
+          buttonLabel: '恢复全部',
+          enabled: summary.totalCount > 0,
+          onPressed: onRestoreAll,
+        ),
+        const SizedBox(height: 12),
+        const SettingsSectionHeader(title: '按工作流恢复'),
+        _SkippedRestoreActionRow(
+          title: '转发工作流',
+          subtitle: '当前有 ${summary.forwardingCount} 条略过记录',
+          buttonLabel: '恢复转发',
+          enabled: summary.forwardingCount > 0,
+          onPressed: () => onRestoreWorkflow(SkippedMessageWorkflow.forwarding),
+        ),
+        const SizedBox(height: 8),
+        _SkippedRestoreActionRow(
+          title: '标签工作流',
+          subtitle: '当前有 ${summary.taggingCount} 条略过记录',
+          buttonLabel: '恢复标签',
+          enabled: summary.taggingCount > 0,
+          onPressed: () => onRestoreWorkflow(SkippedMessageWorkflow.tagging),
+        ),
+        const SizedBox(height: 12),
+        const SettingsSectionHeader(title: '按来源恢复'),
+        if (summary.sources.isEmpty) const Text('当前没有可按来源恢复的略过记录。'),
+        for (final item in summary.sources) ...[
+          _SkippedRestoreActionRow(
+            title: _sourceTitle(item.sourceChatId),
+            subtitle:
+                '${_workflowLabel(item.workflow)} · 当前有 ${item.count} 条略过记录',
+            buttonLabel: '恢复',
+            enabled: item.count > 0,
+            onPressed: () => onRestoreSource(item.workflow, item.sourceChatId),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
+  String _sourceTitle(int sourceChatId) {
+    for (final chat in chats) {
+      if (chat.id == sourceChatId) {
+        return chat.title;
+      }
+    }
+    return '来源 $sourceChatId';
+  }
+
+  String _workflowLabel(SkippedMessageWorkflow workflow) {
+    switch (workflow) {
+      case SkippedMessageWorkflow.forwarding:
+        return '转发';
+      case SkippedMessageWorkflow.tagging:
+        return '标签';
+    }
+  }
+}
+
+class _SkippedRestoreActionRow extends StatelessWidget {
+  const _SkippedRestoreActionRow({
+    required this.title,
+    required this.subtitle,
+    required this.buttonLabel,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String title;
+  final String subtitle;
+  final String buttonLabel;
+  final bool enabled;
+  final Future<int> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title),
+              const SizedBox(height: 2),
+              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        FilledButton.tonal(
+          onPressed: enabled ? () => onPressed() : null,
+          child: Text(buttonLabel),
         ),
       ],
     );

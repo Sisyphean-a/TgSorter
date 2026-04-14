@@ -22,17 +22,19 @@ class _LogsScreenState extends State<LogsScreen> {
     );
     final visibleChains = filterPipelineLogChains(chains, _selectedFilter);
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.spaceMd,
+        AppTokens.spaceMd,
+        AppTokens.spaceMd,
+        AppTokens.spaceLg,
+      ),
       children: [
         _LogsHeader(filter: _selectedFilter, onChanged: _updateFilter),
-        const SizedBox(height: AppTokens.spaceMd),
+        const SizedBox(height: AppTokens.spaceSm),
         if (visibleChains.isEmpty)
           const _LogsEmptyState()
         else
-          for (final chain in visibleChains) ...[
-            _PipelineLogChainCard(chain: chain),
-            const SizedBox(height: AppTokens.spaceMd),
-          ],
+          for (final chain in visibleChains) _PipelineLogChainCard(chain: chain),
       ],
     );
   }
@@ -74,16 +76,13 @@ class _LogsEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppTokens.colorsOf(context);
-    return DecoratedBox(
+    return Container(
       key: const Key('logs-empty-state'),
-      decoration: BoxDecoration(
-        color: colors.panelBackground,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLarge),
-        border: Border.all(color: colors.borderSubtle),
-      ),
       child: const Padding(
-        padding: EdgeInsets.all(AppTokens.spaceLg),
+        padding: EdgeInsets.symmetric(
+          vertical: AppTokens.spaceLg,
+          horizontal: AppTokens.spaceXs,
+        ),
         child: Text('当前筛选下没有匹配记录。'),
       ),
     );
@@ -98,24 +97,36 @@ class _PipelineLogChainCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppTokens.colorsOf(context);
-    return DecoratedBox(
+    return Container(
       key: Key('log-chain-row-${chain.chainKey}'),
       decoration: BoxDecoration(
-        color: colors.panelBackground,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
-        border: Border.all(color: colors.borderSubtle),
+        border: Border(bottom: BorderSide(color: colors.borderSubtle)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        padding: const EdgeInsets.symmetric(
+          vertical: AppTokens.spaceSm,
+          horizontal: AppTokens.spaceXs,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    _formatTime(chain.lastOccurredAt),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: colors.textMuted),
+                  ),
+                ),
+                const SizedBox(width: AppTokens.spaceSm),
                 Expanded(
                   child: Text(
                     '消息 #${chain.messageId}',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
                 _StateBadge(label: chain.statusLabel, state: chain.state),
@@ -128,10 +139,23 @@ class _PipelineLogChainCard extends StatelessWidget {
                 context,
               ).textTheme.bodySmall?.copyWith(color: colors.textMuted),
             ),
-            const SizedBox(height: AppTokens.spaceMd),
-            for (final event in chain.events) ...[
-              _PipelineLogEventRow(event: event),
-              const SizedBox(height: AppTokens.spaceSm),
+            const SizedBox(height: 4),
+            Text(chain.summaryLabel),
+            if (chain.latestReason != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                '最近失败：${chain.latestReason}',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.danger),
+              ),
+            ],
+            if (chain.events.isNotEmpty) ...[
+              const SizedBox(height: AppTokens.spaceXs),
+              for (final event in chain.events) ...[
+                _PipelineLogEventRow(event: event),
+                const SizedBox(height: 2),
+              ],
             ],
           ],
         ),
@@ -149,21 +173,11 @@ class _PipelineLogEventRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppTokens.colorsOf(context);
     final time = _formatTime(event.timestamp);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('$time ${event.statusLabel}'),
-        if (event.reason != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              '原因：${event.reason}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colors.danger),
-            ),
-          ),
-      ],
+    return Text(
+      '$time ${event.statusLabel}',
+      style: Theme.of(
+        context,
+      ).textTheme.bodySmall?.copyWith(color: colors.textMuted),
     );
   }
 }

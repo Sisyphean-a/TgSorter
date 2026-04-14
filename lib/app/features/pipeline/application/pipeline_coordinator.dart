@@ -14,6 +14,7 @@ import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
+import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_port.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -36,7 +37,8 @@ import 'pipeline_runtime_state.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'remaining_count_service.dart';
 
-class PipelineCoordinator extends GetxController implements PipelineLogsPort {
+class PipelineCoordinator extends GetxController
+    implements PipelineLogsPort, SkippedMessageRestorePort {
   static const Duration _videoRefreshInterval = Duration(seconds: 1);
 
   PipelineCoordinator({
@@ -195,11 +197,15 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
   @override
   List<ClassifyOperationLog> get logsSnapshot => logs.toList(growable: false);
 
+  @override
+  SkippedMessageWorkflow get workflow => SkippedMessageWorkflow.forwarding;
+
   StreamSubscription<TdConnectionState>? _connectionSub;
   StreamSubscription<TdAuthState>? _authSub;
   Worker? _settingsWorker;
   ClassifyReceipt? _lastSuccessReceipt;
   Future<void>? _showNextTask;
+  bool _authorized = false;
 
   List<PipelineMessage> get _messageCache => runtimeState.cache;
   int get _currentIndex => runtimeState.currentIndex;
@@ -214,6 +220,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
       lifecycle.updateConnection(state.isReady);
     });
     _authSub = _authStateGateway.authStates.listen((state) {
+      _authorized = state.isReady;
       lifecycle.updateAuthorization(state.isReady);
     });
     _settingsWorker = ever<AppSettings>(
@@ -438,6 +445,22 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
     await _journalRepository.saveLogs(const []);
     await _journalRepository.saveRetryQueue(const []);
     await _journalRepository.saveClassifyTransactions(const []);
+  }
+
+  @override
+  Future<void> reloadAfterSkippedRestore({int? sourceChatId}) async {
+    final activeSourceChatId = _settingsReader.currentSettings.sourceChatId;
+    if (activeSourceChatId == null) {
+      return;
+    }
+    if (sourceChatId != null && sourceChatId != activeSourceChatId) {
+      return;
+    }
+    _resetPipelineState();
+    if (!_authorized || !isOnline.value || loading.value) {
+      return;
+    }
+    await fetchNext();
   }
 
   Future<void> _delayThrottle() async {

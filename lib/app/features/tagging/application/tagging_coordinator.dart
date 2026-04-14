@@ -7,6 +7,7 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_port.dart';
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/features/workbench/application/message_workbench_controller.dart';
 import 'package:tgsorter/app/features/workbench/application/message_workbench_state.dart';
@@ -18,7 +19,8 @@ import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 
-class TaggingCoordinator extends GetxController {
+class TaggingCoordinator extends GetxController
+    implements SkippedMessageRestorePort {
   TaggingCoordinator({
     required AuthStateGateway authStateGateway,
     required ConnectionStateGateway connectionStateGateway,
@@ -70,6 +72,9 @@ class TaggingCoordinator extends GetxController {
   PipelineScreenVm get screenVm => workbench.screenVm;
 
   @override
+  SkippedMessageWorkflow get workflow => SkippedMessageWorkflow.tagging;
+
+  @override
   void onInit() {
     super.onInit();
     _lastSourceChatId = _settingsReader.currentSettings.tagSourceChatId;
@@ -104,6 +109,22 @@ class TaggingCoordinator extends GetxController {
   Future<void> showNextMessage() => workbench.showNextMessage();
 
   Future<void> skipCurrent() => workbench.skipCurrent();
+
+  @override
+  Future<void> reloadAfterSkippedRestore({int? sourceChatId}) async {
+    final activeSourceChatId = _settingsReader.currentSettings.tagSourceChatId;
+    if (activeSourceChatId == null) {
+      return;
+    }
+    if (sourceChatId != null && sourceChatId != activeSourceChatId) {
+      return;
+    }
+    workbench.reset();
+    if (!_authorized || !isOnline.value || loading.value) {
+      return;
+    }
+    await _fetchNextSafely();
+  }
 
   void clearSessionStateForLogout() {
     workbench.reset();

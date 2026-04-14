@@ -12,6 +12,7 @@ import 'package:tgsorter/app/features/settings/presentation/settings_telegram_ti
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -73,6 +74,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onThemeModeChanged: widget.draftSession.updateThemeMode,
             onDefaultWorkbenchChanged:
                 widget.draftSession.updateDefaultWorkbench,
+          ),
+        );
+      case SettingsRoute.skippedMessages:
+        return SettingsDetailPage(
+          ignoring: controller.isSaving.value,
+          child: SettingsSkippedMessagesContent(
+            chats: controller.chats.toList(growable: false),
+            summary: controller.skippedMessageSummary.value,
+            onRestoreAll: () => _restoreSkippedMessages(),
+            onRestoreWorkflow: (workflow) =>
+                _restoreSkippedMessages(workflow: workflow),
+            onRestoreSource: (workflow, sourceChatId) =>
+                _restoreSkippedMessages(
+                  workflow: workflow,
+                  sourceChatId: sourceChatId,
+                ),
           ),
         );
       case SettingsRoute.forwarding:
@@ -281,7 +298,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
       route: route,
       savedSettings: controller.savedSettings.value,
     );
+    if (route == SettingsRoute.skippedMessages) {
+      controller.refreshSkippedMessageSummary();
+    }
     widget.navigation.goTo(route);
+  }
+
+  Future<int> _restoreSkippedMessages({
+    SkippedMessageWorkflow? workflow,
+    int? sourceChatId,
+  }) async {
+    try {
+      final restored = await controller.restoreSkippedMessages(
+        workflow: workflow,
+        sourceChatId: sourceChatId,
+      );
+      if (!mounted) {
+        return restored;
+      }
+      _showMessage(restored <= 0 ? '当前没有可恢复的略过记录' : '已恢复 $restored 条略过记录');
+      return restored;
+    } catch (error) {
+      if (!mounted) {
+        return 0;
+      }
+      _showMessage('恢复略过记录失败：$error');
+      return 0;
+    }
   }
 
   Future<void> _handleLogout() async {

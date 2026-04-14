@@ -6,6 +6,7 @@ import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/settings/application/category_settings_service.dart';
 import 'package:tgsorter/app/features/settings/application/connection_settings_service.dart';
+import 'package:tgsorter/app/features/settings/application/skipped_message_summary.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
 import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
@@ -14,6 +15,8 @@ import 'package:tgsorter/app/features/settings/application/settings_persistence_
 import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
 import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/features/settings/application/shortcut_settings_service.dart';
+import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_port.dart';
+import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_registry.dart';
 import 'package:tgsorter/app/features/settings/application/tag_settings_service.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
@@ -21,6 +24,7 @@ import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 
 class SettingsCoordinator extends GetxController
     implements PipelineSettingsReader, AuthSettingsPort {
@@ -37,6 +41,9 @@ class SettingsCoordinator extends GetxController
     SettingsInputValidator? validator,
     TagSettingsService? tags,
     SettingsChatLoader? chatLoader,
+    SkippedMessageRepository? skippedMessageRepository,
+    SkippedMessageRestoreRegistry? skippedRestoreRegistry,
+    List<SkippedMessageRestorePort>? skippedRestoreTargets,
   }) : _repository = repository,
        _sessions = sessions,
        _auth = auth,
@@ -50,7 +57,11 @@ class SettingsCoordinator extends GetxController
        _validator = validator ?? SettingsInputValidator(),
        _tags = tags ?? TagSettingsService(),
        _chatLoader =
-           chatLoader ?? SettingsChatLoader(sessionQueryGateway: sessions);
+           chatLoader ?? SettingsChatLoader(sessionQueryGateway: sessions),
+       _skippedMessageRepository =
+           skippedMessageRepository ?? NoopSkippedMessageRepository.instance,
+       _skippedRestoreRegistry = skippedRestoreRegistry,
+       _skippedRestoreTargets = skippedRestoreTargets;
 
   final SettingsRepository _repository;
   final SessionQueryGateway _sessions;
@@ -64,12 +75,16 @@ class SettingsCoordinator extends GetxController
   final SettingsInputValidator _validator;
   final TagSettingsService _tags;
   final SettingsChatLoader _chatLoader;
+  final SkippedMessageRepository _skippedMessageRepository;
+  final SkippedMessageRestoreRegistry? _skippedRestoreRegistry;
+  final List<SkippedMessageRestorePort>? _skippedRestoreTargets;
   Future<SettingsSaveResult>? _pendingSaveDraft;
   Future<void>? _pendingChatLoad;
   final saveState = false.obs;
   final chatsState = <SelectableChat>[].obs;
   final chatsLoading = false.obs;
   final chatsError = RxnString();
+  final skippedMessageSummaryState = const SkippedMessageSummary.empty().obs;
 
   SettingsRepository get repository => _repository;
   SessionQueryGateway get sessions => _sessions;
@@ -79,6 +94,8 @@ class SettingsCoordinator extends GetxController
   RxBool get isDirty => _draftCoordinator.isDirty;
   RxBool get isSaving => saveState;
   RxList<SelectableChat> get chats => chatsState;
+  Rx<SkippedMessageSummary> get skippedMessageSummary =>
+      skippedMessageSummaryState;
 
   @override
   Rx<AppSettings> get settingsStream => savedSettings;
@@ -93,6 +110,7 @@ class SettingsCoordinator extends GetxController
   void onInit() {
     super.onInit();
     _draftCoordinator.replace(_persistence.load());
+    refreshSkippedMessageSummary();
   }
 
   @override
@@ -318,6 +336,33 @@ class SettingsCoordinator extends GetxController
     await auth.logout();
   }
 
+  void refreshSkippedMessageSummary() {
+    skippedMessageSummaryState.value = SkippedMessageSummary.fromRecords(
+      _skippedMessageRepository.loadSkippedMessages(),
+    );
+  }
+
+  Future<int> restoreSkippedMessages({
+    SkippedMessageWorkflow? workflow,
+    int? sourceChatId,
+  }) async {
+    final restored = await _skippedMessageRepository.restoreSkippedMessages(
+      workflow: workflow,
+      sourceChatId: sourceChatId,
+    );
+    refreshSkippedMessageSummary();
+    if (restored <= 0) {
+      return 0;
+    }
+    for (final target in _resolveSkippedRestoreTargets()) {
+      if (workflow != null && target.workflow != workflow) {
+        continue;
+      }
+      await target.reloadAfterSkippedRestore(sourceChatId: sourceChatId);
+    }
+    return restored;
+  }
+
   Future<SettingsSaveResult> saveDraft({
     bool restartOnProxyChange = true,
   }) async {
@@ -415,5 +460,14 @@ class SettingsCoordinator extends GetxController
     } finally {
       chatsLoading.value = false;
     }
+  }
+
+  List<SkippedMessageRestorePort> _resolveSkippedRestoreTargets() {
+    final explicitTargets = _skippedRestoreTargets;
+    if (explicitTargets != null) {
+      return explicitTargets;
+    }
+    return _skippedRestoreRegistry?.targets ??
+        const <SkippedMessageRestorePort>[];
   }
 }

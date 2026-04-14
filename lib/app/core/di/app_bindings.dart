@@ -13,6 +13,7 @@ import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
+import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_registry.dart';
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
@@ -32,9 +33,16 @@ Future<void> registerAppBindings() async {
   final settingsRepo = SettingsRepository(prefs);
   final journalRepo = OperationJournalRepository(prefs);
   final skippedMessageRepo = SkippedMessageRepository(prefs);
+  final skippedRestoreRegistry = SkippedMessageRestoreRegistry();
   final appErrors = AppErrorController();
   final credentials = TdlibCredentials.fromEnvironment();
-  final tdLogger = TdJsonLogger();
+  const tdLogDetailRaw = String.fromEnvironment(
+    'TD_LOG_DETAIL',
+    defaultValue: 'summary',
+  );
+  final tdLogger = TdJsonLogger(
+    detailLevel: parseTdJsonLogDetailLevel(tdLogDetailRaw),
+  );
   final rawTransport = TdRawTransport(logger: tdLogger);
   final transport = TdClientTransport(
     rawTransport: rawTransport,
@@ -68,6 +76,7 @@ Future<void> registerAppBindings() async {
   Get.put(settingsRepo, permanent: true);
   Get.put(journalRepo, permanent: true);
   Get.put(skippedMessageRepo, permanent: true);
+  Get.put(skippedRestoreRegistry, permanent: true);
   Get.put(appErrors, permanent: true);
   Get.put(tdLogger, permanent: true);
   Get.put(rawTransport, permanent: true);

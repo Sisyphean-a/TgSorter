@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:tgsorter/app/features/settings/presentation/settings_page.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/status_badge.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
@@ -44,6 +46,7 @@ void main() {
     expect(find.text('连接与网络'), findsOneWidget);
     expect(find.text('快捷键'), findsOneWidget);
     expect(find.text('关于账号与会话'), findsOneWidget);
+    expect(find.text('恢复已略过数据'), findsOneWidget);
 
     expect(find.text('转发来源会话'), findsNothing);
     expect(find.text('标签来源会话'), findsNothing);
@@ -52,7 +55,7 @@ void main() {
     expect(find.text('保存更改'), findsNothing);
     expect(find.text('放弃更改'), findsNothing);
     expect(find.byType(StatusBadge), findsNothing);
-    expect(find.byType(SettingsNavigationTile), findsNWidgets(6));
+    expect(find.byType(SettingsNavigationTile), findsNWidgets(7));
   });
 
   testWidgets('点击目录行后进入对应二级页并显示返回箭头', (tester) async {
@@ -328,6 +331,52 @@ void main() {
     expect(gateway.logoutCalls, 1);
   });
 
+  testWidgets('恢复已略过数据页支持按全部按工作流按来源恢复', (tester) async {
+    await _pumpSettingsPage(
+      tester,
+      chats: const [
+        SelectableChat(id: 8888, title: '转发来源'),
+        SelectableChat(id: 9999, title: '标签来源'),
+      ],
+      skippedRecords: const <SkippedMessageRecord>[
+        SkippedMessageRecord(
+          id: 'forwarding:8888:1',
+          workflow: SkippedMessageWorkflow.forwarding,
+          sourceChatId: 8888,
+          primaryMessageId: 1,
+          messageIds: <int>[1],
+          createdAtMs: 1,
+        ),
+        SkippedMessageRecord(
+          id: 'tagging:9999:2',
+          workflow: SkippedMessageWorkflow.tagging,
+          sourceChatId: 9999,
+          primaryMessageId: 2,
+          messageIds: <int>[2],
+          createdAtMs: 2,
+        ),
+      ],
+    );
+
+    await tester.tap(find.text('恢复已略过数据'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('全部恢复'), findsOneWidget);
+    expect(find.text('按工作流恢复'), findsOneWidget);
+    expect(find.text('按来源恢复'), findsOneWidget);
+    expect(find.text('恢复转发'), findsOneWidget);
+    expect(find.text('恢复标签'), findsOneWidget);
+    expect(find.text('转发来源'), findsOneWidget);
+    expect(find.text('标签来源'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '恢复转发'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('已恢复 1 条略过记录'), findsOneWidget);
+    expect(find.text('转发来源'), findsNothing);
+    expect(find.text('标签来源'), findsOneWidget);
+  });
+
   testWidgets('其余详情页都在两层结构内展示各自字段', (tester) async {
     await _pumpSettingsPage(
       tester,
@@ -366,14 +415,21 @@ Future<SettingsCoordinator> _pumpSettingsPage(
   required List<SelectableChat> chats,
   AppSettings? initialSettings,
   _SettingsPageFakeGateway? gateway,
+  List<SkippedMessageRecord> skippedRecords = const <SkippedMessageRecord>[],
 }) async {
-  SharedPreferences.setMockInitialValues({});
+  SharedPreferences.setMockInitialValues(<String, Object>{
+    if (skippedRecords.isNotEmpty)
+      'skipped_messages_json': jsonEncode(
+        skippedRecords.map((item) => item.toJson()).toList(growable: false),
+      ),
+  });
   final prefs = await SharedPreferences.getInstance();
   final resolvedGateway = gateway ?? _SettingsPageFakeGateway(chats);
   final controller = SettingsCoordinator(
     SettingsRepository(prefs),
     resolvedGateway,
     auth: resolvedGateway,
+    skippedMessageRepository: SkippedMessageRepository(prefs),
   );
   controller.onInit();
   if (initialSettings != null) {

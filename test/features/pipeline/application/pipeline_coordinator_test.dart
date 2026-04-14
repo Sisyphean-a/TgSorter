@@ -109,6 +109,40 @@ void main() {
   );
 
   test(
+    'coordinator reloadAfterSkippedRestore resets and refetches when source matches',
+    () async {
+      final feed = _RecordingPipelineFeedController();
+      final service = _RecordingPipelineSignalGateway();
+      final harness = _PipelineCoordinatorHarness(
+        feed: feed,
+        authStateGateway: service,
+        connectionStateGateway: service,
+      );
+
+      harness.coordinator.onInit();
+      service.emitConnectionReady();
+      service.emitAuthReady();
+      await Future<void>.delayed(Duration.zero);
+      feed.loadInitialCalls = 0;
+
+      await harness.coordinator.reloadAfterSkippedRestore(sourceChatId: 8888);
+
+      expect(feed.resetCalls, 1);
+      expect(feed.loadInitialCalls, 1);
+    },
+  );
+
+  test('coordinator reloadAfterSkippedRestore ignores other sources', () async {
+    final feed = _RecordingPipelineFeedController();
+    final harness = _PipelineCoordinatorHarness(feed: feed);
+
+    await harness.coordinator.reloadAfterSkippedRestore(sourceChatId: 9999);
+
+    expect(feed.resetCalls, 0);
+    expect(feed.loadInitialCalls, 0);
+  });
+
+  test(
     'coordinator onInit wires auth and connection events through lifecycle',
     () async {
       final service = _RecordingPipelineSignalGateway();
@@ -166,33 +200,36 @@ void main() {
     expect(harness.coordinator.pendingRecoveryTransactions.single.id, 'tx-1');
   });
 
-  test('coordinator can mark pending recovery transaction as resolved', () async {
-    final journalRepository = _FakeOperationJournalRepository(
-      transactions: [
-        ClassifyTransactionEntry(
-          id: 'tx-1',
-          sourceChatId: 8888,
-          sourceMessageIds: const [21],
-          targetChatId: 10001,
-          asCopy: false,
-          targetMessageIds: const [],
-          stage: ClassifyTransactionStage.needsManualReview,
-          createdAtMs: 1,
-          updatedAtMs: 1,
-          lastError: '需要人工核查',
-        ),
-      ],
-    );
-    final harness = _PipelineCoordinatorHarness(
-      journalRepository: journalRepository,
-    );
-    harness.coordinator.onInit();
+  test(
+    'coordinator can mark pending recovery transaction as resolved',
+    () async {
+      final journalRepository = _FakeOperationJournalRepository(
+        transactions: [
+          ClassifyTransactionEntry(
+            id: 'tx-1',
+            sourceChatId: 8888,
+            sourceMessageIds: const [21],
+            targetChatId: 10001,
+            asCopy: false,
+            targetMessageIds: const [],
+            stage: ClassifyTransactionStage.needsManualReview,
+            createdAtMs: 1,
+            updatedAtMs: 1,
+            lastError: '需要人工核查',
+          ),
+        ],
+      );
+      final harness = _PipelineCoordinatorHarness(
+        journalRepository: journalRepository,
+      );
+      harness.coordinator.onInit();
 
-    await harness.coordinator.markPendingRecoveryTransactionResolved('tx-1');
+      await harness.coordinator.markPendingRecoveryTransactionResolved('tx-1');
 
-    expect(harness.coordinator.pendingRecoveryTransactions, isEmpty);
-    expect(journalRepository.loadClassifyTransactions(), isEmpty);
-  });
+      expect(harness.coordinator.pendingRecoveryTransactions, isEmpty);
+      expect(journalRepository.loadClassifyTransactions(), isEmpty);
+    },
+  );
 
   test('coordinator runBatch stops after first classify failure', () async {
     final runtimeState = PipelineRuntimeState();
@@ -252,8 +289,7 @@ class _PipelineCoordinatorHarness {
       feed: feed,
       lifecycle: lifecycle,
       mediaSession: mediaSession,
-      journalRepository:
-          journalRepository ?? _FakeOperationJournalRepository(),
+      journalRepository: journalRepository ?? _FakeOperationJournalRepository(),
     );
   }
 
@@ -325,6 +361,7 @@ class _RecordingPipelineFeedController extends PipelineFeedController {
 
   int loadInitialCalls = 0;
   int ensureVisibleCalls = 0;
+  int resetCalls = 0;
   final List<int> decrementCalls = <int>[];
 
   @override
@@ -340,6 +377,11 @@ class _RecordingPipelineFeedController extends PipelineFeedController {
   @override
   void decrementRemainingCount(int delta) {
     decrementCalls.add(delta);
+  }
+
+  @override
+  void reset() {
+    resetCalls++;
   }
 }
 
@@ -533,8 +575,7 @@ class _FakeOperationJournalRepository implements OperationJournalRepository {
     List<ClassifyTransactionEntry>? transactions,
   }) : _logs = logs?.toList() ?? <ClassifyOperationLog>[],
        _retryQueue = retryQueue?.toList() ?? <RetryQueueItem>[],
-       _transactions =
-           transactions?.toList() ?? <ClassifyTransactionEntry>[];
+       _transactions = transactions?.toList() ?? <ClassifyTransactionEntry>[];
 
   final List<ClassifyOperationLog> _logs;
   final List<RetryQueueItem> _retryQueue;
@@ -568,7 +609,9 @@ class _FakeOperationJournalRepository implements OperationJournalRepository {
   }
 
   @override
-  Future<void> saveClassifyTransactions(List<ClassifyTransactionEntry> items) async {
+  Future<void> saveClassifyTransactions(
+    List<ClassifyTransactionEntry> items,
+  ) async {
     _transactions
       ..clear()
       ..addAll(items);

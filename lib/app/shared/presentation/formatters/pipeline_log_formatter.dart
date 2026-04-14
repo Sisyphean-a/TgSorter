@@ -35,6 +35,8 @@ class PipelineLogChainViewModel {
     required this.lastOccurredAt,
     required this.state,
     required this.statusLabel,
+    required this.summaryLabel,
+    required this.latestReason,
     required this.events,
   });
 
@@ -46,6 +48,8 @@ class PipelineLogChainViewModel {
   final DateTime lastOccurredAt;
   final PipelineLogChainState state;
   final String statusLabel;
+  final String summaryLabel;
+  final String? latestReason;
   final List<PipelineLogEventViewModel> events;
 }
 
@@ -120,6 +124,8 @@ PipelineLogChainViewModel _toChain(
     lastOccurredAt: DateTime.fromMillisecondsSinceEpoch(last.createdAtMs),
     state: state,
     statusLabel: _stateLabel(state),
+    summaryLabel: _summaryLabel(events),
+    latestReason: _latestReason(events),
     events: events,
   );
 }
@@ -220,4 +226,27 @@ String _labelStatus(ClassifyOperationStatus status) {
     case ClassifyOperationStatus.undoFailed:
       return '撤销失败';
   }
+}
+
+String _summaryLabel(List<PipelineLogEventViewModel> events) {
+  if (events.isEmpty) {
+    return '无事件';
+  }
+  final labels = <String>[];
+  for (final event in events) {
+    if (labels.isEmpty || labels.last != event.statusLabel) {
+      labels.add(event.statusLabel);
+    }
+  }
+  return labels.join(' -> ');
+}
+
+String? _latestReason(List<PipelineLogEventViewModel> events) {
+  for (final event in events.reversed) {
+    final reason = event.reason;
+    if (reason != null && reason.isNotEmpty) {
+      return reason;
+    }
+  }
+  return null;
 }

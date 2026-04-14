@@ -7,12 +7,14 @@ import 'package:tgsorter/app/features/settings/application/settings_coordinator.
 import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
 import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
+import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 
 void main() {
@@ -386,6 +388,99 @@ void main() {
       );
     },
   );
+
+  test(
+    'refreshSkippedSummary groups skipped records by workflow and source',
+    () {
+      final harness = _SettingsCoordinatorHarness()
+        ..skippedRepository.records = <SkippedMessageRecord>[
+          SkippedMessageRecord(
+            id: 'forwarding:8888:1',
+            workflow: SkippedMessageWorkflow.forwarding,
+            sourceChatId: 8888,
+            primaryMessageId: 1,
+            messageIds: const <int>[1],
+            createdAtMs: 1,
+          ),
+          SkippedMessageRecord(
+            id: 'forwarding:8888:2',
+            workflow: SkippedMessageWorkflow.forwarding,
+            sourceChatId: 8888,
+            primaryMessageId: 2,
+            messageIds: const <int>[2],
+            createdAtMs: 2,
+          ),
+          SkippedMessageRecord(
+            id: 'tagging:9999:3',
+            workflow: SkippedMessageWorkflow.tagging,
+            sourceChatId: 9999,
+            primaryMessageId: 3,
+            messageIds: const <int>[3],
+            createdAtMs: 3,
+          ),
+        ];
+      final coordinator = harness.build();
+
+      coordinator.refreshSkippedMessageSummary();
+
+      expect(coordinator.skippedMessageSummary.value.totalCount, 3);
+      expect(coordinator.skippedMessageSummary.value.forwardingCount, 2);
+      expect(coordinator.skippedMessageSummary.value.taggingCount, 1);
+      expect(
+        coordinator.skippedMessageSummary.value.sources.map(
+          (item) => item.count,
+        ),
+        [2, 1],
+      );
+    },
+  );
+
+  test(
+    'restoreSkippedMessages notifies matching workflow targets only',
+    () async {
+      final harness = _SettingsCoordinatorHarness()
+        ..skippedRepository.records = <SkippedMessageRecord>[
+          SkippedMessageRecord(
+            id: 'forwarding:8888:1',
+            workflow: SkippedMessageWorkflow.forwarding,
+            sourceChatId: 8888,
+            primaryMessageId: 1,
+            messageIds: const <int>[1],
+            createdAtMs: 1,
+          ),
+          SkippedMessageRecord(
+            id: 'tagging:9999:3',
+            workflow: SkippedMessageWorkflow.tagging,
+            sourceChatId: 9999,
+            primaryMessageId: 3,
+            messageIds: const <int>[3],
+            createdAtMs: 3,
+          ),
+        ];
+      final forwardingTarget = _FakeSkippedMessageRestorePort(
+        SkippedMessageWorkflow.forwarding,
+      );
+      final taggingTarget = _FakeSkippedMessageRestorePort(
+        SkippedMessageWorkflow.tagging,
+      );
+      harness.restoreTargets = <SkippedMessageRestorePort>[
+        forwardingTarget,
+        taggingTarget,
+      ];
+      final coordinator = harness.build();
+
+      final restored = await coordinator.restoreSkippedMessages(
+        workflow: SkippedMessageWorkflow.forwarding,
+        sourceChatId: 8888,
+      );
+
+      expect(restored, 1);
+      expect(forwardingTarget.restoreCalls, 1);
+      expect(forwardingTarget.lastSourceChatId, 8888);
+      expect(taggingTarget.restoreCalls, 0);
+      expect(coordinator.skippedMessageSummary.value.totalCount, 1);
+    },
+  );
 }
 
 class _SettingsCoordinatorHarness {
@@ -395,6 +490,10 @@ class _SettingsCoordinatorHarness {
       _FakeSettingsPersistenceService();
   final _FakeSettingsChatLoader chatLoader = _FakeSettingsChatLoader();
   final _FakeSettingsRestartPolicy restartPolicy = _FakeSettingsRestartPolicy();
+  final _FakeSkippedMessageRepository skippedRepository =
+      _FakeSkippedMessageRepository();
+  List<SkippedMessageRestorePort> restoreTargets =
+      <SkippedMessageRestorePort>[];
 
   int get restartCalls => sessions.restartCalls;
 
@@ -407,6 +506,8 @@ class _SettingsCoordinatorHarness {
       persistence: persistence,
       restartPolicy: restartPolicy,
       chatLoader: chatLoader,
+      skippedMessageRepository: skippedRepository,
+      skippedRestoreTargets: restoreTargets,
     );
   }
 }
@@ -543,5 +644,85 @@ class _FakeSettingsChatLoader extends SettingsChatLoader {
       return completer.future;
     }
     return chats;
+  }
+}
+
+class _FakeSkippedMessageRepository implements SkippedMessageRepository {
+  List<SkippedMessageRecord> records = <SkippedMessageRecord>[];
+
+  @override
+  bool containsMessage({
+    required SkippedMessageWorkflow workflow,
+    required int sourceChatId,
+    required Iterable<int> messageIds,
+  }) {
+    final ids = messageIds.toSet();
+    return records.any(
+      (item) =>
+          item.workflow == workflow &&
+          item.sourceChatId == sourceChatId &&
+          item.messageIds.any(ids.contains),
+    );
+  }
+
+  @override
+  int countSkippedMessages({
+    required SkippedMessageWorkflow workflow,
+    int? sourceChatId,
+  }) {
+    return records.where((item) {
+      return item.workflow == workflow &&
+          (sourceChatId == null || item.sourceChatId == sourceChatId);
+    }).length;
+  }
+
+  @override
+  List<SkippedMessageRecord> loadSkippedMessages() =>
+      List<SkippedMessageRecord>.from(records);
+
+  @override
+  Future<int> restoreSkippedMessages({
+    SkippedMessageWorkflow? workflow,
+    int? sourceChatId,
+  }) async {
+    final current = List<SkippedMessageRecord>.from(records);
+    records = current
+        .where((item) {
+          if (workflow != null && item.workflow != workflow) {
+            return true;
+          }
+          if (sourceChatId != null && item.sourceChatId != sourceChatId) {
+            return true;
+          }
+          return false;
+        })
+        .toList(growable: false);
+    return current.length - records.length;
+  }
+
+  @override
+  Future<void> saveSkippedMessages(List<SkippedMessageRecord> records) async {
+    this.records = List<SkippedMessageRecord>.from(records);
+  }
+
+  @override
+  Future<void> upsertSkippedMessage(SkippedMessageRecord record) async {
+    records = List<SkippedMessageRecord>.from(records)..add(record);
+  }
+}
+
+class _FakeSkippedMessageRestorePort implements SkippedMessageRestorePort {
+  _FakeSkippedMessageRestorePort(this.workflow);
+
+  @override
+  final SkippedMessageWorkflow workflow;
+
+  int restoreCalls = 0;
+  int? lastSourceChatId;
+
+  @override
+  Future<void> reloadAfterSkippedRestore({int? sourceChatId}) async {
+    restoreCalls++;
+    lastSourceChatId = sourceChatId;
   }
 }

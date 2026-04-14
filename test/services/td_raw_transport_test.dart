@@ -38,6 +38,7 @@ void main() {
         plugin: plugin,
         logger: TdJsonLogger(
           isEnabled: true,
+          detailLevel: TdJsonLogDetailLevel.verbose,
           sink:
               ({
                 required String message,
@@ -84,6 +85,7 @@ void main() {
         plugin: plugin,
         logger: TdJsonLogger(
           isEnabled: true,
+          detailLevel: TdJsonLogDetailLevel.verbose,
           sink:
               ({
                 required String message,

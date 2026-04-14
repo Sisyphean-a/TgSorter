@@ -45,14 +45,17 @@ void main() {
     expect(find.byKey(const Key('logs-filter-bar')), findsOneWidget);
     expect(find.byKey(const Key('log-chain-row-1002_cat_200')), findsOneWidget);
     expect(find.text('消息 #1002'), findsOneWidget);
-    expect(find.text('原因：NETWORK'), findsOneWidget);
+    expect(find.text('失败'), findsWidgets);
+    expect(find.text('失败 -> 重试成功'), findsOneWidget);
+    expect(find.text('最近失败：NETWORK'), findsOneWidget);
     expect(find.text('消息 #1001'), findsOneWidget);
     expect(find.text('已恢复'), findsWidgets);
-    final chainCard = tester.widget<DecoratedBox>(
+    final chainRow = tester.widget<Container>(
       find.byKey(const Key('log-chain-row-1002_cat_200')),
     );
-    final decoration = chainCard.decoration as BoxDecoration;
-    expect(decoration.color, const Color(0xFFFFFFFF));
+    final decoration = chainRow.decoration as BoxDecoration;
+    expect(decoration.color, isNull);
+    expect(decoration.border?.bottom.color, const Color(0xFFD9E1E8));
 
     await tester.tap(find.byKey(const ValueKey('log-filter-failedInProgress')));
     await tester.pumpAndSettle();

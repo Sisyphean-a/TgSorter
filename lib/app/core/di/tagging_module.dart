@@ -4,6 +4,7 @@ import 'package:tgsorter/app/features/pipeline/ports/connection_state_gateway.da
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_registry.dart';
 import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
@@ -21,4 +22,5 @@ void registerTaggingModule() {
     skippedMessageRepository: Get.find<SkippedMessageRepository>(),
   );
   Get.put(coordinator, permanent: true);
+  Get.find<SkippedMessageRestoreRegistry>().register(coordinator);
 }

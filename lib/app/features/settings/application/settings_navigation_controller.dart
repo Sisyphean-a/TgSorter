@@ -7,6 +7,7 @@ enum SettingsRoute {
   tagging,
   connection,
   shortcuts,
+  skippedMessages,
   accountSession,
 }
 
@@ -25,6 +26,8 @@ extension SettingsRoutePresentation on SettingsRoute {
         return '连接与网络';
       case SettingsRoute.shortcuts:
         return '快捷键';
+      case SettingsRoute.skippedMessages:
+        return '恢复已略过数据';
       case SettingsRoute.accountSession:
         return '账号与会话';
     }

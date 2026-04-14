@@ -111,23 +111,52 @@ void main() {
       },
     );
 
-    test('skipCurrent persists tagging skip and hides message after reset', () async {
-      final skipped = _FakeSkippedMessageRepository();
-      final coordinator = _buildCoordinator(skippedMessages: skipped);
-      coordinator.isOnline.value = true;
+    test(
+      'skipCurrent persists tagging skip and hides message after reset',
+      () async {
+        final skipped = _FakeSkippedMessageRepository();
+        final coordinator = _buildCoordinator(skippedMessages: skipped);
+        coordinator.isOnline.value = true;
 
-      await coordinator.fetchNext();
-      await coordinator.skipCurrent();
-      coordinator.clearSessionStateForLogout();
-      await coordinator.fetchNext();
+        await coordinator.fetchNext();
+        await coordinator.skipCurrent();
+        coordinator.clearSessionStateForLogout();
+        await coordinator.fetchNext();
 
-      expect(skipped.savedRecords, hasLength(1));
-      expect(
-        skipped.savedRecords.single.workflow,
-        SkippedMessageWorkflow.tagging,
-      );
-      expect(coordinator.currentMessage.value, isNull);
-    });
+        expect(skipped.savedRecords, hasLength(1));
+        expect(
+          skipped.savedRecords.single.workflow,
+          SkippedMessageWorkflow.tagging,
+        );
+        expect(coordinator.currentMessage.value, isNull);
+      },
+    );
+
+    test(
+      'reloadAfterSkippedRestore resets and refetches when tag source matches',
+      () async {
+        final messages = _FakeMessageReadGateway([_message(1, 'first')]);
+        final auth = _FakeAuthStateGateway();
+        final connection = _FakeConnectionStateGateway();
+        final coordinator = _buildCoordinator(
+          messages: messages,
+          auth: auth,
+          connection: connection,
+        );
+
+        coordinator.onInit();
+        coordinator.onReady();
+        auth.emitReady();
+        connection.emitReady();
+        await Future<void>.delayed(Duration.zero);
+        messages.fetchCalls = 0;
+
+        await coordinator.reloadAfterSkippedRestore(sourceChatId: -1001);
+
+        expect(messages.fetchCalls, 1);
+        expect(coordinator.currentMessage.value?.id, 1);
+      },
+    );
   });
 }
 
@@ -183,6 +212,7 @@ class _FakeMessageReadGateway implements MessageReadGateway {
 
   final List<PipelineMessage> messages;
   int? lastSourceChatId;
+  int fetchCalls = 0;
 
   @override
   Future<int> countRemainingMessages({required int? sourceChatId}) async {
@@ -196,6 +226,10 @@ class _FakeMessageReadGateway implements MessageReadGateway {
     required int? fromMessageId,
     required int limit,
   }) async {
+    if (fromMessageId != null) {
+      return const <PipelineMessage>[];
+    }
+    fetchCalls++;
     lastSourceChatId = sourceChatId;
     return messages;
   }

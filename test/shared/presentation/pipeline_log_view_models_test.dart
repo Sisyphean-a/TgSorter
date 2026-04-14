@@ -22,6 +22,8 @@ void main() {
     expect(chains.single.state, PipelineLogChainState.recovered);
     expect(chains.single.events, hasLength(2));
     expect(chains.single.statusLabel, '已恢复');
+    expect(chains.single.summaryLabel, '失败 -> 重试成功');
+    expect(chains.single.latestReason, 'CHAT_WRITE_FORBIDDEN');
     expect(chains.single.events.first.reason, 'CHAT_WRITE_FORBIDDEN');
   });
 
@@ -93,6 +95,7 @@ void main() {
     expect(chains, hasLength(1));
     expect(chains.single.state, PipelineLogChainState.recovered);
     expect(chains.single.events.last.statusLabel, '媒体重试成功');
+    expect(chains.single.summaryLabel, '媒体失败 -> 媒体重试成功');
   });
 }
 
