@@ -28,6 +28,10 @@ class SettingsRepository {
   static const _batchSizeKey = 'pipeline_batch_size';
   static const _throttleMsKey = 'pipeline_throttle_ms';
   static const _previewPrefetchCountKey = 'preview_prefetch_count';
+  static const _mediaBackgroundDownloadConcurrencyKey =
+      'media_background_download_concurrency';
+  static const _mediaRetryLimitKey = 'media_retry_limit';
+  static const _mediaRetryDelayMsKey = 'media_retry_delay_ms';
   static const _shortcutPrefix = 'shortcut_';
   static const _shortcutCtrlPrefix = 'ctrl+';
   static const _defaultBatchSize = 5;
@@ -71,6 +75,17 @@ class SettingsRepository {
         _prefs.getInt(_previewPrefetchCountKey) ??
         AppSettings.defaultPreviewPrefetchCount;
     settings = settings.updatePreviewPrefetchCount(previewPrefetchCount);
+    settings = settings.updateMediaLoadOptions(
+      backgroundConcurrency:
+          _prefs.getInt(_mediaBackgroundDownloadConcurrencyKey) ??
+          AppSettings.defaultMediaBackgroundDownloadConcurrency,
+      retryLimit:
+          _prefs.getInt(_mediaRetryLimitKey) ??
+          AppSettings.defaultMediaRetryLimit,
+      retryDelayMs:
+          _prefs.getInt(_mediaRetryDelayMsKey) ??
+          AppSettings.defaultMediaRetryDelayMs,
+    );
     settings = settings.updateProxySettings(_loadProxySettings());
     for (final action in ShortcutAction.values) {
       final raw = _prefs.getString('$_shortcutPrefix${action.name}');
@@ -127,6 +142,12 @@ class SettingsRepository {
       _previewPrefetchCountKey,
       settings.previewPrefetchCount,
     );
+    await _prefs.setInt(
+      _mediaBackgroundDownloadConcurrencyKey,
+      settings.mediaBackgroundDownloadConcurrency,
+    );
+    await _prefs.setInt(_mediaRetryLimitKey, settings.mediaRetryLimit);
+    await _prefs.setInt(_mediaRetryDelayMsKey, settings.mediaRetryDelayMs);
     await _saveProxySettings(settings.proxy);
     await _saveCategories(settings.categories);
     await _saveTagGroups(settings.tagGroups);

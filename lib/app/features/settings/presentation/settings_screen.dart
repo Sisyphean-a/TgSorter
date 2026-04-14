@@ -91,6 +91,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onValidationChanged: widget.draftSession.setHasValidationErrors,
             onUpdatePreviewPrefetchCount:
                 widget.draftSession.updatePreviewPrefetchCount,
+            onUpdateMediaLoadOptions:
+                widget.draftSession.updateMediaLoadOptions,
             onUpdateCategory: widget.draftSession.updateCategory,
           ),
         );

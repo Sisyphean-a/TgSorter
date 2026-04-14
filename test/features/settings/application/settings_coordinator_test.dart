@@ -174,6 +174,30 @@ void main() {
     );
   });
 
+  test('updates media load options in draft only', () {
+    final harness = _SettingsCoordinatorHarness();
+    final coordinator = harness.build();
+    coordinator.onInit();
+
+    coordinator.updateMediaLoadOptionsDraft(
+      backgroundConcurrency: 4,
+      retryLimit: 3,
+      retryDelayMs: 900,
+    );
+
+    expect(coordinator.isDirty.value, isTrue);
+    expect(
+      coordinator.savedSettings.value.mediaBackgroundDownloadConcurrency,
+      AppSettings.defaultMediaBackgroundDownloadConcurrency,
+    );
+    expect(
+      coordinator.draftSettings.value.mediaBackgroundDownloadConcurrency,
+      4,
+    );
+    expect(coordinator.draftSettings.value.mediaRetryLimit, 3);
+    expect(coordinator.draftSettings.value.mediaRetryDelayMs, 900);
+  });
+
   test('updates theme mode in draft and discard restores saved value', () {
     final harness = _SettingsCoordinatorHarness()
       ..persistence.loaded = AppSettings.defaults().copyWith(

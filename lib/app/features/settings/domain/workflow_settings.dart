@@ -9,6 +9,9 @@ class WorkflowSettings {
     required this.batchSize,
     required this.throttleMs,
     required this.previewPrefetchCount,
+    required this.mediaBackgroundDownloadConcurrency,
+    required this.mediaRetryLimit,
+    required this.mediaRetryDelayMs,
     required this.categories,
   });
 
@@ -18,5 +21,8 @@ class WorkflowSettings {
   final int batchSize;
   final int throttleMs;
   final int previewPrefetchCount;
+  final int mediaBackgroundDownloadConcurrency;
+  final int mediaRetryLimit;
+  final int mediaRetryDelayMs;
   final List<CategoryConfig> categories;
 }

@@ -134,6 +134,21 @@ class SettingsCoordinator extends GetxController
     );
   }
 
+  void updateMediaLoadOptionsDraft({
+    required int backgroundConcurrency,
+    required int retryLimit,
+    required int retryDelayMs,
+  }) {
+    _draftCoordinator.update(
+      draftSettings.value.updateMediaLoadOptions(
+        backgroundConcurrency: _validator
+            .requireMediaBackgroundDownloadConcurrency(backgroundConcurrency),
+        retryLimit: _validator.requireMediaRetryLimit(retryLimit),
+        retryDelayMs: _validator.requireMediaRetryDelayMs(retryDelayMs),
+      ),
+    );
+  }
+
   void updateProxyDraft({
     required String server,
     required String port,

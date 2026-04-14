@@ -213,6 +213,32 @@ class PreviewPrefetchDraftEditor extends StatelessWidget {
   }
 }
 
+class MediaLoadOptionsDraftEditor extends StatefulWidget {
+  const MediaLoadOptionsDraftEditor({
+    super.key,
+    required this.backgroundConcurrency,
+    required this.retryLimit,
+    required this.retryDelayMs,
+    required this.onChanged,
+    this.onValidationChanged,
+  });
+
+  final int backgroundConcurrency;
+  final int retryLimit;
+  final int retryDelayMs;
+  final void Function({
+    required int backgroundConcurrency,
+    required int retryLimit,
+    required int retryDelayMs,
+  })
+  onChanged;
+  final ValueChanged<bool>? onValidationChanged;
+
+  @override
+  State<MediaLoadOptionsDraftEditor> createState() =>
+      _MediaLoadOptionsDraftEditorState();
+}
+
 class _BatchOptionsDraftEditorState extends State<BatchOptionsDraftEditor> {
   final _validator = SettingsInputValidator();
   late final TextEditingController _batchCtrl;
@@ -288,6 +314,123 @@ class _BatchOptionsDraftEditorState extends State<BatchOptionsDraftEditor> {
     widget.onChanged(
       batchSize: int.parse(_batchCtrl.text.trim()),
       throttleMs: int.parse(_throttleCtrl.text.trim()),
+    );
+  }
+}
+
+class _MediaLoadOptionsDraftEditorState
+    extends State<MediaLoadOptionsDraftEditor> {
+  final _validator = SettingsInputValidator();
+  late final TextEditingController _concurrencyCtrl;
+  late final TextEditingController _retryLimitCtrl;
+  late final TextEditingController _retryDelayCtrl;
+  String? _concurrencyError;
+  String? _retryLimitError;
+  String? _retryDelayError;
+
+  @override
+  void initState() {
+    super.initState();
+    _concurrencyCtrl = TextEditingController(
+      text: widget.backgroundConcurrency.toString(),
+    );
+    _retryLimitCtrl = TextEditingController(text: widget.retryLimit.toString());
+    _retryDelayCtrl = TextEditingController(
+      text: widget.retryDelayMs.toString(),
+    );
+    _syncValidationState(notifyModel: false);
+  }
+
+  @override
+  void didUpdateWidget(covariant MediaLoadOptionsDraftEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.backgroundConcurrency != widget.backgroundConcurrency) {
+      _concurrencyCtrl.text = widget.backgroundConcurrency.toString();
+    }
+    if (oldWidget.retryLimit != widget.retryLimit) {
+      _retryLimitCtrl.text = widget.retryLimit.toString();
+    }
+    if (oldWidget.retryDelayMs != widget.retryDelayMs) {
+      _retryDelayCtrl.text = widget.retryDelayMs.toString();
+    }
+    _syncValidationState(notifyModel: false);
+  }
+
+  @override
+  void dispose() {
+    _concurrencyCtrl.dispose();
+    _retryLimitCtrl.dispose();
+    _retryDelayCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TextField(
+          controller: _concurrencyCtrl,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: '媒体后台下载并发度',
+            helperText: '控制后续消息后台媒体准备可以并行多少项',
+            errorText: _concurrencyError,
+          ),
+          onChanged: (_) => _syncValidationState(),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _retryLimitCtrl,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: '媒体自动重试次数',
+            helperText: '单个媒体失败后自动再尝试的最大次数',
+            errorText: _retryLimitError,
+          ),
+          onChanged: (_) => _syncValidationState(),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _retryDelayCtrl,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: '媒体重试间隔毫秒',
+            helperText: '自动重试之间的等待时间',
+            errorText: _retryDelayError,
+          ),
+          onChanged: (_) => _syncValidationState(),
+        ),
+      ],
+    );
+  }
+
+  bool get _hasErrors {
+    return _concurrencyError != null ||
+        _retryLimitError != null ||
+        _retryDelayError != null;
+  }
+
+  void _syncValidationState({bool notifyModel = true}) {
+    setState(() {
+      _concurrencyError = _validator
+          .validateMediaBackgroundDownloadConcurrencyText(
+            _concurrencyCtrl.text,
+          );
+      _retryLimitError = _validator.validateMediaRetryLimitText(
+        _retryLimitCtrl.text,
+      );
+      _retryDelayError = _validator.validateMediaRetryDelayText(
+        _retryDelayCtrl.text,
+      );
+    });
+    widget.onValidationChanged?.call(_hasErrors);
+    if (!notifyModel || _hasErrors) {
+      return;
+    }
+    widget.onChanged(
+      backgroundConcurrency: int.parse(_concurrencyCtrl.text.trim()),
+      retryLimit: int.parse(_retryLimitCtrl.text.trim()),
+      retryDelayMs: int.parse(_retryDelayCtrl.text.trim()),
     );
   }
 }

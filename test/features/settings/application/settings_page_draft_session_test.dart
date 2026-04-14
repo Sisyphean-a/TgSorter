@@ -43,6 +43,24 @@ void main() {
     expect(session.draftSettings.value.batchSize, saved.batchSize);
     expect(session.draftSettings.value.throttleMs, saved.throttleMs);
 
+    expect(
+      () => session.updateMediaLoadOptions(
+        backgroundConcurrency: 0,
+        retryLimit: -1,
+        retryDelayMs: -1,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      session.draftSettings.value.mediaBackgroundDownloadConcurrency,
+      saved.mediaBackgroundDownloadConcurrency,
+    );
+    expect(session.draftSettings.value.mediaRetryLimit, saved.mediaRetryLimit);
+    expect(
+      session.draftSettings.value.mediaRetryDelayMs,
+      saved.mediaRetryDelayMs,
+    );
+
     session.open(route: SettingsRoute.connection, savedSettings: saved);
 
     expect(
@@ -55,5 +73,22 @@ void main() {
       throwsArgumentError,
     );
     expect(session.draftSettings.value.proxy, saved.proxy);
+  });
+
+  test('页面草稿可以单独更新媒体加载参数', () {
+    final session = SettingsPageDraftSession();
+    final saved = AppSettings.defaults();
+
+    session.open(route: SettingsRoute.forwarding, savedSettings: saved);
+    session.updateMediaLoadOptions(
+      backgroundConcurrency: 3,
+      retryLimit: 2,
+      retryDelayMs: 800,
+    );
+
+    expect(session.isDirty.value, isTrue);
+    expect(session.draftSettings.value.mediaBackgroundDownloadConcurrency, 3);
+    expect(session.draftSettings.value.mediaRetryLimit, 2);
+    expect(session.draftSettings.value.mediaRetryDelayMs, 800);
   });
 }

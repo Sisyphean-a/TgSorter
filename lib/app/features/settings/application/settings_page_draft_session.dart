@@ -97,6 +97,21 @@ class SettingsPageDraftSession {
     );
   }
 
+  void updateMediaLoadOptions({
+    required int backgroundConcurrency,
+    required int retryLimit,
+    required int retryDelayMs,
+  }) {
+    _update(
+      draftSettings.value.updateMediaLoadOptions(
+        backgroundConcurrency: _validator
+            .requireMediaBackgroundDownloadConcurrency(backgroundConcurrency),
+        retryLimit: _validator.requireMediaRetryLimit(retryLimit),
+        retryDelayMs: _validator.requireMediaRetryDelayMs(retryDelayMs),
+      ),
+    );
+  }
+
   void updateProxy({
     required String server,
     required String port,

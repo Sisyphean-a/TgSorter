@@ -25,6 +25,7 @@ class SettingsForwardingContent extends StatelessWidget {
     required this.onUpdateBatchOptions,
     required this.onValidationChanged,
     required this.onUpdatePreviewPrefetchCount,
+    required this.onUpdateMediaLoadOptions,
     required this.onUpdateCategory,
   });
 
@@ -40,6 +41,12 @@ class SettingsForwardingContent extends StatelessWidget {
   onUpdateBatchOptions;
   final ValueChanged<bool> onValidationChanged;
   final ValueChanged<int> onUpdatePreviewPrefetchCount;
+  final void Function({
+    required int backgroundConcurrency,
+    required int retryLimit,
+    required int retryDelayMs,
+  })
+  onUpdateMediaLoadOptions;
   final void Function({required String key, required SelectableChat chat})
   onUpdateCategory;
 
@@ -58,6 +65,7 @@ class SettingsForwardingContent extends StatelessWidget {
           onUpdateBatchOptions: onUpdateBatchOptions,
           onValidationChanged: onValidationChanged,
           onUpdatePreviewPrefetchCount: onUpdatePreviewPrefetchCount,
+          onUpdateMediaLoadOptions: onUpdateMediaLoadOptions,
         ),
         const SizedBox(height: 12),
         const SettingsSectionHeader(title: '分类目标'),
@@ -166,6 +174,7 @@ class SettingsWorkflowContent extends StatelessWidget {
     required this.onUpdateBatchOptions,
     required this.onValidationChanged,
     required this.onUpdatePreviewPrefetchCount,
+    required this.onUpdateMediaLoadOptions,
   });
 
   final List<SelectableChat> chats;
@@ -177,6 +186,12 @@ class SettingsWorkflowContent extends StatelessWidget {
   onUpdateBatchOptions;
   final ValueChanged<bool> onValidationChanged;
   final ValueChanged<int> onUpdatePreviewPrefetchCount;
+  final void Function({
+    required int backgroundConcurrency,
+    required int retryLimit,
+    required int retryDelayMs,
+  })
+  onUpdateMediaLoadOptions;
 
   @override
   Widget build(BuildContext context) {
@@ -209,6 +224,14 @@ class SettingsWorkflowContent extends StatelessWidget {
         PreviewPrefetchDraftEditor(
           value: draft.previewPrefetchCount,
           onChanged: onUpdatePreviewPrefetchCount,
+        ),
+        const SizedBox(height: 12),
+        MediaLoadOptionsDraftEditor(
+          backgroundConcurrency: draft.mediaBackgroundDownloadConcurrency,
+          retryLimit: draft.mediaRetryLimit,
+          retryDelayMs: draft.mediaRetryDelayMs,
+          onChanged: onUpdateMediaLoadOptions,
+          onValidationChanged: onValidationChanged,
         ),
       ],
     );

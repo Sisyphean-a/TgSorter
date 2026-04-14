@@ -17,6 +17,9 @@ enum MessageFetchDirection { latestFirst, oldestFirst }
 
 class AppSettings {
   static const int defaultPreviewPrefetchCount = 3;
+  static const int defaultMediaBackgroundDownloadConcurrency = 2;
+  static const int defaultMediaRetryLimit = 2;
+  static const int defaultMediaRetryDelayMs = 800;
 
   const AppSettings({
     required this.categories,
@@ -26,6 +29,10 @@ class AppSettings {
     required this.batchSize,
     required this.throttleMs,
     required this.proxy,
+    this.mediaBackgroundDownloadConcurrency =
+        defaultMediaBackgroundDownloadConcurrency,
+    this.mediaRetryLimit = defaultMediaRetryLimit,
+    this.mediaRetryDelayMs = defaultMediaRetryDelayMs,
     this.themeMode = AppThemeMode.light,
     this.defaultWorkbench = AppDefaultWorkbench.forwarding,
     this.tagSourceChatId,
@@ -41,6 +48,9 @@ class AppSettings {
   final int batchSize;
   final int throttleMs;
   final ProxySettings proxy;
+  final int mediaBackgroundDownloadConcurrency;
+  final int mediaRetryLimit;
+  final int mediaRetryDelayMs;
   final AppThemeMode themeMode;
   final AppDefaultWorkbench defaultWorkbench;
   final int? tagSourceChatId;
@@ -54,6 +64,9 @@ class AppSettings {
     forwardAsCopy: forwardAsCopy,
     batchSize: batchSize,
     throttleMs: throttleMs,
+    mediaBackgroundDownloadConcurrency: mediaBackgroundDownloadConcurrency,
+    mediaRetryLimit: mediaRetryLimit,
+    mediaRetryDelayMs: mediaRetryDelayMs,
     previewPrefetchCount: previewPrefetchCount,
     categories: categories,
   );
@@ -69,6 +82,9 @@ class AppSettings {
     forwardAsCopy: forwardAsCopy,
     batchSize: batchSize,
     throttleMs: throttleMs,
+    mediaBackgroundDownloadConcurrency: mediaBackgroundDownloadConcurrency,
+    mediaRetryLimit: mediaRetryLimit,
+    mediaRetryDelayMs: mediaRetryDelayMs,
     previewPrefetchCount: previewPrefetchCount,
     categories: categories,
   );
@@ -88,6 +104,10 @@ class AppSettings {
       batchSize: 5,
       throttleMs: 1200,
       proxy: ProxySettings.empty,
+      mediaBackgroundDownloadConcurrency:
+          defaultMediaBackgroundDownloadConcurrency,
+      mediaRetryLimit: defaultMediaRetryLimit,
+      mediaRetryDelayMs: defaultMediaRetryDelayMs,
       themeMode: AppThemeMode.light,
       defaultWorkbench: AppDefaultWorkbench.forwarding,
       tagSourceChatId: null,
@@ -134,6 +154,9 @@ class AppSettings {
     int? batchSize,
     int? throttleMs,
     ProxySettings? proxy,
+    int? mediaBackgroundDownloadConcurrency,
+    int? mediaRetryLimit,
+    int? mediaRetryDelayMs,
     AppThemeMode? themeMode,
     AppDefaultWorkbench? defaultWorkbench,
     int? tagSourceChatId,
@@ -152,6 +175,11 @@ class AppSettings {
       batchSize: batchSize ?? this.batchSize,
       throttleMs: throttleMs ?? this.throttleMs,
       proxy: proxy ?? this.proxy,
+      mediaBackgroundDownloadConcurrency:
+          mediaBackgroundDownloadConcurrency ??
+          this.mediaBackgroundDownloadConcurrency,
+      mediaRetryLimit: mediaRetryLimit ?? this.mediaRetryLimit,
+      mediaRetryDelayMs: mediaRetryDelayMs ?? this.mediaRetryDelayMs,
       themeMode: themeMode ?? this.themeMode,
       defaultWorkbench: defaultWorkbench ?? this.defaultWorkbench,
       tagSourceChatId: clearTagSourceChatId
@@ -197,6 +225,18 @@ class AppSettings {
     return copyWith(batchSize: batchSize, throttleMs: throttleMs);
   }
 
+  AppSettings updateMediaLoadOptions({
+    required int backgroundConcurrency,
+    required int retryLimit,
+    required int retryDelayMs,
+  }) {
+    return copyWith(
+      mediaBackgroundDownloadConcurrency: backgroundConcurrency,
+      mediaRetryLimit: retryLimit,
+      mediaRetryDelayMs: retryDelayMs,
+    );
+  }
+
   AppSettings updatePreviewPrefetchCount(int value) {
     return copyWith(previewPrefetchCount: value);
   }
@@ -233,6 +273,10 @@ class AppSettings {
             batchSize == other.batchSize &&
             throttleMs == other.throttleMs &&
             proxy == other.proxy &&
+            mediaBackgroundDownloadConcurrency ==
+                other.mediaBackgroundDownloadConcurrency &&
+            mediaRetryLimit == other.mediaRetryLimit &&
+            mediaRetryDelayMs == other.mediaRetryDelayMs &&
             themeMode == other.themeMode &&
             defaultWorkbench == other.defaultWorkbench &&
             tagSourceChatId == other.tagSourceChatId &&
@@ -251,6 +295,9 @@ class AppSettings {
       batchSize,
       throttleMs,
       proxy,
+      mediaBackgroundDownloadConcurrency,
+      mediaRetryLimit,
+      mediaRetryDelayMs,
       themeMode,
       defaultWorkbench,
       tagSourceChatId,

@@ -220,6 +220,21 @@ void main() {
       expect(settings.throttleMs, 1200);
     });
 
+    test('load uses media scheduler defaults when storage is empty', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final settings = repo.load();
+
+      expect(
+        settings.mediaBackgroundDownloadConcurrency,
+        AppSettings.defaultMediaBackgroundDownloadConcurrency,
+      );
+      expect(settings.mediaRetryLimit, AppSettings.defaultMediaRetryLimit);
+      expect(settings.mediaRetryDelayMs, AppSettings.defaultMediaRetryDelayMs);
+    });
+
     test('save persists batch settings', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
@@ -233,6 +248,23 @@ void main() {
 
       expect(prefs.getInt('pipeline_batch_size'), 12);
       expect(prefs.getInt('pipeline_throttle_ms'), 1800);
+    });
+
+    test('save persists media scheduler settings', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      final settings = AppSettings.defaults().updateMediaLoadOptions(
+        backgroundConcurrency: 4,
+        retryLimit: 3,
+        retryDelayMs: 900,
+      );
+
+      await repo.save(settings);
+
+      expect(prefs.getInt('media_background_download_concurrency'), 4);
+      expect(prefs.getInt('media_retry_limit'), 3);
+      expect(prefs.getInt('media_retry_delay_ms'), 900);
     });
 
     test('save persists proxy settings', () async {
