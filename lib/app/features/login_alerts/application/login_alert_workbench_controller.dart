@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:tgsorter/app/services/login_alert_repository.dart';
+import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/telegram_login_alert.dart';
 import 'package:tgsorter/app/services/telegram_login_alert_parser.dart';
 
@@ -24,6 +25,7 @@ class LoginAlertWorkbenchController extends GetxController {
   final entries = <TelegramLoginAlert>[].obs;
   StreamSubscription<Map<String, dynamic>>? _subscription;
   int _restoreSession = 0;
+  bool _updatesEnabled = true;
 
   static int _defaultNowMs() => DateTime.now().millisecondsSinceEpoch;
 
@@ -51,6 +53,14 @@ class LoginAlertWorkbenchController extends GetxController {
   }
 
   void _handleUpdate(Map<String, dynamic> payload) {
+    final authState = _authStateOf(payload);
+    if (authState != null) {
+      _updatesEnabled = authState.isReady;
+      return;
+    }
+    if (!_updatesEnabled) {
+      return;
+    }
     final parsed = TelegramLoginAlertParser.parse(payload, nowMs: _nowMs());
     if (parsed == null) {
       return;
@@ -131,8 +141,20 @@ class LoginAlertWorkbenchController extends GetxController {
     );
   }
 
+  TdAuthState? _authStateOf(Map<String, dynamic> payload) {
+    if (payload['@type'] != 'updateAuthorizationState') {
+      return null;
+    }
+    final auth = payload['authorization_state'];
+    if (auth is! Map) {
+      return null;
+    }
+    return TdAuthState.fromJson(Map<String, dynamic>.from(auth));
+  }
+
   Future<void> clearSessionStateForLogout() async {
     _restoreSession++;
+    _updatesEnabled = false;
     entries.clear();
     await _repository.clear();
   }

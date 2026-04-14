@@ -109,39 +109,42 @@ void main() {
     },
   );
 
-  test('clearSessionStateForLogout clears entries and persisted inbox', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final repository = LoginAlertRepository(prefs);
-    await repository.save(const <TelegramLoginAlert>[
-      TelegramLoginAlert(
-        kind: TelegramLoginAlertKind.code,
-        status: TelegramLoginAlertStatus.active,
-        messageId: 18,
-        chatId: 777000,
-        receivedAtMs: 1700000000000,
-        sourceLabel: 'Telegram 官方账号 777000',
-        text: 'Login code: 404237',
-        code: '404237',
-      ),
-    ]);
-    late LoginAlertWorkbenchController controller;
-    controller = LoginAlertWorkbenchController(
-      updates: const Stream<Map<String, dynamic>>.empty(),
-      repository: repository,
-      nowMs: () => 1700000000000,
-    );
-    addTearDown(controller.onClose);
+  test(
+    'clearSessionStateForLogout clears entries and persisted inbox',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repository = LoginAlertRepository(prefs);
+      await repository.save(const <TelegramLoginAlert>[
+        TelegramLoginAlert(
+          kind: TelegramLoginAlertKind.code,
+          status: TelegramLoginAlertStatus.active,
+          messageId: 18,
+          chatId: 777000,
+          receivedAtMs: 1700000000000,
+          sourceLabel: 'Telegram 官方账号 777000',
+          text: 'Login code: 404237',
+          code: '404237',
+        ),
+      ]);
+      late LoginAlertWorkbenchController controller;
+      controller = LoginAlertWorkbenchController(
+        updates: const Stream<Map<String, dynamic>>.empty(),
+        repository: repository,
+        nowMs: () => 1700000000000,
+      );
+      addTearDown(controller.onClose);
 
-    controller.onInit();
-    await Future<void>.delayed(Duration.zero);
-    expect(controller.entries, hasLength(1));
+      controller.onInit();
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.entries, hasLength(1));
 
-    await controller.clearSessionStateForLogout();
+      await controller.clearSessionStateForLogout();
 
-    expect(controller.entries, isEmpty);
-    expect(await repository.load(), isEmpty);
-  });
+      expect(controller.entries, isEmpty);
+      expect(await repository.load(), isEmpty);
+    },
+  );
 
   test('clearSessionStateForLogout ignores stale restore result', () async {
     final updates = StreamController<Map<String, dynamic>>.broadcast();
@@ -175,6 +178,39 @@ void main() {
 
     expect(controller.entries, isEmpty);
   });
+
+  test(
+    'clearSessionStateForLogout ignores stale realtime updates until auth is ready again',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final updates = StreamController<Map<String, dynamic>>.broadcast();
+      late LoginAlertWorkbenchController controller;
+      addTearDown(() async {
+        controller.onClose();
+        await updates.close();
+      });
+      controller = LoginAlertWorkbenchController(
+        updates: updates.stream,
+        repository: LoginAlertRepository(prefs),
+        nowMs: () => 1700000000000,
+      );
+
+      controller.onInit();
+      await controller.clearSessionStateForLogout();
+
+      updates.add(_codeUpdate(type: 'updateNewMessage'));
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.entries, isEmpty);
+
+      updates.add(_authUpdate('authorizationStateReady'));
+      updates.add(_codeUpdate(type: 'updateNewMessage'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.entries, hasLength(1));
+      expect(controller.entries.single.code, '404237');
+    },
+  );
 }
 
 Map<String, dynamic> _codeUpdate({required String type}) {
@@ -203,6 +239,13 @@ Map<String, dynamic> _codeUpdate({required String type}) {
     };
   }
   return <String, dynamic>{'@type': type, 'message': message};
+}
+
+Map<String, dynamic> _authUpdate(String stateType) {
+  return <String, dynamic>{
+    '@type': 'updateAuthorizationState',
+    'authorization_state': <String, dynamic>{'@type': stateType},
+  };
 }
 
 class _DelayedLoginAlertRepository implements LoginAlertRepositoryPort {
