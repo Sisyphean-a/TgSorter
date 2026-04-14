@@ -14,7 +14,7 @@
 
 - Modify: `lib/app/features/shell/presentation/main_shell_page.dart`
   - 让设置页 AppBar 感知一级/二级导航状态。
-- Modify: `lib/app/features/settings/presentation/settings_page.dart`
+- Modify: `lib/app/features/settings/presentation/settings_screen.dart`
   - 改为设置模块挂载入口，不再直接承载旧单页结构。
 - Modify: `lib/app/features/settings/presentation/settings_screen.dart`
   - 重构为一级/二级页面切换容器，必要时拆小。
@@ -102,7 +102,7 @@ Expected:
 
 **Files:**
 - Create: `lib/app/features/settings/application/settings_navigation_controller.dart`
-- Modify: `lib/app/features/settings/presentation/settings_page.dart`
+- Modify: `lib/app/features/settings/presentation/settings_screen.dart`
 - Modify: `lib/app/features/settings/presentation/settings_screen.dart`
 - Create: `lib/app/features/settings/presentation/settings_home_page.dart`
 - Create: `lib/app/features/settings/presentation/settings_detail_page.dart`
@@ -189,7 +189,7 @@ Expected:
 - Modify: `lib/app/theme/app_tokens.dart`
 - Modify: `lib/app/theme/app_theme.dart`
 - Modify: `lib/app/features/shell/presentation/main_shell_page.dart`
-- Modify: `lib/app/features/settings/presentation/settings_page.dart`
+- Modify: `lib/app/features/settings/presentation/settings_screen.dart`
 
 - [ ] **Step 1: 增加设置页专用视觉令牌**
 
@@ -268,7 +268,7 @@ Expected:
 - Create: `lib/app/features/settings/application/settings_page_draft_session.dart`
 - Modify: `lib/app/features/settings/application/settings_coordinator.dart`
 - Modify: `lib/app/features/settings/presentation/settings_detail_page.dart`
-- Modify: `lib/app/features/settings/presentation/settings_page.dart`
+- Modify: `lib/app/features/settings/presentation/settings_screen.dart`
 - Modify: `lib/app/features/settings/presentation/settings_screen.dart`
 
 - [ ] **Step 1: 为二级页引入本地草稿会话**
@@ -469,10 +469,10 @@ Expected:
 ### Task 11: 清理旧的单页设置残留
 
 **Files:**
-- Modify: `lib/app/features/settings/presentation/settings_page.dart`
+- Modify: `lib/app/features/settings/presentation/settings_screen.dart`
 - Modify: `lib/app/features/settings/presentation/settings_screen.dart`
 - Modify: `lib/app/features/settings/presentation/settings_list_section.dart`
-- Modify: `lib/app/shared/presentation/widgets/sticky_action_bar.dart`
+- Remove stale references to the deleted bottom sticky save bar implementation
 
 - [ ] **Step 1: 确认旧结构不再被引用**
 

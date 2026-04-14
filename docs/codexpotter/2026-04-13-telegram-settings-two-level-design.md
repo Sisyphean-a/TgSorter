@@ -309,7 +309,7 @@
 
 为避免单文件再次膨胀，建议按职责拆分：
 
-- `settings_page.dart`
+- `settings_screen.dart`
   - 只负责设置模块挂载与组合。
 - `settings_navigation_controller.dart`
   - 只负责二层导航状态。

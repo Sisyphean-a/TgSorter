@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tgsorter/app/theme/app_tokens.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_surface.dart';
 
 class SettingsDetailPage extends StatelessWidget {
   const SettingsDetailPage({
@@ -13,16 +13,10 @@ class SettingsDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppTokens.colorsOf(context);
-    return ColoredBox(
-      color: palette.settingsBackground,
-      child: IgnorePointer(
-        ignoring: ignoring,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          children: [child],
-        ),
-      ),
+    return SettingsScrollableSurface(
+      ignoring: ignoring,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      child: child,
     );
   }
 }

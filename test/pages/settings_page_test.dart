@@ -92,11 +92,12 @@ void main() {
 
     expect(find.text('保存'), findsNothing);
 
-    await tester.enterText(
-      find.widgetWithText(TextField, '代理服务器'),
-      '127.0.0.1',
+    await _setDialogField(
+      tester,
+      tileTitle: '代理服务器',
+      fieldLabel: '代理服务器',
+      value: '127.0.0.1',
     );
-    await tester.pumpAndSettle();
 
     expect(find.text('保存'), findsOneWidget);
     expect(find.byType(StatusBadge), findsNothing);
@@ -110,10 +111,11 @@ void main() {
 
     await tester.tap(find.text('转发'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('最新优先'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('最旧优先').last);
-    await tester.pumpAndSettle();
+    await _selectChoice(
+      tester,
+      tileTitle: '消息拉取方向',
+      optionLabel: '最旧优先',
+    );
 
     expect(
       controller.savedSettings.value.fetchDirection,
@@ -136,10 +138,7 @@ void main() {
     await tester.tap(find.text('连接与网络'));
     await tester.pumpAndSettle();
 
-    final serverField = tester.widget<TextField>(
-      find.widgetWithText(TextField, '代理服务器'),
-    );
-    expect(serverField.controller?.text ?? '', isEmpty);
+    expect(find.text('未设置'), findsAtLeastNWidgets(1));
     expect(
       controller.savedSettings.value.fetchDirection,
       MessageFetchDirection.latestFirst,
@@ -168,10 +167,11 @@ void main() {
     expect(find.text('预加载后续预览'), findsOneWidget);
     expect(find.text('新增分类'), findsOneWidget);
 
-    await tester.tap(find.text('最新优先'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('最旧优先').last);
-    await tester.pumpAndSettle();
+    await _selectChoice(
+      tester,
+      tileTitle: '消息拉取方向',
+      optionLabel: '最旧优先',
+    );
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
@@ -191,20 +191,24 @@ void main() {
     await tester.tap(find.text('转发'));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('批处理条数 N'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, '批处理条数 N'), '0');
     await tester.pumpAndSettle();
 
     expect(find.text('请输入大于等于 1 的整数'), findsOneWidget);
 
-    final saveButton = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, '保存'),
+    final saveButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '保存'),
     );
     expect(saveButton.onPressed, isNull);
 
+    await tester.tap(find.widgetWithText(TextButton, '取消'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('返回'));
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(FilledButton, '放弃更改'), findsOneWidget);
+    expect(find.text('设置'), findsOneWidget);
   });
 
   testWidgets('非法代理端口会显示错误并阻止保存', (tester) async {
@@ -216,18 +220,15 @@ void main() {
     await tester.tap(find.text('连接与网络'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.widgetWithText(TextField, '代理服务器'),
-      '127.0.0.1',
-    );
-    await tester.pump();
+    await tester.tap(find.text('代理端口'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, '代理端口'), 'abc');
     await tester.pumpAndSettle();
 
     expect(find.text('请输入大于 0 的端口'), findsOneWidget);
 
-    final saveButton = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, '保存'),
+    final saveButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '保存'),
     );
     expect(saveButton.onPressed, isNull);
   });
@@ -245,13 +246,18 @@ void main() {
     await tester.tap(find.text('连接与网络'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.widgetWithText(TextField, '代理服务器'),
-      '127.0.0.1',
+    await _setDialogField(
+      tester,
+      tileTitle: '代理服务器',
+      fieldLabel: '代理服务器',
+      value: '127.0.0.1',
     );
-    await tester.pump();
-    await tester.enterText(find.widgetWithText(TextField, '代理端口'), '7890');
-    await tester.pumpAndSettle();
+    await _setDialogField(
+      tester,
+      tileTitle: '代理端口',
+      fieldLabel: '代理端口',
+      value: '7890',
+    );
 
     await tester.tap(find.text('保存'));
     await tester.pump();
@@ -289,10 +295,11 @@ void main() {
     expect(find.text('首页默认工作台'), findsOneWidget);
     expect(find.text('主题模式'), findsAtLeastNWidgets(1));
 
-    await tester.tap(find.text('转发工作台'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('标签工作台').last);
-    await tester.pumpAndSettle();
+    await _selectChoice(
+      tester,
+      tileTitle: '首页默认工作台',
+      optionLabel: '标签工作台',
+    );
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
@@ -320,10 +327,11 @@ void main() {
 
     await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('按会话分目录'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('平铺到目标目录').last);
-    await tester.pumpAndSettle();
+    await _selectChoice(
+      tester,
+      tileTitle: '目录映射规则',
+      optionLabel: '平铺到目标目录',
+    );
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
@@ -350,7 +358,7 @@ void main() {
     expect(find.text('退出登录'), findsAtLeastNWidgets(1));
     expect(find.text('刷新会话'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, '退出登录'));
+    await tester.tap(find.text('退出登录'));
     await tester.pumpAndSettle();
 
     expect(find.text('确认退出登录'), findsOneWidget);
@@ -360,7 +368,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(gateway.logoutCalls, 0);
 
-    await tester.tap(find.widgetWithText(FilledButton, '退出登录'));
+    await tester.tap(find.text('退出登录'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, '确认退出'));
     await tester.pumpAndSettle();
@@ -444,6 +452,49 @@ void main() {
     expect(find.text('快捷键绑定'), findsOneWidget);
     expect(find.text('恢复默认'), findsOneWidget);
     expect(find.text('主题模式'), findsNothing);
+  });
+
+  testWidgets('转发页主列表不再使用下拉框和常驻输入框', (tester) async {
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    await tester.tap(find.text('转发'));
+    await tester.pumpAndSettle();
+
+    expect(_dropdownFormFields(), findsNothing);
+    expect(find.widgetWithText(TextField, '批处理条数 N'), findsNothing);
+    expect(find.widgetWithText(TextField, '节流毫秒'), findsNothing);
+  });
+
+  testWidgets('连接页点击摘要行后才弹出代理服务器编辑器', (tester) async {
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    await tester.tap(find.text('连接与网络'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+
+    await tester.tap(find.text('代理服务器'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(TextField, '代理服务器'), findsOneWidget);
+  });
+
+  testWidgets('桌面端设置页使用窄列容器而不是铺满内容区', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1024));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '频道一')],
+    );
+
+    expect(find.byKey(const ValueKey('settings-desktop-column')), findsOneWidget);
   });
 }
 
@@ -599,4 +650,33 @@ class _SettingsPageFakeGateway implements AuthGateway, SessionQueryGateway {
 
   @override
   Future<void> submitPhoneNumber(String phoneNumber) async {}
+}
+
+Finder _dropdownFormFields() {
+  return find.byWidgetPredicate((widget) => widget is DropdownButtonFormField);
+}
+
+Future<void> _selectChoice(
+  WidgetTester tester, {
+  required String tileTitle,
+  required String optionLabel,
+}) async {
+  await tester.tap(find.text(tileTitle).first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(optionLabel).last);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _setDialogField(
+  WidgetTester tester, {
+  required String tileTitle,
+  required String fieldLabel,
+  required String value,
+}) async {
+  await tester.tap(find.text(tileTitle).first);
+  await tester.pumpAndSettle();
+  await tester.enterText(find.widgetWithText(TextField, fieldLabel), value);
+  await tester.pumpAndSettle();
+  await tester.tap(find.widgetWithText(FilledButton, '保存'));
+  await tester.pumpAndSettle();
 }

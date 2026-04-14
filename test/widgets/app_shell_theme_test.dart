@@ -214,10 +214,9 @@ void main() {
         matching: find.byType(Material),
       ),
     );
-    final divider = tester.widget<Divider>(find.byType(Divider));
+    final icon = tester.widget<Icon>(find.byIcon(Icons.palette_outlined));
 
     expect(material.color, const Color(0xFFFFFFFF));
-    expect(divider.color, const Color(0xFFD9E1E8));
-    expect(divider.height, 1);
+    expect(icon.color, const Color(0xFF8F99A3));
   });
 }

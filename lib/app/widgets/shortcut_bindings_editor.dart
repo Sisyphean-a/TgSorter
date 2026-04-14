@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_dialogs.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 
 class ShortcutBindingsEditor extends StatelessWidget {
   const ShortcutBindingsEditor({
@@ -17,17 +19,8 @@ class ShortcutBindingsEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsSectionBlock(
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: onResetDefaults,
-            child: const Text('恢复默认'),
-          ),
-        ),
-        const SizedBox(height: 6),
         for (final action in ShortcutAction.values)
           _ShortcutRow(
             action: action,
@@ -36,6 +29,11 @@ class ShortcutBindingsEditor extends StatelessWidget {
                 AppSettings.defaultShortcutBindings[action]!,
             onChanged: (trigger, ctrl) => onChanged(action, trigger, ctrl),
           ),
+        SettingsValueTile(
+          title: '恢复默认',
+          danger: true,
+          onTap: onResetDefaults,
+        ),
       ],
     );
   }
@@ -54,50 +52,56 @@ class _ShortcutRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(child: Text(_labelAction(action))),
-          SizedBox(
-            width: 130,
-            child: DropdownButtonFormField<ShortcutTrigger>(
-              key: ValueKey(
-                '${action.name}_${binding.trigger.name}_${binding.ctrl}',
-              ),
-              initialValue: binding.trigger,
-              decoration: const InputDecoration(
-                isDense: true,
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                for (final trigger in ShortcutTrigger.values)
-                  DropdownMenuItem(
-                    value: trigger,
-                    child: Text(_labelTrigger(trigger)),
+    return SettingsValueTile(
+      title: _labelAction(action),
+      subtitle: binding.ctrl ? '当前带 Ctrl 修饰键' : '当前不带 Ctrl 修饰键',
+      value: _bindingLabel(binding),
+      onTap: () async {
+        final selected = await showSettingsChoiceSheet<String>(
+          context,
+          title: _labelAction(action),
+          selectedValue: _bindingLabel(binding),
+          choices: [
+            for (final ctrl in [false, true])
+              for (final trigger in ShortcutTrigger.values)
+                SettingsChoice<String>(
+                  value: _bindingLabel(
+                    ShortcutBinding(action: action, trigger: trigger, ctrl: ctrl),
                   ),
-              ],
-              onChanged: (next) {
-                if (next == null) {
-                  return;
-                }
-                onChanged(next, binding.ctrl);
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          Row(
-            children: [
-              const Text('Ctrl'),
-              Switch(
-                value: binding.ctrl,
-                onChanged: (next) => onChanged(binding.trigger, next),
-              ),
-            ],
-          ),
-        ],
-      ),
+                  label: _bindingLabel(
+                    ShortcutBinding(action: action, trigger: trigger, ctrl: ctrl),
+                  ),
+                ),
+          ],
+        );
+        if (selected == null) {
+          return;
+        }
+        final next = _resolveBinding(selected);
+        onChanged(next.trigger, next.ctrl);
+      },
     );
+  }
+
+  ShortcutBinding _resolveBinding(String value) {
+    for (final ctrl in [false, true]) {
+      for (final trigger in ShortcutTrigger.values) {
+        final binding = ShortcutBinding(
+          action: action,
+          trigger: trigger,
+          ctrl: ctrl,
+        );
+        if (_bindingLabel(binding) == value) {
+          return binding;
+        }
+      }
+    }
+    return binding;
+  }
+
+  String _bindingLabel(ShortcutBinding value) {
+    final trigger = _labelTrigger(value.trigger);
+    return value.ctrl ? 'Ctrl + $trigger' : trigger;
   }
 
   String _labelAction(ShortcutAction value) {

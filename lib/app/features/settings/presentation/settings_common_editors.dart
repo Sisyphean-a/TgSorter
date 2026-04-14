@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/settings/application/settings_input_validator.dart';
 import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_dialogs.dart';
+import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
-import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class SourceChatDraftEditor extends StatelessWidget {
   const SourceChatDraftEditor({
@@ -22,45 +23,45 @@ class SourceChatDraftEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final options = chats.toList(growable: true);
-    if (sourceChatId != null &&
-        !options.any((item) => item.id == sourceChatId)) {
-      options.add(SelectableChat(id: sourceChatId!, title: '未知会话'));
-    }
-    final theme = Theme.of(context);
-    final colors = AppTokens.colorsOf(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: colors.textMuted,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 4),
-        DropdownButtonFormField<int?>(
-          key: ValueKey(sourceChatId),
-          initialValue: sourceChatId,
-          isExpanded: true,
-          decoration: const InputDecoration(),
-          items: [
-            const DropdownMenuItem<int?>(
+    return SettingsValueTile(
+      title: label,
+      value: _sourceLabel(sourceChatId, chats),
+      onTap: () async {
+        final selected = await showSettingsChoiceSheet<int?>(
+          context,
+          title: label,
+          selectedValue: sourceChatId,
+          choices: [
+            const SettingsChoice<int?>(
               value: null,
-              child: Text('收藏夹（Saved Messages）'),
+              label: '收藏夹（Saved Messages）',
             ),
-            ...options.map(
-              (item) => DropdownMenuItem<int?>(
-                value: item.id,
-                child: Text(item.title),
+            ...chats.map(
+              (chat) => SettingsChoice<int?>(
+                value: chat.id,
+                label: chat.title,
               ),
             ),
           ],
-          onChanged: onChanged,
-        ),
-      ],
+        );
+        if (selected == null && sourceChatId == null) {
+          return;
+        }
+        onChanged(selected);
+      },
     );
+  }
+
+  String _sourceLabel(int? sourceChatId, List<SelectableChat> chats) {
+    if (sourceChatId == null) {
+      return '收藏夹（Saved Messages）';
+    }
+    for (final chat in chats) {
+      if (chat.id == sourceChatId) {
+        return chat.title;
+      }
+    }
+    return '未知会话';
   }
 }
 
@@ -76,28 +77,39 @@ class FetchDirectionDraftEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<MessageFetchDirection>(
-      key: ValueKey(value),
-      initialValue: value,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: '消息拉取方向'),
-      items: const [
-        DropdownMenuItem(
-          value: MessageFetchDirection.latestFirst,
-          child: Text('最新优先'),
-        ),
-        DropdownMenuItem(
-          value: MessageFetchDirection.oldestFirst,
-          child: Text('最旧优先'),
-        ),
-      ],
-      onChanged: (next) {
-        if (next == null) {
-          return;
+    return SettingsValueTile(
+      title: '消息拉取方向',
+      value: _label(value),
+      onTap: () async {
+        final selected = await showSettingsChoiceSheet<MessageFetchDirection>(
+          context,
+          title: '消息拉取方向',
+          selectedValue: value,
+          choices: const [
+            SettingsChoice(
+              value: MessageFetchDirection.latestFirst,
+              label: '最新优先',
+            ),
+            SettingsChoice(
+              value: MessageFetchDirection.oldestFirst,
+              label: '最旧优先',
+            ),
+          ],
+        );
+        if (selected != null) {
+          onChanged(selected);
         }
-        onChanged(next);
       },
     );
+  }
+
+  String _label(MessageFetchDirection value) {
+    switch (value) {
+      case MessageFetchDirection.latestFirst:
+        return '最新优先';
+      case MessageFetchDirection.oldestFirst:
+        return '最旧优先';
+    }
   }
 }
 
@@ -113,28 +125,39 @@ class DefaultWorkbenchDraftEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<AppDefaultWorkbench>(
-      key: ValueKey(value),
-      initialValue: value,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: '首页默认工作台'),
-      items: const [
-        DropdownMenuItem(
-          value: AppDefaultWorkbench.forwarding,
-          child: Text('转发工作台'),
-        ),
-        DropdownMenuItem(
-          value: AppDefaultWorkbench.tagging,
-          child: Text('标签工作台'),
-        ),
-      ],
-      onChanged: (next) {
-        if (next == null) {
-          return;
+    return SettingsValueTile(
+      title: '首页默认工作台',
+      value: _label(value),
+      onTap: () async {
+        final selected = await showSettingsChoiceSheet<AppDefaultWorkbench>(
+          context,
+          title: '首页默认工作台',
+          selectedValue: value,
+          choices: const [
+            SettingsChoice(
+              value: AppDefaultWorkbench.forwarding,
+              label: '转发工作台',
+            ),
+            SettingsChoice(
+              value: AppDefaultWorkbench.tagging,
+              label: '标签工作台',
+            ),
+          ],
+        );
+        if (selected != null) {
+          onChanged(selected);
         }
-        onChanged(next);
       },
     );
+  }
+
+  String _label(AppDefaultWorkbench value) {
+    switch (value) {
+      case AppDefaultWorkbench.forwarding:
+        return '转发工作台';
+      case AppDefaultWorkbench.tagging:
+        return '标签工作台';
+    }
   }
 }
 
@@ -150,12 +173,10 @@ class ForwardModeDraftEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      visualDensity: VisualDensity.compact,
+    return SettingsSwitchTile(
+      title: '无引用转发',
+      subtitle: '开启后转发结果不携带原始引用关系',
       value: value,
-      title: const Text('无引用转发'),
       onChanged: onChanged,
     );
   }
@@ -173,12 +194,10 @@ class DownloadWorkbenchEnabledEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      visualDensity: VisualDensity.compact,
+    return SettingsSwitchTile(
+      title: '启用下载工作台',
+      subtitle: '开启后在主导航中显示下载工作台入口',
       value: value,
-      title: const Text('启用下载工作台'),
       onChanged: onChanged,
     );
   }
@@ -196,28 +215,39 @@ class DownloadDirectoryModeEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<DownloadDirectoryMode>(
-      key: ValueKey(value),
-      initialValue: value,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: '目录映射规则'),
-      items: const [
-        DropdownMenuItem(
-          value: DownloadDirectoryMode.byChat,
-          child: Text('按会话分目录'),
-        ),
-        DropdownMenuItem(
-          value: DownloadDirectoryMode.flat,
-          child: Text('平铺到目标目录'),
-        ),
-      ],
-      onChanged: (next) {
-        if (next == null) {
-          return;
+    return SettingsValueTile(
+      title: '目录映射规则',
+      value: _label(value),
+      onTap: () async {
+        final selected = await showSettingsChoiceSheet<DownloadDirectoryMode>(
+          context,
+          title: '目录映射规则',
+          selectedValue: value,
+          choices: const [
+            SettingsChoice(
+              value: DownloadDirectoryMode.byChat,
+              label: '按会话分目录',
+            ),
+            SettingsChoice(
+              value: DownloadDirectoryMode.flat,
+              label: '平铺到目标目录',
+            ),
+          ],
+        );
+        if (selected != null) {
+          onChanged(selected);
         }
-        onChanged(next);
       },
     );
+  }
+
+  String _label(DownloadDirectoryMode value) {
+    switch (value) {
+      case DownloadDirectoryMode.byChat:
+        return '按会话分目录';
+      case DownloadDirectoryMode.flat:
+        return '平铺到目标目录';
+    }
   }
 }
 
@@ -233,32 +263,45 @@ class DownloadConflictStrategyEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<DownloadConflictStrategy>(
-      key: ValueKey(value),
-      initialValue: value,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: '命名冲突处理'),
-      items: const [
-        DropdownMenuItem(
-          value: DownloadConflictStrategy.rename,
-          child: Text('自动重命名'),
-        ),
-        DropdownMenuItem(
-          value: DownloadConflictStrategy.skip,
-          child: Text('保留旧文件并跳过'),
-        ),
-        DropdownMenuItem(
-          value: DownloadConflictStrategy.overwrite,
-          child: Text('覆盖旧文件'),
-        ),
-      ],
-      onChanged: (next) {
-        if (next == null) {
-          return;
+    return SettingsValueTile(
+      title: '命名冲突处理',
+      value: _label(value),
+      onTap: () async {
+        final selected = await showSettingsChoiceSheet<DownloadConflictStrategy>(
+          context,
+          title: '命名冲突处理',
+          selectedValue: value,
+          choices: const [
+            SettingsChoice(
+              value: DownloadConflictStrategy.rename,
+              label: '自动重命名',
+            ),
+            SettingsChoice(
+              value: DownloadConflictStrategy.skip,
+              label: '保留旧文件并跳过',
+            ),
+            SettingsChoice(
+              value: DownloadConflictStrategy.overwrite,
+              label: '覆盖旧文件',
+            ),
+          ],
+        );
+        if (selected != null) {
+          onChanged(selected);
         }
-        onChanged(next);
       },
     );
+  }
+
+  String _label(DownloadConflictStrategy value) {
+    switch (value) {
+      case DownloadConflictStrategy.skip:
+        return '保留旧文件并跳过';
+      case DownloadConflictStrategy.rename:
+        return '自动重命名';
+      case DownloadConflictStrategy.overwrite:
+        return '覆盖旧文件';
+    }
   }
 }
 
@@ -274,36 +317,51 @@ class DownloadMediaFilterEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<DownloadMediaFilter>(
-      key: ValueKey(value),
-      initialValue: value,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: '下载范围'),
-      items: const [
-        DropdownMenuItem(
-          value: DownloadMediaFilter.all,
-          child: Text('全部支持的媒体'),
-        ),
-        DropdownMenuItem(
-          value: DownloadMediaFilter.photoOnly,
-          child: Text('仅图片'),
-        ),
-        DropdownMenuItem(
-          value: DownloadMediaFilter.videoOnly,
-          child: Text('仅视频'),
-        ),
-        DropdownMenuItem(
-          value: DownloadMediaFilter.audioOnly,
-          child: Text('仅音频'),
-        ),
-      ],
-      onChanged: (next) {
-        if (next == null) {
-          return;
+    return SettingsValueTile(
+      title: '下载范围',
+      value: _label(value),
+      onTap: () async {
+        final selected = await showSettingsChoiceSheet<DownloadMediaFilter>(
+          context,
+          title: '下载范围',
+          selectedValue: value,
+          choices: const [
+            SettingsChoice(
+              value: DownloadMediaFilter.all,
+              label: '全部支持的媒体',
+            ),
+            SettingsChoice(
+              value: DownloadMediaFilter.photoOnly,
+              label: '仅图片',
+            ),
+            SettingsChoice(
+              value: DownloadMediaFilter.videoOnly,
+              label: '仅视频',
+            ),
+            SettingsChoice(
+              value: DownloadMediaFilter.audioOnly,
+              label: '仅音频',
+            ),
+          ],
+        );
+        if (selected != null) {
+          onChanged(selected);
         }
-        onChanged(next);
       },
     );
+  }
+
+  String _label(DownloadMediaFilter value) {
+    switch (value) {
+      case DownloadMediaFilter.all:
+        return '全部支持的媒体';
+      case DownloadMediaFilter.photoOnly:
+        return '仅图片';
+      case DownloadMediaFilter.videoOnly:
+        return '仅视频';
+      case DownloadMediaFilter.audioOnly:
+        return '仅音频';
+    }
   }
 }
 
@@ -319,13 +377,10 @@ class DownloadSkipExistingFilesEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      visualDensity: VisualDensity.compact,
+    return SettingsSwitchTile(
+      title: '已存在文件策略',
+      subtitle: '开启后跳过已成功落盘的目标文件',
       value: value,
-      title: const Text('已存在文件策略'),
-      subtitle: const Text('开启后跳过已成功落盘的目标文件'),
       onChanged: onChanged,
     );
   }
@@ -343,19 +398,16 @@ class DownloadSyncDeletedFilesEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      visualDensity: VisualDensity.compact,
+    return SettingsSwitchTile(
+      title: '同步删除本地文件',
+      subtitle: '开启后会清理源消息已消失的本地落盘文件',
       value: value,
-      title: const Text('同步删除本地文件'),
-      subtitle: const Text('开启后会清理源消息已消失的本地落盘文件'),
       onChanged: onChanged,
     );
   }
 }
 
-class BatchOptionsDraftEditor extends StatefulWidget {
+class BatchOptionsDraftEditor extends StatelessWidget {
   const BatchOptionsDraftEditor({
     super.key,
     required this.batchSize,
@@ -371,8 +423,53 @@ class BatchOptionsDraftEditor extends StatefulWidget {
   final ValueChanged<bool>? onValidationChanged;
 
   @override
-  State<BatchOptionsDraftEditor> createState() =>
-      _BatchOptionsDraftEditorState();
+  Widget build(BuildContext context) {
+    final validator = SettingsInputValidator();
+    onValidationChanged?.call(false);
+    return Column(
+      children: [
+        SettingsValueTile(
+          title: '批处理条数 N',
+          subtitle: '每次批量处理时选取的消息数量',
+          value: '$batchSize',
+          onTap: () async {
+            final raw = await showSettingsTextEditDialog(
+              context,
+              title: '批处理条数 N',
+              label: '批处理条数 N',
+              initialValue: '$batchSize',
+              keyboardType: TextInputType.number,
+              validator: validator.validateBatchSizeText,
+            );
+            if (raw == null || !context.mounted) {
+              return;
+            }
+            onChanged(batchSize: int.parse(raw.trim()), throttleMs: throttleMs);
+          },
+        ),
+        const SizedBox(height: 1),
+        SettingsValueTile(
+          title: '节流毫秒',
+          subtitle: '批处理动作之间的等待间隔',
+          value: '$throttleMs',
+          onTap: () async {
+            final raw = await showSettingsTextEditDialog(
+              context,
+              title: '节流毫秒',
+              label: '节流毫秒',
+              initialValue: '$throttleMs',
+              keyboardType: TextInputType.number,
+              validator: validator.validateThrottleText,
+            );
+            if (raw == null || !context.mounted) {
+              return;
+            }
+            onChanged(batchSize: batchSize, throttleMs: int.parse(raw.trim()));
+          },
+        ),
+      ],
+    );
+  }
 }
 
 class PreviewPrefetchDraftEditor extends StatelessWidget {
@@ -387,28 +484,32 @@ class PreviewPrefetchDraftEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<int>(
-      key: ValueKey(value),
-      initialValue: value,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: '预加载后续预览'),
-      items: const [
-        DropdownMenuItem(value: 0, child: Text('关闭')),
-        DropdownMenuItem(value: 1, child: Text('1 条')),
-        DropdownMenuItem(value: 3, child: Text('3 条')),
-        DropdownMenuItem(value: 5, child: Text('5 条')),
-      ],
-      onChanged: (next) {
-        if (next == null) {
-          return;
+    return SettingsValueTile(
+      title: '预加载后续预览',
+      value: _label(value),
+      onTap: () async {
+        final selected = await showSettingsChoiceSheet<int>(
+          context,
+          title: '预加载后续预览',
+          selectedValue: value,
+          choices: const [
+            SettingsChoice(value: 0, label: '关闭'),
+            SettingsChoice(value: 1, label: '1 条'),
+            SettingsChoice(value: 3, label: '3 条'),
+            SettingsChoice(value: 5, label: '5 条'),
+          ],
+        );
+        if (selected != null) {
+          onChanged(selected);
         }
-        onChanged(next);
       },
     );
   }
+
+  String _label(int value) => value <= 0 ? '关闭' : '$value 条';
 }
 
-class MediaLoadOptionsDraftEditor extends StatefulWidget {
+class MediaLoadOptionsDraftEditor extends StatelessWidget {
   const MediaLoadOptionsDraftEditor({
     super.key,
     required this.backgroundConcurrency,
@@ -430,207 +531,88 @@ class MediaLoadOptionsDraftEditor extends StatefulWidget {
   final ValueChanged<bool>? onValidationChanged;
 
   @override
-  State<MediaLoadOptionsDraftEditor> createState() =>
-      _MediaLoadOptionsDraftEditorState();
-}
-
-class _BatchOptionsDraftEditorState extends State<BatchOptionsDraftEditor> {
-  final _validator = SettingsInputValidator();
-  late final TextEditingController _batchCtrl;
-  late final TextEditingController _throttleCtrl;
-  String? _batchError;
-  String? _throttleError;
-
-  @override
-  void initState() {
-    super.initState();
-    _batchCtrl = TextEditingController(text: widget.batchSize.toString());
-    _throttleCtrl = TextEditingController(text: widget.throttleMs.toString());
-    _syncValidationState(notifyModel: false);
-  }
-
-  @override
-  void didUpdateWidget(covariant BatchOptionsDraftEditor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.batchSize != widget.batchSize) {
-      _batchCtrl.text = widget.batchSize.toString();
-    }
-    if (oldWidget.throttleMs != widget.throttleMs) {
-      _throttleCtrl.text = widget.throttleMs.toString();
-    }
-    _syncValidationState(notifyModel: false);
-  }
-
-  @override
-  void dispose() {
-    _batchCtrl.dispose();
-    _throttleCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final validator = SettingsInputValidator();
+    onValidationChanged?.call(false);
     return Column(
       children: [
-        TextField(
-          controller: _batchCtrl,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: '批处理条数 N',
-            errorText: _batchError,
-          ),
-          onChanged: (_) => _syncValidationState(),
+        SettingsValueTile(
+          title: '媒体后台下载并发度',
+          subtitle: '控制后续消息后台媒体准备可以并行多少项',
+          value: '$backgroundConcurrency',
+          onTap: () async {
+            final raw = await showSettingsTextEditDialog(
+              context,
+              title: '媒体后台下载并发度',
+              label: '媒体后台下载并发度',
+              initialValue: '$backgroundConcurrency',
+              keyboardType: TextInputType.number,
+              validator: validator.validateMediaBackgroundDownloadConcurrencyText,
+            );
+            if (raw == null || !context.mounted) {
+              return;
+            }
+            onChanged(
+              backgroundConcurrency: int.parse(raw.trim()),
+              retryLimit: retryLimit,
+              retryDelayMs: retryDelayMs,
+            );
+          },
         ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _throttleCtrl,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: '节流毫秒',
-            errorText: _throttleError,
-          ),
-          onChanged: (_) => _syncValidationState(),
+        const SizedBox(height: 1),
+        SettingsValueTile(
+          title: '媒体自动重试次数',
+          subtitle: '单个媒体失败后自动再尝试的最大次数',
+          value: '$retryLimit',
+          onTap: () async {
+            final raw = await showSettingsTextEditDialog(
+              context,
+              title: '媒体自动重试次数',
+              label: '媒体自动重试次数',
+              initialValue: '$retryLimit',
+              keyboardType: TextInputType.number,
+              validator: validator.validateMediaRetryLimitText,
+            );
+            if (raw == null || !context.mounted) {
+              return;
+            }
+            onChanged(
+              backgroundConcurrency: backgroundConcurrency,
+              retryLimit: int.parse(raw.trim()),
+              retryDelayMs: retryDelayMs,
+            );
+          },
+        ),
+        const SizedBox(height: 1),
+        SettingsValueTile(
+          title: '媒体重试间隔毫秒',
+          subtitle: '自动重试之间的等待时间',
+          value: '$retryDelayMs',
+          onTap: () async {
+            final raw = await showSettingsTextEditDialog(
+              context,
+              title: '媒体重试间隔毫秒',
+              label: '媒体重试间隔毫秒',
+              initialValue: '$retryDelayMs',
+              keyboardType: TextInputType.number,
+              validator: validator.validateMediaRetryDelayText,
+            );
+            if (raw == null || !context.mounted) {
+              return;
+            }
+            onChanged(
+              backgroundConcurrency: backgroundConcurrency,
+              retryLimit: retryLimit,
+              retryDelayMs: int.parse(raw.trim()),
+            );
+          },
         ),
       ],
     );
   }
-
-  bool get _hasErrors => _batchError != null || _throttleError != null;
-
-  void _syncValidationState({bool notifyModel = true}) {
-    setState(() {
-      _batchError = _validator.validateBatchSizeText(_batchCtrl.text);
-      _throttleError = _validator.validateThrottleText(_throttleCtrl.text);
-    });
-    widget.onValidationChanged?.call(_hasErrors);
-    if (!notifyModel || _hasErrors) {
-      return;
-    }
-    widget.onChanged(
-      batchSize: int.parse(_batchCtrl.text.trim()),
-      throttleMs: int.parse(_throttleCtrl.text.trim()),
-    );
-  }
 }
 
-class _MediaLoadOptionsDraftEditorState
-    extends State<MediaLoadOptionsDraftEditor> {
-  final _validator = SettingsInputValidator();
-  late final TextEditingController _concurrencyCtrl;
-  late final TextEditingController _retryLimitCtrl;
-  late final TextEditingController _retryDelayCtrl;
-  String? _concurrencyError;
-  String? _retryLimitError;
-  String? _retryDelayError;
-
-  @override
-  void initState() {
-    super.initState();
-    _concurrencyCtrl = TextEditingController(
-      text: widget.backgroundConcurrency.toString(),
-    );
-    _retryLimitCtrl = TextEditingController(text: widget.retryLimit.toString());
-    _retryDelayCtrl = TextEditingController(
-      text: widget.retryDelayMs.toString(),
-    );
-    _syncValidationState(notifyModel: false);
-  }
-
-  @override
-  void didUpdateWidget(covariant MediaLoadOptionsDraftEditor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.backgroundConcurrency != widget.backgroundConcurrency) {
-      _concurrencyCtrl.text = widget.backgroundConcurrency.toString();
-    }
-    if (oldWidget.retryLimit != widget.retryLimit) {
-      _retryLimitCtrl.text = widget.retryLimit.toString();
-    }
-    if (oldWidget.retryDelayMs != widget.retryDelayMs) {
-      _retryDelayCtrl.text = widget.retryDelayMs.toString();
-    }
-    _syncValidationState(notifyModel: false);
-  }
-
-  @override
-  void dispose() {
-    _concurrencyCtrl.dispose();
-    _retryLimitCtrl.dispose();
-    _retryDelayCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TextField(
-          controller: _concurrencyCtrl,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: '媒体后台下载并发度',
-            helperText: '控制后续消息后台媒体准备可以并行多少项',
-            errorText: _concurrencyError,
-          ),
-          onChanged: (_) => _syncValidationState(),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _retryLimitCtrl,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: '媒体自动重试次数',
-            helperText: '单个媒体失败后自动再尝试的最大次数',
-            errorText: _retryLimitError,
-          ),
-          onChanged: (_) => _syncValidationState(),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _retryDelayCtrl,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: '媒体重试间隔毫秒',
-            helperText: '自动重试之间的等待时间',
-            errorText: _retryDelayError,
-          ),
-          onChanged: (_) => _syncValidationState(),
-        ),
-      ],
-    );
-  }
-
-  bool get _hasErrors {
-    return _concurrencyError != null ||
-        _retryLimitError != null ||
-        _retryDelayError != null;
-  }
-
-  void _syncValidationState({bool notifyModel = true}) {
-    setState(() {
-      _concurrencyError = _validator
-          .validateMediaBackgroundDownloadConcurrencyText(
-            _concurrencyCtrl.text,
-          );
-      _retryLimitError = _validator.validateMediaRetryLimitText(
-        _retryLimitCtrl.text,
-      );
-      _retryDelayError = _validator.validateMediaRetryDelayText(
-        _retryDelayCtrl.text,
-      );
-    });
-    widget.onValidationChanged?.call(_hasErrors);
-    if (!notifyModel || _hasErrors) {
-      return;
-    }
-    widget.onChanged(
-      backgroundConcurrency: int.parse(_concurrencyCtrl.text.trim()),
-      retryLimit: int.parse(_retryLimitCtrl.text.trim()),
-      retryDelayMs: int.parse(_retryDelayCtrl.text.trim()),
-    );
-  }
-}
-
-class ProxySettingsDraftEditor extends StatefulWidget {
+class ProxySettingsDraftEditor extends StatelessWidget {
   const ProxySettingsDraftEditor({
     super.key,
     required this.value,
@@ -649,107 +631,102 @@ class ProxySettingsDraftEditor extends StatefulWidget {
   final ValueChanged<bool>? onValidationChanged;
 
   @override
-  State<ProxySettingsDraftEditor> createState() =>
-      _ProxySettingsDraftEditorState();
-}
-
-class _ProxySettingsDraftEditorState extends State<ProxySettingsDraftEditor> {
-  final _validator = SettingsInputValidator();
-  late final TextEditingController _serverCtrl;
-  late final TextEditingController _portCtrl;
-  late final TextEditingController _usernameCtrl;
-  late final TextEditingController _passwordCtrl;
-  String? _portError;
-
-  @override
-  void initState() {
-    super.initState();
-    _serverCtrl = TextEditingController(text: widget.value.server);
-    _portCtrl = TextEditingController(
-      text: widget.value.port?.toString() ?? '',
-    );
-    _usernameCtrl = TextEditingController(text: widget.value.username);
-    _passwordCtrl = TextEditingController(text: widget.value.password);
-    _syncValidationState(notifyModel: false);
-  }
-
-  @override
-  void didUpdateWidget(covariant ProxySettingsDraftEditor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.value == widget.value) {
-      return;
-    }
-    _serverCtrl.text = widget.value.server;
-    _portCtrl.text = widget.value.port?.toString() ?? '';
-    _usernameCtrl.text = widget.value.username;
-    _passwordCtrl.text = widget.value.password;
-    _syncValidationState(notifyModel: false);
-  }
-
-  @override
-  void dispose() {
-    _serverCtrl.dispose();
-    _portCtrl.dispose();
-    _usernameCtrl.dispose();
-    _passwordCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final validator = SettingsInputValidator();
+    onValidationChanged?.call(false);
     return Column(
       children: [
-        TextField(
-          controller: _serverCtrl,
-          decoration: const InputDecoration(labelText: '代理服务器'),
-          onChanged: (_) => _notifyChange(),
+        SettingsValueTile(
+          title: '代理服务器',
+          value: value.server.isEmpty ? '未设置' : value.server,
+          onTap: () async {
+            final raw = await showSettingsTextEditDialog(
+              context,
+              title: '代理服务器',
+              label: '代理服务器',
+              initialValue: value.server,
+            );
+            if (raw == null || !context.mounted) {
+              return;
+            }
+            onChanged(
+              server: raw,
+              port: value.port?.toString() ?? '',
+              username: value.username,
+              password: value.password,
+            );
+          },
         ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _portCtrl,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(labelText: '代理端口', errorText: _portError),
-          onChanged: (_) => _syncValidationState(),
+        const SizedBox(height: 1),
+        SettingsValueTile(
+          title: '代理端口',
+          value: value.port?.toString() ?? '未设置',
+          onTap: () async {
+            final raw = await showSettingsTextEditDialog(
+              context,
+              title: '代理端口',
+              label: '代理端口',
+              initialValue: value.port?.toString() ?? '',
+              keyboardType: TextInputType.number,
+              validator: validator.validatePortText,
+            );
+            if (raw == null || !context.mounted) {
+              return;
+            }
+            onChanged(
+              server: value.server,
+              port: raw,
+              username: value.username,
+              password: value.password,
+            );
+          },
         ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _usernameCtrl,
-          decoration: const InputDecoration(labelText: '代理用户名（可选）'),
-          onChanged: (_) => _notifyChange(),
+        const SizedBox(height: 1),
+        SettingsValueTile(
+          title: '代理用户名',
+          value: value.username.isEmpty ? '未设置' : value.username,
+          onTap: () async {
+            final raw = await showSettingsTextEditDialog(
+              context,
+              title: '代理用户名',
+              label: '代理用户名（可选）',
+              initialValue: value.username,
+            );
+            if (raw == null || !context.mounted) {
+              return;
+            }
+            onChanged(
+              server: value.server,
+              port: value.port?.toString() ?? '',
+              username: raw,
+              password: value.password,
+            );
+          },
         ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _passwordCtrl,
-          decoration: const InputDecoration(labelText: '代理密码（可选）'),
-          obscureText: true,
-          onChanged: (_) => _notifyChange(),
+        const SizedBox(height: 1),
+        SettingsValueTile(
+          title: '代理密码',
+          value: value.password.isEmpty ? '未设置' : '已设置',
+          onTap: () async {
+            final raw = await showSettingsTextEditDialog(
+              context,
+              title: '代理密码',
+              label: '代理密码（可选）',
+              initialValue: value.password,
+              obscureText: true,
+            );
+            if (raw == null || !context.mounted) {
+              return;
+            }
+            onChanged(
+              server: value.server,
+              port: value.port?.toString() ?? '',
+              username: value.username,
+              password: raw,
+            );
+          },
         ),
       ],
-    );
-  }
-
-  void _notifyChange() {
-    widget.onChanged(
-      server: _serverCtrl.text,
-      port: _portCtrl.text,
-      username: _usernameCtrl.text,
-      password: _passwordCtrl.text,
-    );
-  }
-
-  void _syncValidationState({bool notifyModel = true}) {
-    setState(() {
-      _portError = _validator.validatePortText(_portCtrl.text);
-    });
-    widget.onValidationChanged?.call(_portError != null);
-    if (!notifyModel || _portError != null) {
-      return;
-    }
-    widget.onChanged(
-      server: _serverCtrl.text,
-      port: _portCtrl.text,
-      username: _usernameCtrl.text,
-      password: _passwordCtrl.text,
     );
   }
 }
