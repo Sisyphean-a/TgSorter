@@ -9,6 +9,7 @@ class MediaSessionProjector {
     MediaSessionState? currentSession,
     int? activeItemMessageId,
     Set<int> preparingItemIds = const <int>{},
+    Map<int, String> failureMessages = const <int, String>{},
   }) {
     if (message == null) {
       return const MediaSessionState.empty();
@@ -22,12 +23,27 @@ class MediaSessionProjector {
       return base;
     }
     final items = base.items.map((messageId, item) {
+      final failureMessage = failureMessages[messageId];
+      if (failureMessage != null) {
+        return MapEntry(
+          messageId,
+          item.copyWith(
+            previewAvailability: MediaAvailability.failed,
+            playbackAvailability: MediaAvailability.failed,
+            errorMessage: failureMessage,
+          ),
+        );
+      }
       if (!preparingItemIds.contains(messageId)) {
         return MapEntry(messageId, item);
       }
       return MapEntry(
         messageId,
-        item.copyWith(playbackAvailability: MediaAvailability.preparing),
+        item.copyWith(
+          previewAvailability: MediaAvailability.preparing,
+          playbackAvailability: MediaAvailability.preparing,
+          errorMessage: null,
+        ),
       );
     });
     final activeItem = items[base.activeItemMessageId];
@@ -43,6 +59,11 @@ class MediaSessionProjector {
   MediaRequestState _deriveRequestState(MediaItemSessionState? activeItem) {
     if (activeItem == null) {
       return MediaRequestState.idle;
+    }
+    if (activeItem.errorMessage != null ||
+        activeItem.playbackAvailability == MediaAvailability.failed ||
+        activeItem.previewAvailability == MediaAvailability.failed) {
+      return MediaRequestState.failed;
     }
     if (activeItem.playbackAvailability == MediaAvailability.ready ||
         activeItem.previewAvailability == MediaAvailability.ready) {

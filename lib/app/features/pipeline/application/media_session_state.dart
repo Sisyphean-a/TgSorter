@@ -1,6 +1,8 @@
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 
+const Object _mediaSessionNoChange = Object();
+
 enum MediaRequestState { idle, preparing, ready, failed }
 
 enum MediaAvailability { missing, preparing, ready, unavailable, failed }
@@ -16,6 +18,7 @@ class MediaItemSessionState {
     required this.playbackState,
     this.previewPath,
     this.playbackPath,
+    this.errorMessage,
   });
 
   final int messageId;
@@ -25,6 +28,7 @@ class MediaItemSessionState {
   final PlaybackState playbackState;
   final String? previewPath;
   final String? playbackPath;
+  final String? errorMessage;
 
   MediaItemSessionState copyWith({
     int? messageId,
@@ -34,6 +38,7 @@ class MediaItemSessionState {
     PlaybackState? playbackState,
     String? previewPath,
     String? playbackPath,
+    Object? errorMessage = _mediaSessionNoChange,
   }) {
     return MediaItemSessionState(
       messageId: messageId ?? this.messageId,
@@ -43,6 +48,9 @@ class MediaItemSessionState {
       playbackState: playbackState ?? this.playbackState,
       previewPath: previewPath ?? this.previewPath,
       playbackPath: playbackPath ?? this.playbackPath,
+      errorMessage: identical(errorMessage, _mediaSessionNoChange)
+          ? this.errorMessage
+          : errorMessage as String?,
     );
   }
 }

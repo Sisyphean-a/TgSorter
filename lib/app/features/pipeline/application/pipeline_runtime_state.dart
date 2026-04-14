@@ -26,6 +26,7 @@ class PipelineRuntimeState {
   final mediaSession = Rxn<MediaSessionState>();
   final videoPreparing = false.obs;
   final preparingMessageIds = <int>{}.obs;
+  final mediaFailureMessages = <int, String>{}.obs;
   final isOnline = false.obs;
   final remainingCount = RxnInt();
   final remainingCountLoading = false.obs;

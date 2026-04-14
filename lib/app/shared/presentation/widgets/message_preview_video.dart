@@ -35,6 +35,7 @@ class MessagePreviewVideo extends StatefulWidget {
     required this.preparing,
     required this.onRequestPlayback,
     required this.controllerInitializer,
+    this.loadErrorText,
     this.compact = false,
     this.height = previewMediaHeight,
     this.fileActions = const PlatformFileActions(),
@@ -45,6 +46,7 @@ class MessagePreviewVideo extends StatefulWidget {
   final bool preparing;
   final Future<void> Function([int? messageId]) onRequestPlayback;
   final VideoControllerInitializer? controllerInitializer;
+  final String? loadErrorText;
   final bool compact;
   final double height;
   final PlatformFileActions fileActions;
@@ -381,6 +383,9 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
     if (_loading) {
       return const PreviewPlaceholder(text: '视频加载中...');
     }
+    if (widget.loadErrorText case final text?) {
+      return _buildErrorState(text);
+    }
     if (_errorText case final text?) {
       return _buildErrorState(text);
     }
@@ -559,7 +564,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   Widget _buildPendingPreview({String? thumbnailPath}) {
     final body = thumbnailPath == null
         ? PreviewPlaceholder(
-            text: widget.preparing ? '视频下载中...' : '点击播放',
+            text: widget.preparing ? '后台准备中，待本地文件完成后自动起播' : '点击播放',
             height: widget.height,
           )
         : Stack(

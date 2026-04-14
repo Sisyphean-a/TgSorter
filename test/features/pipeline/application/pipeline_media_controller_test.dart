@@ -184,6 +184,34 @@ void main() {
   );
 
   test(
+    'refreshCurrentMediaIfNeeded starts current photo preview warmup before refresh',
+    () async {
+      final state = PipelineRuntimeState();
+      state.currentMessage.value = PipelineMessage(
+        id: 31,
+        messageIds: const <int>[31],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.photo,
+          title: 'photo',
+        ),
+      );
+      final mediaRefresh = _PhotoPrepareRefreshMediaService();
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: mediaRefresh,
+        videoRefreshInterval: const Duration(milliseconds: 5),
+      );
+
+      await controller.refreshCurrentMediaIfNeeded();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(mediaRefresh.preparePreviewCalls, <int>[31]);
+      expect(mediaRefresh.refreshCalls, contains(31));
+    },
+  );
+
+  test(
     'prepareCurrentMedia stops preparing after grouped audio track becomes ready',
     () async {
       final state = PipelineRuntimeState();
@@ -553,6 +581,57 @@ class _PhotoRefreshMediaService extends PipelineMediaRefreshService {
       );
 
   final List<int> refreshCalls = <int>[];
+
+  @override
+  Future<PipelineMessage> prepareCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PipelineMessage> refreshCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    refreshCalls.add(messageId);
+    return PipelineMessage(
+      id: messageId,
+      messageIds: <int>[messageId],
+      sourceChatId: sourceChatId,
+      preview: MessagePreview(
+        kind: MessagePreviewKind.photo,
+        title: 'photo-$messageId',
+        mediaItems: <MediaItemPreview>[
+          MediaItemPreview(
+            messageId: messageId,
+            kind: MediaItemKind.photo,
+            previewPath: 'C:/photo-$messageId.jpg',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoPrepareRefreshMediaService extends PipelineMediaRefreshService {
+  _PhotoPrepareRefreshMediaService()
+    : super.legacy(
+        mediaGateway: _NoopMediaGateway(),
+        messageGateway: _NoopMessageReadGateway(),
+      );
+
+  final List<int> preparePreviewCalls = <int>[];
+  final List<int> refreshCalls = <int>[];
+
+  @override
+  Future<void> prepareCurrentPreview({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    preparePreviewCalls.add(messageId);
+  }
 
   @override
   Future<PipelineMessage> prepareCurrentMedia({

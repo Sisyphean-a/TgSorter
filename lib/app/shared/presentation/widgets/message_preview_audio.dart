@@ -71,6 +71,7 @@ class MessagePreviewAudio extends StatefulWidget {
     required this.onRequestPlayback,
     required this.tracks,
     this.isPreparingTrack,
+    this.errorForTrack,
     this.controllerFactory = _defaultAudioPreviewControllerFactory,
     this.fileActions = const PlatformFileActions(),
   });
@@ -80,6 +81,7 @@ class MessagePreviewAudio extends StatefulWidget {
   final Future<void> Function([int? messageId]) onRequestPlayback;
   final List<AudioTrackPreview> tracks;
   final bool Function(int? messageId)? isPreparingTrack;
+  final String? Function(int? messageId)? errorForTrack;
   final AudioPreviewControllerFactory controllerFactory;
   final PlatformFileActions fileActions;
 
@@ -100,6 +102,7 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
   Duration? _duration;
   double _speed = 1.0;
   String? _errorText;
+  int? _pendingAutoplayTrackMessageId;
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration?>? _durationSubscription;
 
@@ -110,6 +113,7 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
         oldWidget.tracks != widget.tracks) {
       unawaited(_disposePlayer());
     }
+    _maybeAutoplayPendingTrack();
   }
 
   @override
@@ -193,11 +197,14 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
       if (mounted) {
         setState(() {
           _currentTrackMessageId = track.messageId;
+          _pendingAutoplayTrackMessageId = track.messageId;
+          _errorText = null;
         });
       }
       await widget.onRequestPlayback(track.messageId);
       return;
     }
+    _pendingAutoplayTrackMessageId = null;
     final controller = _ensureController();
     final switchingTrack = _currentPath != path;
     if (switchingTrack) {
@@ -278,6 +285,22 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
     if (mounted) {
       setState(() {});
     }
+  }
+
+  void _maybeAutoplayPendingTrack() {
+    final trackId = _pendingAutoplayTrackMessageId;
+    if (trackId == null || _initializing) {
+      return;
+    }
+    final track = _findTrackById(trackId);
+    final path = track?.localAudioPath;
+    if (track == null ||
+        path == null ||
+        path.isEmpty ||
+        !io.File(path).existsSync()) {
+      return;
+    }
+    unawaited(_togglePlayback(track));
   }
 
   Future<void> _seekTo(Duration target) async {
@@ -369,11 +392,16 @@ class _MessagePreviewAudioState extends State<MessagePreviewAudio> {
     final trackPreparing =
         widget.isPreparingTrack?.call(track.messageId) ??
         (widget.preparing && isCurrentTrack);
+    final sessionError = widget.errorForTrack?.call(track.messageId);
     final isPlaying = _controller?.playing == true && isCurrentTrack;
-    final label = _errorText != null && isCurrentTrack
+    final label = sessionError != null && sessionError.isNotEmpty
+        ? sessionError
+        : _errorText != null && isCurrentTrack
         ? _errorText!
         : _initializing && _currentTrackMessageId == track.messageId
         ? '音频加载中...'
+        : _pendingAutoplayTrackMessageId == track.messageId
+        ? '已请求播放，待音频可用后自动开始'
         : hasLocalFile && isCurrentTrack && isPlaying
         ? '播放中'
         : hasLocalFile && isCurrentTrack

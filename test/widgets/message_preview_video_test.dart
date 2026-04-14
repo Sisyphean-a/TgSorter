@@ -74,6 +74,26 @@ void main() {
     expect(label.style?.color, const Color(0xFF74808B));
   });
 
+  testWidgets('video pending state explains local file wait explicitly', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MessagePreviewVideo(
+            videoPath: null,
+            thumbnailPath: null,
+            preparing: true,
+            onRequestPlayback: ([messageId]) async {},
+            controllerInitializer: null,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('后台准备中，待本地文件完成后自动起播'), findsOneWidget);
+  });
+
   testWidgets('adaptive fullscreen locks and restores orientations', (
     tester,
   ) async {

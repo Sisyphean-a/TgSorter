@@ -98,6 +98,31 @@ void main() {
       MediaAvailability.preparing,
     );
   });
+
+  test(
+    'runtime media failure projects failed item state into session',
+    () async {
+      final state = PipelineRuntimeState();
+      state.currentMessage.value = _groupVideoMessage();
+      final controller = PipelineMediaSessionController(
+        state: state,
+        legacyController: _RecordingLegacyMediaController(state),
+        projector: const MediaSessionProjector(),
+      );
+
+      controller.selectItem(22);
+      state.mediaFailureMessages[22] = '视频下载失败';
+      await Future<void>.delayed(Duration.zero);
+
+      expect(state.mediaSession.value?.activeItemMessageId, 22);
+      expect(state.mediaSession.value?.requestState, MediaRequestState.failed);
+      expect(
+        state.mediaSession.value?.items[22]?.playbackAvailability,
+        MediaAvailability.failed,
+      );
+      expect(state.mediaSession.value?.items[22]?.errorMessage, '视频下载失败');
+    },
+  );
 }
 
 PipelineMessage _groupVideoMessage() {

@@ -29,6 +29,7 @@ class MessagePreviewMedia extends StatelessWidget {
     this.fallbackVideoPath,
     this.fallbackThumbnailPath,
     this.isMediaPreparing,
+    this.errorForMedia,
   });
 
   final List<MediaItemPreview> items;
@@ -40,6 +41,7 @@ class MessagePreviewMedia extends StatelessWidget {
   final String? fallbackVideoPath;
   final String? fallbackThumbnailPath;
   final bool Function(int? messageId)? isMediaPreparing;
+  final String? Function(int? messageId)? errorForMedia;
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +67,7 @@ class MessagePreviewMedia extends StatelessWidget {
         preparing: isMediaPreparing?.call(null) ?? preparing,
         onRequestPlayback: onRequestPlayback,
         controllerInitializer: controllerInitializer,
+        loadErrorText: errorForMedia?.call(null),
       );
     }
     return PreviewImage(
@@ -88,6 +91,7 @@ class MessagePreviewMedia extends StatelessWidget {
             onRequestPlayback: ([messageId]) =>
                 onRequestPlayback(item.messageId),
             controllerInitializer: controllerInitializer,
+            loadErrorText: errorForMedia?.call(item.messageId),
           ),
           if (item.durationSeconds != null) ...[
             const SizedBox(height: 8),
@@ -101,6 +105,25 @@ class MessagePreviewMedia extends StatelessWidget {
     final initialIndex = photoItems.indexWhere(
       (entry) => entry.messageId == item.messageId,
     );
+    final errorText = errorForMedia?.call(item.messageId);
+    if (errorText != null) {
+      return _PhotoStatusTile(
+        item: item,
+        text: errorText,
+        preparing: false,
+        onRetry: () => onRequestPlayback(item.messageId),
+      );
+    }
+    if (!_hasPhotoReadyPath(item)) {
+      return _PhotoStatusTile(
+        item: item,
+        text: _preparing(item.messageId) ? '图片下载中...' : _imageFallbackText,
+        preparing: _preparing(item.messageId),
+        onRetry: _preparing(item.messageId)
+            ? null
+            : () => onRequestPlayback(item.messageId),
+      );
+    }
     return MessagePreviewImageGallery(
       items: photoItems,
       initialIndex: initialIndex < 0 ? 0 : initialIndex,
@@ -157,6 +180,7 @@ class MessagePreviewMedia extends StatelessWidget {
               onRequestPlayback: onRequestPlayback,
               controllerInitializer: controllerInitializer,
               height: layoutItem.geometry.height,
+              errorText: errorForMedia?.call(item.messageId),
             )
           : PreviewImage(
               imagePath: item.previewPath ?? item.fullPath,
@@ -186,6 +210,11 @@ class MessagePreviewMedia extends StatelessWidget {
   bool _preparing(int? messageId) {
     return isMediaPreparing?.call(messageId) ?? preparing;
   }
+
+  bool _hasPhotoReadyPath(MediaItemPreview item) {
+    final path = item.previewPath ?? item.fullPath;
+    return path != null && path.isNotEmpty;
+  }
 }
 
 class _VideoMosaicTile extends StatelessWidget {
@@ -195,6 +224,7 @@ class _VideoMosaicTile extends StatelessWidget {
     required this.onRequestPlayback,
     required this.controllerInitializer,
     required this.height,
+    required this.errorText,
   });
 
   final MediaItemPreview item;
@@ -202,6 +232,7 @@ class _VideoMosaicTile extends StatelessWidget {
   final Future<void> Function([int? messageId]) onRequestPlayback;
   final VideoControllerInitializer? controllerInitializer;
   final double height;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
@@ -216,6 +247,7 @@ class _VideoMosaicTile extends StatelessWidget {
           controllerInitializer: controllerInitializer,
           compact: true,
           height: height,
+          loadErrorText: errorText,
         ),
         if (item.durationSeconds != null)
           Positioned(
@@ -239,6 +271,49 @@ class _VideoMosaicTile extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _PhotoStatusTile extends StatelessWidget {
+  const _PhotoStatusTile({
+    required this.item,
+    required this.text,
+    required this.preparing,
+    required this.onRetry,
+  });
+
+  final MediaItemPreview item;
+  final String text;
+  final bool preparing;
+  final Future<void> Function()? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerLowest,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (preparing) const CircularProgressIndicator(),
+              if (preparing) const SizedBox(height: 12),
+              Text(text, textAlign: TextAlign.center),
+              if (!preparing && onRetry != null) ...[
+                const SizedBox(height: 12),
+                FilledButton.tonal(
+                  onPressed: () {
+                    onRetry!.call();
+                  },
+                  child: const Text('重试'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

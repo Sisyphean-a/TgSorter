@@ -69,6 +69,36 @@ void main() {
     expect(find.text('图片已识别（本地文件未就绪）'), findsNothing);
     expect(find.text('图片未就绪'), findsOneWidget);
   });
+
+  testWidgets('failed image preview exposes retry entry', (tester) async {
+    var retriedMessageId = -1;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MessagePreviewMedia(
+            items: const [
+              MediaItemPreview(messageId: 7, kind: MediaItemKind.photo),
+            ],
+            preparing: false,
+            onRequestPlayback: ([messageId]) async {
+              retriedMessageId = messageId ?? -1;
+            },
+            controllerInitializer: null,
+            errorForMedia: (messageId) => messageId == 7 ? '图片加载失败，请重试' : null,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('图片加载失败，请重试'), findsOneWidget);
+    expect(find.text('重试'), findsOneWidget);
+
+    await tester.tap(find.text('重试'));
+    await tester.pump();
+
+    expect(retriedMessageId, 7);
+  });
 }
 
 class _RecordingPlatformFileActions extends PlatformFileActions {

@@ -58,6 +58,23 @@ void main() {
 
     expect(fileActions.copiedPaths, ['C:/demo/a.mp3']);
   });
+
+  testWidgets('audio preview requests playback once and shows pending copy', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(body: const _AudioPendingHarness()),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded).first);
+    await tester.pump();
+
+    expect(find.text('请求:1'), findsOneWidget);
+    expect(find.text('已请求播放，待音频可用后自动开始'), findsOneWidget);
+  });
 }
 
 class _RecordingPlatformFileActions extends PlatformFileActions {
@@ -71,5 +88,38 @@ class _RecordingPlatformFileActions extends PlatformFileActions {
   @override
   Future<void> copyPath(BuildContext context, String path) async {
     copiedPaths.add(path);
+  }
+}
+
+class _AudioPendingHarness extends StatefulWidget {
+  const _AudioPendingHarness();
+
+  @override
+  State<_AudioPendingHarness> createState() => _AudioPendingHarnessState();
+}
+
+class _AudioPendingHarnessState extends State<_AudioPendingHarness> {
+  var _requestedMessageId = -1;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text('请求:$_requestedMessageId'),
+        Expanded(
+          child: MessagePreviewAudio(
+            audioPath: null,
+            preparing: _requestedMessageId == 1,
+            onRequestPlayback: ([messageId]) async {
+              setState(() {
+                _requestedMessageId = messageId ?? -1;
+              });
+            },
+            tracks: const [AudioTrackPreview(messageId: 1, title: 'Track A')],
+            isPreparingTrack: (messageId) => _requestedMessageId == messageId,
+          ),
+        ),
+      ],
+    );
   }
 }

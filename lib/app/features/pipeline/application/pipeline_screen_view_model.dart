@@ -109,6 +109,7 @@ class MediaSessionVm {
           playbackAvailability: item.playbackAvailability,
           playbackState: item.playbackState,
           canPlay: item.playbackAvailability == MediaAvailability.ready,
+          errorMessage: item.errorMessage,
         ),
       );
     });
@@ -131,6 +132,7 @@ class MediaItemVm {
     this.playbackAvailability = MediaAvailability.missing,
     this.playbackState = PlaybackState.idle,
     this.canPlay = false,
+    this.errorMessage,
   });
 
   final int messageId;
@@ -141,6 +143,11 @@ class MediaItemVm {
   final MediaAvailability playbackAvailability;
   final PlaybackState playbackState;
   final bool canPlay;
+  final String? errorMessage;
 
   bool get preparing => playbackAvailability == MediaAvailability.preparing;
+  bool get failed =>
+      errorMessage != null ||
+      previewAvailability == MediaAvailability.failed ||
+      playbackAvailability == MediaAvailability.failed;
 }

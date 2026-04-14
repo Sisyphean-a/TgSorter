@@ -77,6 +77,7 @@ class MessagePreviewContent extends StatelessWidget {
           controllerInitializer: videoControllerInitializer,
           fallbackImagePath: preview.localImagePath,
           isMediaPreparing: _isMediaPreparing,
+          errorForMedia: _mediaError,
         ),
         const SizedBox(height: 12),
         _buildText(preview, fontSize: 16),
@@ -98,6 +99,7 @@ class MessagePreviewContent extends StatelessWidget {
           fallbackVideoPath: preview.localVideoPath,
           fallbackThumbnailPath: preview.localVideoThumbnailPath,
           isMediaPreparing: _isMediaPreparing,
+          errorForMedia: _mediaError,
         ),
         _buildVideoSpacing(preview),
         _buildText(preview, fontSize: 16),
@@ -116,6 +118,7 @@ class MessagePreviewContent extends StatelessWidget {
           onRequestPlayback: ([messageId]) => _openMedia(data, messageId),
           tracks: preview.audioTracks,
           isPreparingTrack: _isMediaPreparing,
+          errorForTrack: _mediaError,
         ),
         const SizedBox(height: 12),
       ],
@@ -153,6 +156,10 @@ class MessagePreviewContent extends StatelessWidget {
 
   bool _isMediaPreparing(int? messageId) {
     return vm.media.items[messageId]?.preparing ?? _isPreparing;
+  }
+
+  String? _mediaError(int? messageId) {
+    return vm.media.items[messageId]?.errorMessage;
   }
 
   Future<void> _openMedia(PipelineMessage data, int? messageId) async {

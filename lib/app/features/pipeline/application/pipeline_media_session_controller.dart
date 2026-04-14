@@ -32,6 +32,10 @@ class PipelineMediaSessionController {
       _state.preparingMessageIds,
       (_) => _syncFromRuntime(),
     );
+    _failureMessagesWorker = ever(
+      _state.mediaFailureMessages,
+      (_) => _syncFromRuntime(),
+    );
     _syncFromRuntime();
   }
 
@@ -42,6 +46,7 @@ class PipelineMediaSessionController {
   late final Worker _currentMessageWorker;
   late final Worker _preparingFlagWorker;
   late final Worker _preparingIdsWorker;
+  late final Worker _failureMessagesWorker;
 
   void selectItem(int messageId) {
     _activeItemMessageId = messageId;
@@ -80,6 +85,7 @@ class PipelineMediaSessionController {
     _currentMessageWorker.dispose();
     _preparingFlagWorker.dispose();
     _preparingIdsWorker.dispose();
+    _failureMessagesWorker.dispose();
   }
 
   void _syncFromRuntime() {
@@ -90,6 +96,7 @@ class PipelineMediaSessionController {
           _activeItemMessageId ??
           _state.mediaSession.value?.activeItemMessageId,
       preparingItemIds: _state.preparingMessageIds,
+      failureMessages: _state.mediaFailureMessages,
     );
     _activeItemMessageId = session.activeItemMessageId;
     _state.mediaSession.value = session;

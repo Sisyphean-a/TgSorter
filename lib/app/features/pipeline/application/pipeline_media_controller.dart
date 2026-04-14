@@ -38,7 +38,8 @@ class PipelineMediaController implements PipelineLegacyMediaController {
     final message = _state.currentMessage.value;
     if (message == null ||
         (message.preview.kind != MessagePreviewKind.video &&
-            message.preview.kind != MessagePreviewKind.audio) ||
+            message.preview.kind != MessagePreviewKind.audio &&
+            message.preview.kind != MessagePreviewKind.photo) ||
         _state.videoPreparing.value) {
       return;
     }
@@ -48,7 +49,12 @@ class PipelineMediaController implements PipelineLegacyMediaController {
       ..clear()
       ..add(requestedMessageId);
     _state.videoPreparing.value = true;
+    _state.mediaFailureMessages.remove(requestedMessageId);
     try {
+      if (message.preview.kind == MessagePreviewKind.photo) {
+        await refreshCurrentMediaIfNeeded();
+        return;
+      }
       final prepared = await _mediaRefresh.prepareCurrentMedia(
         sourceChatId: message.sourceChatId,
         messageId: requestedMessageId,
@@ -56,12 +62,14 @@ class PipelineMediaController implements PipelineLegacyMediaController {
       final base = _messageById(prepared.id) ?? message;
       final merged = mergePreparedMessage(base, prepared);
       _replaceMessage(merged);
+      _state.mediaFailureMessages.remove(requestedMessageId);
       if (!_currentMessageContainsTarget()) {
         stop();
         return;
       }
       await refreshCurrentMediaIfNeeded();
     } catch (error) {
+      _recordFailure(requestedMessageId, error);
       _reportGeneralError?.call(error);
       stop();
     }
@@ -75,6 +83,14 @@ class PipelineMediaController implements PipelineLegacyMediaController {
       _state.videoPreparing.value = false;
       _refreshTargetMessageId = null;
       return;
+    }
+    final previewWarmupMessageId = _nextPreviewWarmupMessageId(message);
+    if (previewWarmupMessageId != null) {
+      await _mediaRefresh.prepareCurrentPreview(
+        sourceChatId: message.sourceChatId,
+        messageId: previewWarmupMessageId,
+      );
+      _state.mediaFailureMessages.remove(previewWarmupMessageId);
     }
     _syncPreparingState(message.preview);
     _videoRefreshTimer?.cancel();
@@ -95,11 +111,16 @@ class PipelineMediaController implements PipelineLegacyMediaController {
         final base = _messageById(refreshed.id) ?? current;
         final merged = mergePreparedMessage(base, refreshed);
         _replaceMessage(merged);
+        _state.mediaFailureMessages.remove(refreshMessageId);
         _syncPreparingState(merged.preview);
         if (!_needsMediaRefresh(merged.preview)) {
           stop();
         }
       } catch (error) {
+        final currentTarget = _state.currentMessage.value == null
+            ? _refreshTargetMessageId
+            : _nextRefreshMessageId(_state.currentMessage.value!);
+        _recordFailure(currentTarget, error);
         _reportGeneralError?.call(error);
         stop();
       }
@@ -242,6 +263,18 @@ class PipelineMediaController implements PipelineLegacyMediaController {
     return false;
   }
 
+  int? _nextPreviewWarmupMessageId(PipelineMessage current) {
+    final preview = current.preview;
+    if (preview.kind == MessagePreviewKind.photo) {
+      return _nextRefreshMessageId(current);
+    }
+    if (preview.kind == MessagePreviewKind.video &&
+        !_hasVideoPreview(preview)) {
+      return _nextRefreshMessageId(current);
+    }
+    return null;
+  }
+
   void _syncPreparingState(MessagePreview preview) {
     final targetId = _refreshTargetMessageId;
     if (preview.kind == MessagePreviewKind.video) {
@@ -294,6 +327,17 @@ class PipelineMediaController implements PipelineLegacyMediaController {
     return path != null && path.isNotEmpty;
   }
 
+  bool _hasVideoPreview(MessagePreview preview) {
+    if (preview.mediaItems.isNotEmpty) {
+      return preview.mediaItems.any((item) {
+        return item.kind == MediaItemKind.video &&
+            (_hasPath(item.previewPath) || _hasPath(item.fullPath));
+      });
+    }
+    return _hasPath(preview.localVideoThumbnailPath) ||
+        _hasPath(preview.localVideoPath);
+  }
+
   bool _hasReadyAudioPath(MessagePreview preview) {
     final targetId = _refreshTargetMessageId;
     if (preview.audioTracks.isEmpty || targetId == null) {
@@ -305,5 +349,12 @@ class PipelineMediaController implements PipelineLegacyMediaController {
       }
     }
     return _hasPath(preview.localAudioPath);
+  }
+
+  void _recordFailure(int? messageId, Object error) {
+    if (messageId == null) {
+      return;
+    }
+    _state.mediaFailureMessages[messageId] = '媒体加载失败：$error';
   }
 }
