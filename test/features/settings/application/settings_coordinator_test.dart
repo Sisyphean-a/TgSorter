@@ -335,6 +335,29 @@ void main() {
     },
   );
 
+  test('clearSessionStateForLogout drops skipped records and refreshes summary', () async {
+    final harness = _SettingsCoordinatorHarness()
+      ..skippedRepository.records = <SkippedMessageRecord>[
+        SkippedMessageRecord(
+          id: 'forwarding:8888:1',
+          workflow: SkippedMessageWorkflow.forwarding,
+          sourceChatId: 8888,
+          primaryMessageId: 1,
+          messageIds: const <int>[1],
+          createdAtMs: 1,
+        ),
+      ];
+    final coordinator = harness.build();
+
+    coordinator.refreshSkippedMessageSummary();
+    expect(coordinator.skippedMessageSummary.value.totalCount, 1);
+
+    await coordinator.clearSessionStateForLogout();
+
+    expect(harness.skippedRepository.records, isEmpty);
+    expect(coordinator.skippedMessageSummary.value.totalCount, 0);
+  });
+
   test(
     'savePageDraft ignores overlapping page saves until the in-flight save completes',
     () async {
@@ -698,6 +721,11 @@ class _FakeSkippedMessageRepository implements SkippedMessageRepository {
         })
         .toList(growable: false);
     return current.length - records.length;
+  }
+
+  @override
+  Future<void> clearAll() async {
+    records = <SkippedMessageRecord>[];
   }
 
   @override

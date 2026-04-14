@@ -84,6 +84,10 @@ class SkippedMessageRepository {
     await saveSkippedMessages(next);
     return current.length - next.length;
   }
+
+  Future<void> clearAll() async {
+    await _prefs.remove(_skippedMessagesKey);
+  }
 }
 
 class NoopSkippedMessageRepository extends SkippedMessageRepository {
@@ -121,6 +125,9 @@ class NoopSkippedMessageRepository extends SkippedMessageRepository {
   }) async {
     return 0;
   }
+
+  @override
+  Future<void> clearAll() async {}
 
   @override
   Future<void> saveSkippedMessages(List<SkippedMessageRecord> records) async {}

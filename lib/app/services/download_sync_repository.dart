@@ -93,4 +93,8 @@ class DownloadSyncRepository {
     );
     return _prefs.setString(_recordsKey, encoded);
   }
+
+  Future<void> clearRecords() {
+    return _prefs.remove(_recordsKey);
+  }
 }

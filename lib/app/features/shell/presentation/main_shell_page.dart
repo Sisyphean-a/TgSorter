@@ -219,6 +219,9 @@ class _MainShellPageState extends State<MainShellPage> {
   Future<void> _handleLogoutSuccess() async {
     await widget.pipeline.clearSessionStateForLogout();
     widget.tagging.clearSessionStateForLogout();
+    await widget.downloads.clearSessionStateForLogout();
+    await widget.loginAlerts.clearSessionStateForLogout();
+    await widget.settings.clearSessionStateForLogout();
     if (!mounted) {
       return;
     }

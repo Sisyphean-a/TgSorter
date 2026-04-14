@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
+import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
@@ -22,10 +23,12 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
+import 'package:tgsorter/app/core/routing/app_routes.dart';
 import 'package:tgsorter/app/services/download_sync_service.dart';
 import 'package:tgsorter/app/services/login_alert_repository.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/telegram_login_alert.dart';
@@ -519,9 +522,150 @@ void main() {
     expect(find.byTooltip('返回'), findsOneWidget);
     expect(find.text('保存'), findsOneWidget);
   });
+
+  testWidgets('logout clears session scoped state before returning to auth', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Get.testMode = true;
+    Get.reset();
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final settingsGateway = _ShellSettingsGateway();
+    final pipelineGateway = _ShellPipelineGateway();
+    final skippedRepository = SkippedMessageRepository(prefs);
+    await skippedRepository.upsertSkippedMessage(
+      const SkippedMessageRecord(
+        id: 'forwarding:8888:1',
+        workflow: SkippedMessageWorkflow.forwarding,
+        sourceChatId: 8888,
+        primaryMessageId: 1,
+        messageIds: <int>[1],
+        createdAtMs: 1,
+      ),
+    );
+    final settingsController = SettingsCoordinator(
+      SettingsRepository(prefs),
+      settingsGateway,
+      auth: settingsGateway,
+      skippedMessageRepository: skippedRepository,
+    );
+    settingsController.onInit();
+    settingsController.settings.value = const AppSettings(
+      categories: [
+        CategoryConfig(key: 'a', targetChatId: 1001, targetChatTitle: '收纳'),
+      ],
+      sourceChatId: 888,
+      fetchDirection: MessageFetchDirection.latestFirst,
+      forwardAsCopy: false,
+      batchSize: 2,
+      throttleMs: 0,
+      proxy: ProxySettings.empty,
+      downloadWorkbenchEnabled: true,
+    );
+    final errors = AppErrorController();
+    final pipeline = PipelineCoordinator(
+      authStateGateway: pipelineGateway,
+      connectionStateGateway: pipelineGateway,
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      classifyGateway: pipelineGateway,
+      recoveryGateway: pipelineGateway,
+      settingsReader: settingsController,
+      journalRepository: OperationJournalRepository(prefs),
+      errorController: errors,
+    );
+    final tagging = TaggingCoordinator(
+      authStateGateway: pipelineGateway,
+      connectionStateGateway: pipelineGateway,
+      messageReadGateway: pipelineGateway,
+      mediaGateway: pipelineGateway,
+      taggingGateway: pipelineGateway,
+      settingsReader: settingsController,
+      errorController: errors,
+    );
+    final syncPort = _ShellDownloadSyncPort();
+    final downloads = DownloadWorkbenchController(
+      sessions: settingsGateway,
+      settings: settingsController,
+      sync: syncPort,
+    )..onInit();
+    downloads.selectSourceChat(-1001);
+    downloads.updateTargetDirectory('/tmp/downloads');
+    final loginRepository = _MutableLoginAlertRepository(
+      const <TelegramLoginAlert>[
+        TelegramLoginAlert(
+          kind: TelegramLoginAlertKind.code,
+          status: TelegramLoginAlertStatus.active,
+          messageId: 18,
+          chatId: 777000,
+          receivedAtMs: 1700000000000,
+          sourceLabel: 'Telegram 官方账号 777000',
+          text: 'Login code: 404237',
+          code: '404237',
+        ),
+      ],
+    );
+    final loginAlerts = LoginAlertWorkbenchController(
+      updates: const Stream<Map<String, dynamic>>.empty(),
+      repository: loginRepository,
+    )..onInit();
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        initialRoute: AppRoutes.app,
+        getPages: [
+          GetPage(
+            name: AppRoutes.app,
+            page: () => MainShellPage(
+              pipeline: pipeline,
+              tagging: tagging,
+              downloads: downloads,
+              loginAlerts: loginAlerts,
+              pipelineSettings: settingsController,
+              errors: errors,
+              settings: settingsController,
+              pipelineLogs: pipeline,
+            ),
+          ),
+          GetPage(
+            name: AppRoutes.auth,
+            page: () => const Scaffold(body: Text('AUTH PAGE')),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(loginAlerts.entries, hasLength(1));
+
+    await tester.tap(find.byTooltip('打开导航'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('设置'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('关于账号与会话'), 120);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('关于账号与会话'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '退出登录'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '确认退出'));
+    await tester.pumpAndSettle();
+
+    expect(settingsGateway.logoutCalls, 1);
+    expect(find.text('AUTH PAGE'), findsOneWidget);
+    expect(downloads.selectedSourceChatId.value, isNull);
+    expect(downloads.targetDirectory.value, isEmpty);
+    expect(syncPort.clearCalls, 1);
+    expect(loginAlerts.entries, isEmpty);
+    expect(loginRepository.savedEntries, isEmpty);
+    expect(skippedRepository.loadSkippedMessages(), isEmpty);
+  });
 }
 
 class _ShellSettingsGateway implements AuthGateway, SessionQueryGateway {
+  int logoutCalls = 0;
+
   @override
   Stream<TdAuthState> get authStates => const Stream.empty();
 
@@ -534,7 +678,9 @@ class _ShellSettingsGateway implements AuthGateway, SessionQueryGateway {
   Future<void> restart() async {}
 
   @override
-  Future<void> logout() async {}
+  Future<void> logout() async {
+    logoutCalls++;
+  }
 
   @override
   Future<void> start() async {}
@@ -645,4 +791,53 @@ class _MemoryLoginAlertRepository implements LoginAlertRepositoryPort {
 
   @override
   Future<void> save(List<TelegramLoginAlert> entries) async {}
+
+  @override
+  Future<void> clear() async {}
+}
+
+class _MutableLoginAlertRepository implements LoginAlertRepositoryPort {
+  _MutableLoginAlertRepository(List<TelegramLoginAlert> entries)
+    : savedEntries = List<TelegramLoginAlert>.from(entries);
+
+  List<TelegramLoginAlert> savedEntries;
+
+  @override
+  Future<List<TelegramLoginAlert>> load() async =>
+      List<TelegramLoginAlert>.from(savedEntries);
+
+  @override
+  Future<void> save(List<TelegramLoginAlert> entries) async {
+    savedEntries = List<TelegramLoginAlert>.from(entries);
+  }
+
+  @override
+  Future<void> clear() async {
+    savedEntries = <TelegramLoginAlert>[];
+  }
+}
+
+class _ShellDownloadSyncPort
+    implements DownloadSyncPort, DownloadSyncSessionPort {
+  int clearCalls = 0;
+
+  @override
+  Future<void> clearSessionState() async {
+    clearCalls++;
+  }
+
+  @override
+  Future<DownloadSyncResult> sync({
+    required int sourceChatId,
+    required String sourceChatTitle,
+    required String targetDirectory,
+    required DownloadSettings settings,
+  }) async {
+    return const DownloadSyncResult(
+      scannedMessages: 0,
+      copiedFiles: 0,
+      skippedFiles: 0,
+      deletedFiles: 0,
+    );
+  }
 }

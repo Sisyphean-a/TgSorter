@@ -67,5 +67,36 @@ void main() {
         1,
       );
     });
+
+    test('clearAll removes every skipped record', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SkippedMessageRepository(prefs);
+
+      await repo.upsertSkippedMessage(
+        SkippedMessageRecord(
+          id: 'forwarding:8888:1',
+          workflow: SkippedMessageWorkflow.forwarding,
+          sourceChatId: 8888,
+          primaryMessageId: 1,
+          messageIds: const <int>[1],
+          createdAtMs: 1,
+        ),
+      );
+      await repo.upsertSkippedMessage(
+        SkippedMessageRecord(
+          id: 'tagging:9999:2',
+          workflow: SkippedMessageWorkflow.tagging,
+          sourceChatId: 9999,
+          primaryMessageId: 2,
+          messageIds: const <int>[2],
+          createdAtMs: 2,
+        ),
+      );
+
+      await repo.clearAll();
+
+      expect(repo.loadSkippedMessages(), isEmpty);
+    });
   });
 }

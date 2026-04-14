@@ -336,6 +336,11 @@ class SettingsCoordinator extends GetxController
     await auth.logout();
   }
 
+  Future<void> clearSessionStateForLogout() async {
+    await _skippedMessageRepository.clearAll();
+    refreshSkippedMessageSummary();
+  }
+
   void refreshSkippedMessageSummary() {
     skippedMessageSummaryState.value = SkippedMessageSummary.fromRecords(
       _skippedMessageRepository.loadSkippedMessages(),

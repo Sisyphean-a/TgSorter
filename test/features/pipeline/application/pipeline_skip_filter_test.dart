@@ -152,6 +152,11 @@ class _MemorySkippedMessageRepository implements SkippedMessageRepository {
   }
 
   @override
+  Future<void> clearAll() async {
+    records.clear();
+  }
+
+  @override
   Future<void> saveSkippedMessages(List<SkippedMessageRecord> records) async {
     throw UnimplementedError();
   }

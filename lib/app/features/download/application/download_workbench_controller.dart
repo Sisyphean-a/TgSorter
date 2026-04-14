@@ -81,6 +81,22 @@ class DownloadWorkbenchController extends GetxController {
     unawaited(_runSyncLoop());
   }
 
+  Future<void> clearSessionStateForLogout() async {
+    _pendingResync = false;
+    syncing.value = false;
+    selectedSourceChatId.value = null;
+    targetDirectory.value = '';
+    lastSummary.value = '选择来源和目标目录后会自动开始同步。';
+    lastError.value = null;
+    copiedFiles.value = 0;
+    skippedFiles.value = 0;
+    deletedFiles.value = 0;
+    scannedMessages.value = 0;
+    if (_sync is DownloadSyncSessionPort) {
+      await (_sync as DownloadSyncSessionPort).clearSessionState();
+    }
+  }
+
   Future<void> _runSyncLoop() async {
     if (!canRun) {
       return;

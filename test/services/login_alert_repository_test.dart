@@ -30,5 +30,26 @@ void main() {
       expect(restored.single.status, TelegramLoginAlertStatus.used);
       expect(restored.single.consumedAtMs, 1700000010000);
     });
+
+    test('clear removes persisted alerts', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repository = LoginAlertRepository(prefs);
+      const alert = TelegramLoginAlert(
+        kind: TelegramLoginAlertKind.code,
+        status: TelegramLoginAlertStatus.active,
+        messageId: 18,
+        chatId: 777000,
+        receivedAtMs: 1700000000000,
+        sourceLabel: 'Telegram 官方账号 777000',
+        text: 'Login code: 404237',
+        code: '404237',
+      );
+
+      await repository.save(const <TelegramLoginAlert>[alert]);
+      await repository.clear();
+
+      expect(await repository.load(), isEmpty);
+    });
   });
 }

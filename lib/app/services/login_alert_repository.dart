@@ -6,6 +6,7 @@ import 'package:tgsorter/app/services/telegram_login_alert.dart';
 abstract class LoginAlertRepositoryPort {
   Future<List<TelegramLoginAlert>> load();
   Future<void> save(List<TelegramLoginAlert> entries);
+  Future<void> clear();
 }
 
 class LoginAlertRepository implements LoginAlertRepositoryPort {
@@ -37,5 +38,10 @@ class LoginAlertRepository implements LoginAlertRepositoryPort {
       entries.map((item) => item.toJson()).toList(growable: false),
     );
     return _prefs.setString(_recordsKey, encoded);
+  }
+
+  @override
+  Future<void> clear() {
+    return _prefs.remove(_recordsKey);
   }
 }

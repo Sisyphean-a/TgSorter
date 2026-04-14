@@ -53,6 +53,39 @@ void main() {
     expect(sync.calls.single.sourceChatId, 777);
     expect(sync.calls.single.targetDirectory, '/tmp/downloads');
   });
+
+  test('clearSessionStateForLogout resets selection and clears sync session state', () async {
+    final settings = _FakeSettingsReader(
+      AppSettings.defaults().updateDownloadSettings(
+        workbenchEnabled: true,
+        skipExistingFiles: true,
+        syncDeletedFiles: false,
+        conflictStrategy: DownloadConflictStrategy.rename,
+        mediaFilter: DownloadMediaFilter.all,
+        directoryMode: DownloadDirectoryMode.flat,
+      ),
+    );
+    final sync = _FakeDownloadSyncPort();
+    final controller = DownloadWorkbenchController(
+      sessions: _FakeSessionGateway(),
+      settings: settings,
+      sync: sync,
+    );
+
+    controller.onInit();
+    controller.selectSourceChat(777);
+    controller.updateTargetDirectory('/tmp/downloads');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.selectedSourceChatId.value, 777);
+    expect(controller.targetDirectory.value, '/tmp/downloads');
+
+    await controller.clearSessionStateForLogout();
+
+    expect(controller.selectedSourceChatId.value, isNull);
+    expect(controller.targetDirectory.value, isEmpty);
+    expect(sync.clearCalls, 1);
+  });
 }
 
 class _FakeSettingsReader implements PipelineSettingsReader {
@@ -77,8 +110,10 @@ class _FakeSessionGateway implements SessionQueryGateway {
   }
 }
 
-class _FakeDownloadSyncPort implements DownloadSyncPort {
+class _FakeDownloadSyncPort
+    implements DownloadSyncPort, DownloadSyncSessionPort {
   final calls = <_SyncCall>[];
+  int clearCalls = 0;
 
   @override
   Future<DownloadSyncResult> sync({
@@ -100,6 +135,11 @@ class _FakeDownloadSyncPort implements DownloadSyncPort {
       skippedFiles: 1,
       deletedFiles: 0,
     );
+  }
+
+  @override
+  Future<void> clearSessionState() async {
+    clearCalls++;
   }
 }
 

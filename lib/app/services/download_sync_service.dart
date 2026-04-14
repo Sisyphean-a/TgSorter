@@ -20,7 +20,11 @@ abstract class DownloadSyncPort {
   });
 }
 
-class NoopDownloadSyncPort implements DownloadSyncPort {
+abstract interface class DownloadSyncSessionPort {
+  Future<void> clearSessionState();
+}
+
+class NoopDownloadSyncPort implements DownloadSyncPort, DownloadSyncSessionPort {
   const NoopDownloadSyncPort();
 
   @override
@@ -37,6 +41,9 @@ class NoopDownloadSyncPort implements DownloadSyncPort {
       deletedFiles: 0,
     );
   }
+
+  @override
+  Future<void> clearSessionState() async {}
 }
 
 class DownloadSyncResult {
@@ -53,7 +60,7 @@ class DownloadSyncResult {
   final int deletedFiles;
 }
 
-class DownloadSyncService implements DownloadSyncPort {
+class DownloadSyncService implements DownloadSyncPort, DownloadSyncSessionPort {
   DownloadSyncService({
     required MessageReadGateway messages,
     required MediaGateway media,
@@ -210,6 +217,11 @@ class DownloadSyncService implements DownloadSyncPort {
       skippedFiles: skippedFiles,
       deletedFiles: deletedFiles,
     );
+  }
+
+  @override
+  Future<void> clearSessionState() {
+    return _repository.clearRecords();
   }
 
   Future<List<_DownloadArtifact>> _resolveArtifacts({

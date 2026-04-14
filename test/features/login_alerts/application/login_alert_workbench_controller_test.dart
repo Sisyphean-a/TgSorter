@@ -108,6 +108,40 @@ void main() {
       expect(controller.entries.single.code, '404237');
     },
   );
+
+  test('clearSessionStateForLogout clears entries and persisted inbox', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final repository = LoginAlertRepository(prefs);
+    await repository.save(const <TelegramLoginAlert>[
+      TelegramLoginAlert(
+        kind: TelegramLoginAlertKind.code,
+        status: TelegramLoginAlertStatus.active,
+        messageId: 18,
+        chatId: 777000,
+        receivedAtMs: 1700000000000,
+        sourceLabel: 'Telegram 官方账号 777000',
+        text: 'Login code: 404237',
+        code: '404237',
+      ),
+    ]);
+    late LoginAlertWorkbenchController controller;
+    controller = LoginAlertWorkbenchController(
+      updates: const Stream<Map<String, dynamic>>.empty(),
+      repository: repository,
+      nowMs: () => 1700000000000,
+    );
+    addTearDown(controller.onClose);
+
+    controller.onInit();
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.entries, hasLength(1));
+
+    await controller.clearSessionStateForLogout();
+
+    expect(controller.entries, isEmpty);
+    expect(await repository.load(), isEmpty);
+  });
 }
 
 Map<String, dynamic> _codeUpdate({required String type}) {
@@ -147,6 +181,9 @@ class _DelayedLoginAlertRepository implements LoginAlertRepositoryPort {
 
   @override
   Future<void> save(List<TelegramLoginAlert> entries) async {}
+
+  @override
+  Future<void> clear() async {}
 
   void completeLoad(List<TelegramLoginAlert> entries) {
     if (!_loadCompleter.isCompleted) {

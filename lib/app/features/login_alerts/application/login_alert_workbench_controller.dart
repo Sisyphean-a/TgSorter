@@ -126,6 +126,11 @@ class LoginAlertWorkbenchController extends GetxController {
     );
   }
 
+  Future<void> clearSessionStateForLogout() async {
+    entries.clear();
+    await _repository.clear();
+  }
+
   @override
   void onClose() {
     unawaited(_subscription?.cancel());

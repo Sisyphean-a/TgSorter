@@ -318,6 +318,11 @@ class _FakeSkippedMessageRepository implements SkippedMessageRepository {
   }
 
   @override
+  Future<void> clearAll() async {
+    savedRecords.clear();
+  }
+
+  @override
   Future<void> saveSkippedMessages(List<SkippedMessageRecord> records) async {
     savedRecords
       ..clear()
