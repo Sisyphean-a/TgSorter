@@ -19,6 +19,8 @@ class AppColorPalette extends ThemeExtension<AppColorPalette> {
     required this.settingsBackground,
     required this.settingsSurface,
     required this.settingsDivider,
+    required this.settingsIcon,
+    required this.settingsValue,
   });
 
   final Color pageBackground;
@@ -37,6 +39,8 @@ class AppColorPalette extends ThemeExtension<AppColorPalette> {
   final Color settingsBackground;
   final Color settingsSurface;
   final Color settingsDivider;
+  final Color settingsIcon;
+  final Color settingsValue;
 
   @override
   AppColorPalette copyWith({
@@ -56,6 +60,8 @@ class AppColorPalette extends ThemeExtension<AppColorPalette> {
     Color? settingsBackground,
     Color? settingsSurface,
     Color? settingsDivider,
+    Color? settingsIcon,
+    Color? settingsValue,
   }) {
     return AppColorPalette(
       pageBackground: pageBackground ?? this.pageBackground,
@@ -74,6 +80,8 @@ class AppColorPalette extends ThemeExtension<AppColorPalette> {
       settingsBackground: settingsBackground ?? this.settingsBackground,
       settingsSurface: settingsSurface ?? this.settingsSurface,
       settingsDivider: settingsDivider ?? this.settingsDivider,
+      settingsIcon: settingsIcon ?? this.settingsIcon,
+      settingsValue: settingsValue ?? this.settingsValue,
     );
   }
 
@@ -107,6 +115,8 @@ class AppColorPalette extends ThemeExtension<AppColorPalette> {
       )!,
       settingsSurface: Color.lerp(settingsSurface, other.settingsSurface, t)!,
       settingsDivider: Color.lerp(settingsDivider, other.settingsDivider, t)!,
+      settingsIcon: Color.lerp(settingsIcon, other.settingsIcon, t)!,
+      settingsValue: Color.lerp(settingsValue, other.settingsValue, t)!,
     );
   }
 }
@@ -129,6 +139,8 @@ abstract final class AppTokens {
     settingsBackground: Color(0xFFF1F5F9),
     settingsSurface: Color(0xFFFFFFFF),
     settingsDivider: Color(0xFFD9E1E8),
+    settingsIcon: Color(0xFF8F99A3),
+    settingsValue: Color(0xFF3390EC),
   );
 
   static const AppColorPalette darkPalette = AppColorPalette(
@@ -148,6 +160,8 @@ abstract final class AppTokens {
     settingsBackground: Color(0xFF17191C),
     settingsSurface: Color(0xFF23262A),
     settingsDivider: Color(0xFF3B4148),
+    settingsIcon: Color(0xFFADB6C2),
+    settingsValue: Color(0xFF5CA8F5),
   );
 
   static const Color pageBackground = Color(0xFF091312);

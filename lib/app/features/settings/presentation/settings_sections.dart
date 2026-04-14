@@ -107,11 +107,15 @@ class SettingsTaggingContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SettingsSectionHeader(title: '标签来源'),
-        SourceChatDraftEditor(
-          label: '标签来源会话',
-          sourceChatId: draft.tagSourceChatId,
-          chats: chats,
-          onChanged: onUpdateSourceChat,
+        SettingsSectionBlock(
+          children: [
+            SourceChatDraftEditor(
+              label: '标签来源会话',
+              sourceChatId: draft.tagSourceChatId,
+              chats: chats,
+              onChanged: onUpdateSourceChat,
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         const SettingsSectionHeader(title: '默认标签组'),
@@ -152,14 +156,17 @@ class SettingsCommonContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SettingsSectionHeader(title: '通用偏好'),
-        DefaultWorkbenchDraftEditor(
-          value: draft.defaultWorkbench,
-          onChanged: onDefaultWorkbenchChanged,
-        ),
-        const SizedBox(height: 12),
-        ThemeModeDraftEditor(
-          value: draft.themeMode,
-          onChanged: onThemeModeChanged,
+        SettingsSectionBlock(
+          children: [
+            DefaultWorkbenchDraftEditor(
+              value: draft.defaultWorkbench,
+              onChanged: onDefaultWorkbenchChanged,
+            ),
+            ThemeModeDraftEditor(
+              value: draft.themeMode,
+              onChanged: onThemeModeChanged,
+            ),
+          ],
         ),
       ],
     );
@@ -192,34 +199,33 @@ class SettingsDownloadContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SettingsSectionHeader(title: '下载工作台'),
-        DownloadWorkbenchEnabledEditor(
-          value: draft.downloadWorkbenchEnabled,
-          onChanged: onWorkbenchEnabledChanged,
-        ),
-        const SizedBox(height: 12),
-        DownloadSkipExistingFilesEditor(
-          value: draft.downloadSkipExistingFiles,
-          onChanged: onSkipExistingFilesChanged,
-        ),
-        const SizedBox(height: 12),
-        DownloadSyncDeletedFilesEditor(
-          value: draft.downloadSyncDeletedFiles,
-          onChanged: onSyncDeletedFilesChanged,
-        ),
-        const SizedBox(height: 12),
-        DownloadConflictStrategyEditor(
-          value: draft.downloadConflictStrategy,
-          onChanged: onConflictStrategyChanged,
-        ),
-        const SizedBox(height: 12),
-        DownloadDirectoryModeEditor(
-          value: draft.downloadDirectoryMode,
-          onChanged: onDirectoryModeChanged,
-        ),
-        const SizedBox(height: 12),
-        DownloadMediaFilterEditor(
-          value: draft.downloadMediaFilter,
-          onChanged: onMediaFilterChanged,
+        SettingsSectionBlock(
+          children: [
+            DownloadWorkbenchEnabledEditor(
+              value: draft.downloadWorkbenchEnabled,
+              onChanged: onWorkbenchEnabledChanged,
+            ),
+            DownloadSkipExistingFilesEditor(
+              value: draft.downloadSkipExistingFiles,
+              onChanged: onSkipExistingFilesChanged,
+            ),
+            DownloadSyncDeletedFilesEditor(
+              value: draft.downloadSyncDeletedFiles,
+              onChanged: onSyncDeletedFilesChanged,
+            ),
+            DownloadConflictStrategyEditor(
+              value: draft.downloadConflictStrategy,
+              onChanged: onConflictStrategyChanged,
+            ),
+            DownloadDirectoryModeEditor(
+              value: draft.downloadDirectoryMode,
+              onChanged: onDirectoryModeChanged,
+            ),
+            DownloadMediaFilterEditor(
+              value: draft.downloadMediaFilter,
+              onChanged: onMediaFilterChanged,
+            ),
+          ],
         ),
       ],
     );
@@ -258,7 +264,7 @@ class SettingsWorkflowContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return SettingsSectionBlock(
       children: [
         SourceChatDraftEditor(
           label: '转发来源会话',
@@ -266,29 +272,24 @@ class SettingsWorkflowContent extends StatelessWidget {
           chats: chats,
           onChanged: onUpdateSourceChat,
         ),
-        const SizedBox(height: 12),
         FetchDirectionDraftEditor(
           value: draft.fetchDirection,
           onChanged: onUpdateFetchDirection,
         ),
-        const SizedBox(height: 12),
         ForwardModeDraftEditor(
           value: draft.forwardAsCopy,
           onChanged: onUpdateForwardAsCopy,
         ),
-        const SizedBox(height: 12),
         BatchOptionsDraftEditor(
           batchSize: draft.batchSize,
           throttleMs: draft.throttleMs,
           onChanged: onUpdateBatchOptions,
           onValidationChanged: onValidationChanged,
         ),
-        const SizedBox(height: 12),
         PreviewPrefetchDraftEditor(
           value: draft.previewPrefetchCount,
           onChanged: onUpdatePreviewPrefetchCount,
         ),
-        const SizedBox(height: 12),
         MediaLoadOptionsDraftEditor(
           backgroundConcurrency: draft.mediaBackgroundDownloadConcurrency,
           retryLimit: draft.mediaRetryLimit,
@@ -321,10 +322,14 @@ class SettingsConnectionContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProxySettingsDraftEditor(
-      value: draft.proxy,
-      onChanged: onChanged,
-      onValidationChanged: onValidationChanged,
+    return SettingsSectionBlock(
+      children: [
+        ProxySettingsDraftEditor(
+          value: draft.proxy,
+          onChanged: onChanged,
+          onValidationChanged: onValidationChanged,
+        ),
+      ],
     );
   }
 }
@@ -393,15 +398,15 @@ class SettingsAccountSessionContent extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         const SettingsSectionHeader(title: '登录控制'),
-        Text('退出后会返回登录页，并清空当前工作台缓存、待重试队列和恢复事务。应用设置会保留。'),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.tonalIcon(
-            onPressed: onLogout,
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text('退出登录'),
-          ),
+        SettingsSectionBlock(
+          children: [
+            SettingsValueTile(
+              title: '退出登录',
+              subtitle: '退出后会返回登录页，并清空当前工作台缓存、待重试队列和恢复事务。应用设置会保留。',
+              danger: true,
+              onTap: onLogout,
+            ),
+          ],
         ),
       ],
     );
@@ -431,7 +436,10 @@ class SettingsSkippedMessagesContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SettingsSectionHeader(title: '恢复已略过数据'),
-        Text('恢复后，对应来源中的消息会重新回到转发或标签工作流。'),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text('恢复后，对应来源中的消息会重新回到转发或标签工作流。'),
+        ),
         const SizedBox(height: 12),
         const SettingsSectionHeader(title: '全部恢复'),
         _SkippedRestoreActionRow(
