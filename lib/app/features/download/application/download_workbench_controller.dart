@@ -86,6 +86,7 @@ class DownloadWorkbenchController extends GetxController {
     _syncSession++;
     _pendingResync = false;
     syncing.value = false;
+    chats.clear();
     selectedSourceChatId.value = null;
     targetDirectory.value = '';
     lastSummary.value = '选择来源和目标目录后会自动开始同步。';

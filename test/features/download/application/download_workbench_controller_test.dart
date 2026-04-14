@@ -86,6 +86,7 @@ void main() {
 
     expect(controller.selectedSourceChatId.value, isNull);
     expect(controller.targetDirectory.value, isEmpty);
+    expect(controller.chats, isEmpty);
     expect(sync.clearCalls, 1);
   });
 

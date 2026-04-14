@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
@@ -24,6 +26,7 @@ class _DownloadWorkbenchScreenState extends State<DownloadWorkbenchScreen> {
     _directoryController = TextEditingController(
       text: controller.targetDirectory.value,
     );
+    unawaited(controller.loadChats());
   }
 
   @override
