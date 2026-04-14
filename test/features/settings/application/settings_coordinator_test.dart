@@ -252,6 +252,46 @@ void main() {
   );
 
   test(
+    'saveProxySettings ignores overlapping updates while persistence is still in flight',
+    () async {
+      final harness = _SettingsCoordinatorHarness()
+        ..persistence.saveCompleter = Completer<void>();
+      final coordinator = harness.build();
+      coordinator.onInit();
+
+      final firstSave = coordinator.saveProxySettings(
+        server: '127.0.0.1',
+        port: '7890',
+        username: '',
+        password: '',
+        restart: false,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final secondSave = coordinator.saveProxySettings(
+        server: '127.0.0.1',
+        port: '7891',
+        username: '',
+        password: '',
+        restart: false,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(harness.persistence.saveCalls, 1);
+      expect(harness.persistence.lastSaved, isNull);
+
+      harness.persistence.saveCompleter!.complete();
+      await firstSave;
+      await secondSave;
+
+      expect(harness.persistence.lastSaved?.proxy.port, 7890);
+      expect(coordinator.savedSettings.value.proxy.port, 7890);
+      expect(harness.draftCoordinator.draft.value.proxy.port, 7890);
+      expect(harness.draftCoordinator.isDirty.value, isFalse);
+    },
+  );
+
+  test(
     'savePageDraft bridges local page draft into persisted settings',
     () async {
       final harness = _SettingsCoordinatorHarness();

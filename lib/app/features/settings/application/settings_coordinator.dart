@@ -106,6 +106,11 @@ class SettingsCoordinator extends GetxController
     required String password,
     bool restart = false,
   }) async {
+    final pending = _pendingSaveDraft;
+    if (pending != null) {
+      await pending;
+      return;
+    }
     _draftCoordinator.update(
       _connection.updateProxy(
         current: savedSettings.value,
