@@ -9,27 +9,7 @@ import 'package:tgsorter/app/features/workbench/presentation/message_workbench_v
 import 'package:tgsorter/app/models/tag_config.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_error_panel.dart';
-import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
-
-class TaggingPage extends StatelessWidget {
-  const TaggingPage({
-    super.key,
-    required this.controller,
-    required this.errors,
-  });
-
-  final TaggingCoordinator controller;
-  final AppErrorController errors;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppShell(
-      appBar: TaggingCompactAppBar(controller: controller),
-      body: TaggingScreen(controller: controller, errors: errors),
-    );
-  }
-}
 
 class TaggingScreen extends StatelessWidget {
   const TaggingScreen({

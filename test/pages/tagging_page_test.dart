@@ -33,7 +33,12 @@ void main() {
     await tester.pumpWidget(
       GetMaterialApp(
         theme: AppTheme.light(),
-        home: TaggingPage(controller: controller, errors: AppErrorController()),
+        home: Scaffold(
+          body: TaggingScreen(
+            controller: controller,
+            errors: AppErrorController(),
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -66,7 +71,12 @@ void main() {
     await tester.pumpWidget(
       GetMaterialApp(
         theme: AppTheme.dark(),
-        home: TaggingPage(controller: controller, errors: AppErrorController()),
+        home: Scaffold(
+          body: TaggingScreen(
+            controller: controller,
+            errors: AppErrorController(),
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
