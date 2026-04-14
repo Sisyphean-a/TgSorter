@@ -15,6 +15,7 @@ import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
@@ -47,6 +48,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
     RecoveryGateway? recoveryGateway,
     required PipelineSettingsReader settingsReader,
     required OperationJournalRepository journalRepository,
+    SkippedMessageRepository? skippedMessageRepository,
     required AppErrorController errorController,
     PipelineRuntimeState? runtimeState,
     PipelineNavigationService? navigation,
@@ -78,6 +80,8 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
           classifyGateway: _classifyGateway,
           settings: settingsReader,
           journalRepository: journalRepository,
+          skippedMessageRepository: skippedMessageRepository,
+          workflow: SkippedMessageWorkflow.forwarding,
           logs: logs,
           retryQueue: retryQueue,
         );
@@ -126,6 +130,8 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
           settings: settingsReader,
           remainingCount: resolvedRemainingCountService,
           reportGeneralError: _showGeneralError,
+          skippedMessageRepository: skippedMessageRepository,
+          workflow: SkippedMessageWorkflow.forwarding,
           refreshCurrentMediaIfNeeded: _refreshCurrentMediaIfNeeded,
         );
     this.lifecycle =
@@ -268,6 +274,7 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
     if (!skipped) {
       return;
     }
+    feedController.decrementRemainingCount(1);
     await feedController.ensureVisibleMessage();
   }
 

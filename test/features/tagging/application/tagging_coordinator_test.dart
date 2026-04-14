@@ -14,6 +14,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 
@@ -109,6 +110,24 @@ void main() {
         expect(coordinator.currentMessage.value, isNull);
       },
     );
+
+    test('skipCurrent persists tagging skip and hides message after reset', () async {
+      final skipped = _FakeSkippedMessageRepository();
+      final coordinator = _buildCoordinator(skippedMessages: skipped);
+      coordinator.isOnline.value = true;
+
+      await coordinator.fetchNext();
+      await coordinator.skipCurrent();
+      coordinator.clearSessionStateForLogout();
+      await coordinator.fetchNext();
+
+      expect(skipped.savedRecords, hasLength(1));
+      expect(
+        skipped.savedRecords.single.workflow,
+        SkippedMessageWorkflow.tagging,
+      );
+      expect(coordinator.currentMessage.value, isNull);
+    });
   });
 }
 
@@ -118,6 +137,7 @@ TaggingCoordinator _buildCoordinator({
   AppErrorController? errors,
   _FakeAuthStateGateway? auth,
   _FakeConnectionStateGateway? connection,
+  _FakeSkippedMessageRepository? skippedMessages,
 }) {
   return TaggingCoordinator(
     messageReadGateway:
@@ -128,6 +148,8 @@ TaggingCoordinator _buildCoordinator({
     errorController: errors ?? AppErrorController(),
     authStateGateway: auth ?? _FakeAuthStateGateway(),
     connectionStateGateway: connection ?? _FakeConnectionStateGateway(),
+    skippedMessageRepository:
+        skippedMessages ?? _FakeSkippedMessageRepository(),
   );
 }
 
@@ -218,6 +240,60 @@ class _SettingsReader implements PipelineSettingsReader {
 
   @override
   Rx<AppSettings> get settingsStream => settings.obs;
+}
+
+class _FakeSkippedMessageRepository implements SkippedMessageRepository {
+  final List<SkippedMessageRecord> savedRecords = <SkippedMessageRecord>[];
+
+  @override
+  bool containsMessage({
+    required SkippedMessageWorkflow workflow,
+    required int sourceChatId,
+    required Iterable<int> messageIds,
+  }) {
+    final ids = messageIds.toSet();
+    return savedRecords.any(
+      (item) =>
+          item.workflow == workflow &&
+          item.sourceChatId == sourceChatId &&
+          item.messageIds.any(ids.contains),
+    );
+  }
+
+  @override
+  int countSkippedMessages({
+    required SkippedMessageWorkflow workflow,
+    int? sourceChatId,
+  }) {
+    return savedRecords.where((item) {
+      return item.workflow == workflow &&
+          (sourceChatId == null || item.sourceChatId == sourceChatId);
+    }).length;
+  }
+
+  @override
+  List<SkippedMessageRecord> loadSkippedMessages() =>
+      List<SkippedMessageRecord>.from(savedRecords);
+
+  @override
+  Future<int> restoreSkippedMessages({
+    SkippedMessageWorkflow? workflow,
+    int? sourceChatId,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> saveSkippedMessages(List<SkippedMessageRecord> records) async {
+    savedRecords
+      ..clear()
+      ..addAll(records);
+  }
+
+  @override
+  Future<void> upsertSkippedMessage(SkippedMessageRecord record) async {
+    savedRecords.add(record);
+  }
 }
 
 class _FakeAuthStateGateway implements AuthStateGateway {

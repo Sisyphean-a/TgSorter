@@ -15,6 +15,7 @@ import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 
 void main() {
@@ -45,6 +46,13 @@ void main() {
     expect(skipped, isTrue);
     expect(harness.appendedLogs.single.status, ClassifyOperationStatus.skipped);
     expect(harness.appendedLogs.single.reason, 'shortcut');
+    expect(harness.savedSkippedMessages, hasLength(1));
+    expect(
+      harness.savedSkippedMessages.single.workflow,
+      SkippedMessageWorkflow.forwarding,
+    );
+    expect(harness.savedSkippedMessages.single.sourceChatId, 8888);
+    expect(harness.savedSkippedMessages.single.messageIds, <int>[21]);
     expect(harness.removedCurrentMessage, isTrue);
   });
 
@@ -155,6 +163,7 @@ class _PipelineActionHarness {
     required this.classifyGateway,
     required this.settingsReader,
     required this.journalRepository,
+    required this.skippedMessageRepository,
   });
 
   factory _PipelineActionHarness.success() {
@@ -163,6 +172,7 @@ class _PipelineActionHarness {
     final classifyGateway = _FakeClassifyGateway();
     final settingsReader = _FakeSettingsReader();
     final journalRepository = _FakeOperationJournalRepository();
+    final skippedMessageRepository = _FakeSkippedMessageRepository();
     final message = _fakePipelineMessage(id: 21);
     navigation.replaceMessages(<PipelineMessage>[message]);
     return _PipelineActionHarness._(
@@ -171,6 +181,7 @@ class _PipelineActionHarness {
       classifyGateway: classifyGateway,
       settingsReader: settingsReader,
       journalRepository: journalRepository,
+      skippedMessageRepository: skippedMessageRepository,
     );
   }
 
@@ -186,6 +197,7 @@ class _PipelineActionHarness {
     );
     final settingsReader = _FakeSettingsReader();
     final journalRepository = _FakeOperationJournalRepository();
+    final skippedMessageRepository = _FakeSkippedMessageRepository();
     final message = _fakePipelineMessage(id: 21);
     navigation.replaceMessages(<PipelineMessage>[message]);
     return _PipelineActionHarness._(
@@ -194,6 +206,7 @@ class _PipelineActionHarness {
       classifyGateway: classifyGateway,
       settingsReader: settingsReader,
       journalRepository: journalRepository,
+      skippedMessageRepository: skippedMessageRepository,
     );
   }
 
@@ -202,11 +215,14 @@ class _PipelineActionHarness {
   final _FakeClassifyGateway classifyGateway;
   final _FakeSettingsReader settingsReader;
   final _FakeOperationJournalRepository journalRepository;
+  final _FakeSkippedMessageRepository skippedMessageRepository;
   final logs = <ClassifyOperationLog>[].obs;
   final retryQueue = <RetryQueueItem>[].obs;
 
   List<ClassifyOperationLog> get appendedLogs => journalRepository.savedLogs;
   List<RetryQueueItem> get savedRetryQueue => journalRepository.savedRetryQueue;
+  List<SkippedMessageRecord> get savedSkippedMessages =>
+      skippedMessageRepository.savedSkippedMessages;
   bool get removedCurrentMessage => navigation.removedCurrentMessage;
   int get undoCalls => classifyGateway.undoCalls;
 
@@ -217,6 +233,8 @@ class _PipelineActionHarness {
       classifyGateway: classifyGateway,
       settings: settingsReader,
       journalRepository: journalRepository,
+      skippedMessageRepository: skippedMessageRepository,
+      workflow: SkippedMessageWorkflow.forwarding,
     );
   }
 }
@@ -355,6 +373,76 @@ class _FakeOperationJournalRepository implements OperationJournalRepository {
   @override
   Future<void> removeClassifyTransaction(String id) async {
     _transactions.removeWhere((item) => item.id == id);
+  }
+}
+
+class _FakeSkippedMessageRepository implements SkippedMessageRepository {
+  final List<SkippedMessageRecord> savedSkippedMessages =
+      <SkippedMessageRecord>[];
+
+  @override
+  bool containsMessage({
+    required SkippedMessageWorkflow workflow,
+    required int sourceChatId,
+    required Iterable<int> messageIds,
+  }) {
+    final targetIds = messageIds.toSet();
+    return savedSkippedMessages.any(
+      (item) =>
+          item.workflow == workflow &&
+          item.sourceChatId == sourceChatId &&
+          item.messageIds.any(targetIds.contains),
+    );
+  }
+
+  @override
+  int countSkippedMessages({
+    required SkippedMessageWorkflow workflow,
+    int? sourceChatId,
+  }) {
+    return savedSkippedMessages.where((item) {
+      return item.workflow == workflow &&
+          (sourceChatId == null || item.sourceChatId == sourceChatId);
+    }).length;
+  }
+
+  @override
+  List<SkippedMessageRecord> loadSkippedMessages() =>
+      List<SkippedMessageRecord>.from(savedSkippedMessages);
+
+  @override
+  Future<int> restoreSkippedMessages({
+    SkippedMessageWorkflow? workflow,
+    int? sourceChatId,
+  }) async {
+    final before = savedSkippedMessages.length;
+    savedSkippedMessages.removeWhere((item) {
+      if (workflow != null && item.workflow != workflow) {
+        return false;
+      }
+      if (sourceChatId != null && item.sourceChatId != sourceChatId) {
+        return false;
+      }
+      return true;
+    });
+    return before - savedSkippedMessages.length;
+  }
+
+  @override
+  Future<void> saveSkippedMessages(List<SkippedMessageRecord> records) async {
+    savedSkippedMessages
+      ..clear()
+      ..addAll(records);
+  }
+
+  @override
+  Future<void> upsertSkippedMessage(SkippedMessageRecord record) async {
+    final index = savedSkippedMessages.indexWhere((item) => item.id == record.id);
+    if (index < 0) {
+      savedSkippedMessages.add(record);
+      return;
+    }
+    savedSkippedMessages[index] = record;
   }
 }
 

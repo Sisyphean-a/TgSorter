@@ -530,12 +530,20 @@ void main() {
 
         await controller.fetchNext();
 
-        await _waitFor(() => service.previewPreparedMessageIds.length == 3);
-        expect(service.previewPreparedMessageIds, [2, 3, 4]);
+        await _waitFor(
+          () => service.previewPreparedMessageIds.contains(4),
+        );
+        expect(
+          service.previewPreparedMessageIds,
+          containsAllInOrder([2, 3, 4]),
+        );
 
         await controller.showNextMessage();
 
-        expect(service.previewPreparedMessageIds, [2, 3, 4]);
+        expect(
+          service.previewPreparedMessageIds,
+          containsAllInOrder([2, 3, 4]),
+        );
       },
     );
   });

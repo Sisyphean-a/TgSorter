@@ -37,6 +37,7 @@ import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 
@@ -64,6 +65,7 @@ void main() {
       expect(Get.find<AuthCoordinator>().auth, same(authGateway));
 
       Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
+      Get.put<SkippedMessageRepository>(SkippedMessageRepository(prefs));
       Get.put<AuthStateGateway>(authGateway);
       Get.put<ConnectionStateGateway>(pipelineGateway);
       Get.put<MessageReadGateway>(pipelineGateway);
@@ -101,6 +103,7 @@ void main() {
     registerAuthModule();
 
     Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
+    Get.put<SkippedMessageRepository>(SkippedMessageRepository(prefs));
     Get.put<AuthStateGateway>(authGateway);
     Get.put<ConnectionStateGateway>(pipelineGateway);
     Get.put<MessageReadGateway>(pipelineGateway);
@@ -148,6 +151,7 @@ void main() {
     registerAuthModule();
 
     Get.put<OperationJournalRepository>(OperationJournalRepository(prefs));
+    Get.put<SkippedMessageRepository>(SkippedMessageRepository(prefs));
     Get.put<AuthStateGateway>(authGateway);
     Get.put<ConnectionStateGateway>(pipelineGateway);
     Get.put<MessageReadGateway>(pipelineGateway);

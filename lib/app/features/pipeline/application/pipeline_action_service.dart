@@ -2,6 +2,7 @@ import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 
 import 'pipeline_navigation_service.dart';
@@ -18,6 +19,8 @@ class PipelineActionService {
     required ClassifyGateway classifyGateway,
     required PipelineSettingsReader settings,
     required OperationJournalRepository journalRepository,
+    SkippedMessageRepository? skippedMessageRepository,
+    SkippedMessageWorkflow workflow = SkippedMessageWorkflow.forwarding,
     List<ClassifyOperationLog>? logs,
     List<RetryQueueItem>? retryQueue,
   }) : _state = state,
@@ -25,6 +28,9 @@ class PipelineActionService {
        _classifyGateway = classifyGateway,
        _settings = settings,
        _journalRepository = journalRepository,
+       _skippedMessageRepository =
+           skippedMessageRepository ?? NoopSkippedMessageRepository.instance,
+       _workflow = workflow,
        _logs = logs,
        _retryQueue = retryQueue;
 
@@ -33,6 +39,8 @@ class PipelineActionService {
   final ClassifyGateway _classifyGateway;
   final PipelineSettingsReader _settings;
   final OperationJournalRepository _journalRepository;
+  final SkippedMessageRepository _skippedMessageRepository;
+  final SkippedMessageWorkflow _workflow;
   final List<ClassifyOperationLog>? _logs;
   final List<RetryQueueItem>? _retryQueue;
   ClassifyReceipt? _lastReceipt;
@@ -121,8 +129,19 @@ class PipelineActionService {
     final logStore = logs ?? _logs ?? <ClassifyOperationLog>[];
     final buildId = idBuilder ?? _defaultIdBuilder;
     final createdAtMs = nowMs ?? _defaultNowMs;
+    final createdAt = createdAtMs();
     _state.processing.value = true;
     try {
+      await _skippedMessageRepository.upsertSkippedMessage(
+        SkippedMessageRecord(
+          id: '${_workflow.name}:${message.sourceChatId}:${message.id}',
+          workflow: _workflow,
+          sourceChatId: message.sourceChatId,
+          primaryMessageId: message.id,
+          messageIds: List<int>.from(message.messageIds),
+          createdAtMs: createdAt,
+        ),
+      );
       await _appendLog(
         logStore,
         ClassifyOperationLog(
@@ -130,7 +149,7 @@ class PipelineActionService {
           categoryKey: '-',
           messageId: message.id,
           targetChatId: 0,
-          createdAtMs: createdAtMs(),
+          createdAtMs: createdAt,
           status: ClassifyOperationStatus.skipped,
           reason: source,
         ),

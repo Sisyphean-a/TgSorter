@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
@@ -21,6 +22,8 @@ class PipelineFeedController {
     required PipelineSettingsReader settings,
     required RemainingCountService remainingCount,
     required void Function(Object error) reportGeneralError,
+    SkippedMessageRepository? skippedMessageRepository,
+    SkippedMessageWorkflow workflow = SkippedMessageWorkflow.forwarding,
     Future<void> Function()? refreshCurrentMediaIfNeeded,
   }) : _state = state,
        _navigation = navigation,
@@ -29,6 +32,9 @@ class PipelineFeedController {
        _settings = settings,
        _remainingCount = remainingCount,
        _reportGeneralError = reportGeneralError,
+       _skippedMessageRepository =
+           skippedMessageRepository ?? NoopSkippedMessageRepository.instance,
+       _workflow = workflow,
        _refreshCurrentMediaIfNeeded = refreshCurrentMediaIfNeeded;
 
   final PipelineRuntimeState _state;
@@ -38,6 +44,8 @@ class PipelineFeedController {
   final PipelineSettingsReader _settings;
   final RemainingCountService _remainingCount;
   final void Function(Object error) _reportGeneralError;
+  final SkippedMessageRepository _skippedMessageRepository;
+  final SkippedMessageWorkflow _workflow;
   final Future<void> Function()? _refreshCurrentMediaIfNeeded;
 
   int? tailMessageId;
@@ -53,18 +61,16 @@ class PipelineFeedController {
     _navigation.replaceMessages(const <PipelineMessage>[]);
     _previewPreparedMessageIds.clear();
     tailMessageId = null;
-    final page = await _messages.fetchMessagePage(
-      direction: _settings.currentSettings.fetchDirection,
-      sourceChatId: _settings.currentSettings.sourceChatId,
+    final page = await _fetchVisiblePage(
       fromMessageId: null,
       limit: messagePageSize,
     );
     if (session != _feedSession) {
       return;
     }
-    _navigation.replaceMessages(page);
-    tailMessageId = page.isEmpty ? null : page.last.id;
-    if (page.isNotEmpty) {
+    _navigation.replaceMessages(page.messages);
+    tailMessageId = page.exhausted ? null : page.tailMessageId;
+    if (page.messages.isNotEmpty) {
       _startBackgroundPreviewPrefetch();
     }
   }
@@ -74,17 +80,18 @@ class PipelineFeedController {
       return;
     }
     final session = _feedSession;
-    final page = await _messages.fetchMessagePage(
-      direction: _settings.currentSettings.fetchDirection,
-      sourceChatId: _settings.currentSettings.sourceChatId,
+    final page = await _fetchVisiblePage(
       fromMessageId: tailMessageId,
       limit: messagePageSize,
     );
-    if (session != _feedSession || page.isEmpty) {
+    if (session != _feedSession) {
       return;
     }
-    _navigation.appendUniqueMessages(page);
-    tailMessageId = _messageCache.last.id;
+    tailMessageId = page.exhausted ? null : page.tailMessageId;
+    if (page.messages.isEmpty) {
+      return;
+    }
+    _navigation.appendUniqueMessages(page.messages);
   }
 
   Future<void> prefetchIfNeeded() async {
@@ -108,9 +115,23 @@ class PipelineFeedController {
 
   Future<void> refreshRemainingCount() async {
     await _remainingCount.refreshRemainingCount(
-      loadCount: () => _messages.countRemainingMessages(
-        sourceChatId: _settings.currentSettings.sourceChatId,
-      ),
+      loadCount: () async {
+        final sourceChatId = _settings.currentSettings.sourceChatId;
+        final count = await _messages.countRemainingMessages(
+          sourceChatId: sourceChatId,
+        );
+        if (sourceChatId == null) {
+          return count;
+        }
+        return math.max(
+          0,
+          count -
+              _skippedMessageRepository.countSkippedMessages(
+                workflow: _workflow,
+                sourceChatId: sourceChatId,
+              ),
+        );
+      },
       onStart: () {
         _state.remainingCountLoading.value = true;
       },
@@ -241,4 +262,64 @@ class PipelineFeedController {
     final remaining = _messageCache.length - _currentIndex - 1;
     return remaining <= 2;
   }
+
+  Future<_VisiblePageResult> _fetchVisiblePage({
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    final direction = _settings.currentSettings.fetchDirection;
+    final sourceChatId = _settings.currentSettings.sourceChatId;
+    var cursor = fromMessageId;
+    int? lastRawMessageId;
+    var exhausted = false;
+    while (true) {
+      final page = await _messages.fetchMessagePage(
+        direction: direction,
+        sourceChatId: sourceChatId,
+        fromMessageId: cursor,
+        limit: limit,
+      );
+      if (page.isEmpty) {
+        exhausted = true;
+        break;
+      }
+      lastRawMessageId = page.last.id;
+      cursor = lastRawMessageId;
+      final visible = _filterSkippedMessages(page);
+      if (visible.isNotEmpty) {
+        return _VisiblePageResult(
+          messages: visible,
+          tailMessageId: lastRawMessageId,
+          exhausted: false,
+        );
+      }
+    }
+    return _VisiblePageResult(
+      messages: const <PipelineMessage>[],
+      tailMessageId: lastRawMessageId,
+      exhausted: exhausted,
+    );
+  }
+
+  List<PipelineMessage> _filterSkippedMessages(List<PipelineMessage> messages) {
+    return messages.where((item) {
+      return !_skippedMessageRepository.containsMessage(
+        workflow: _workflow,
+        sourceChatId: item.sourceChatId,
+        messageIds: item.messageIds,
+      );
+    }).toList(growable: false);
+  }
+}
+
+class _VisiblePageResult {
+  const _VisiblePageResult({
+    required this.messages,
+    required this.tailMessageId,
+    required this.exhausted,
+  });
+
+  final List<PipelineMessage> messages;
+  final int? tailMessageId;
+  final bool exhausted;
 }

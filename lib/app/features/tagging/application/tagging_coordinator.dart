@@ -14,6 +14,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 
@@ -26,6 +27,7 @@ class TaggingCoordinator extends GetxController {
     required TaggingGateway taggingGateway,
     required PipelineSettingsReader settingsReader,
     required AppErrorController errorController,
+    SkippedMessageRepository? skippedMessageRepository,
     MessageWorkbenchController? workbench,
   }) : _authStateGateway = authStateGateway,
        _connectionStateGateway = connectionStateGateway,
@@ -40,6 +42,8 @@ class TaggingCoordinator extends GetxController {
              media: mediaGateway,
              settings: _TaggingSourceSettingsReader(settingsReader),
              reportError: (error) => _reportError(errorController, error),
+             skippedMessageRepository: skippedMessageRepository,
+             workflow: SkippedMessageWorkflow.tagging,
            );
 
   final AuthStateGateway _authStateGateway;

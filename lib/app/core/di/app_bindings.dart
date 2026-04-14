@@ -16,6 +16,7 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_json_logger.dart';
 import 'package:tgsorter/app/services/td_raw_transport.dart';
@@ -30,6 +31,7 @@ Future<void> registerAppBindings() async {
   final prefs = await SharedPreferences.getInstance();
   final settingsRepo = SettingsRepository(prefs);
   final journalRepo = OperationJournalRepository(prefs);
+  final skippedMessageRepo = SkippedMessageRepository(prefs);
   final appErrors = AppErrorController();
   final credentials = TdlibCredentials.fromEnvironment();
   final tdLogger = TdJsonLogger();
@@ -65,6 +67,7 @@ Future<void> registerAppBindings() async {
 
   Get.put(settingsRepo, permanent: true);
   Get.put(journalRepo, permanent: true);
+  Get.put(skippedMessageRepo, permanent: true);
   Get.put(appErrors, permanent: true);
   Get.put(tdLogger, permanent: true);
   Get.put(rawTransport, permanent: true);

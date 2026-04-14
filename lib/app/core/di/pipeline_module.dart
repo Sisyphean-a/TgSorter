@@ -10,6 +10,7 @@ import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.da
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 
 void registerPipelineModule() {
   final coordinator = PipelineCoordinator(
@@ -21,6 +22,7 @@ void registerPipelineModule() {
     recoveryGateway: Get.find<RecoveryGateway>(),
     settingsReader: Get.find<PipelineSettingsReader>(),
     journalRepository: Get.find<OperationJournalRepository>(),
+    skippedMessageRepository: Get.find<SkippedMessageRepository>(),
     errorController: Get.find<AppErrorController>(),
   );
   Get.put(coordinator, permanent: true);

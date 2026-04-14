@@ -224,6 +224,9 @@ class _FakeMessageReadGateway implements MessageReadGateway {
     required int? fromMessageId,
     required int limit,
   }) async {
+    if (fromMessageId != null) {
+      return const <PipelineMessage>[];
+    }
     return <PipelineMessage>[
       PipelineMessage(
         id: 1,
@@ -289,6 +292,9 @@ class _DelayedRemainingMessageReadGateway implements MessageReadGateway {
     required int? fromMessageId,
     required int limit,
   }) async {
+    if (fromMessageId != null) {
+      return const <PipelineMessage>[];
+    }
     return messages;
   }
 

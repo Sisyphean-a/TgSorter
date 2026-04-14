@@ -8,6 +8,7 @@ import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/workbench/application/message_workbench_state.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 
 class MessageWorkbenchController {
   MessageWorkbenchController({
@@ -16,10 +17,14 @@ class MessageWorkbenchController {
     required MediaGateway media,
     required PipelineSettingsReader settings,
     required void Function(Object error) reportError,
+    SkippedMessageRepository? skippedMessageRepository,
+    SkippedMessageWorkflow workflow = SkippedMessageWorkflow.forwarding,
     PipelineNavigationService? navigation,
     PipelineFeedController? feed,
     RemainingCountService? remainingCount,
-  }) {
+  }) : _skippedMessageRepository =
+           skippedMessageRepository ?? NoopSkippedMessageRepository.instance,
+       _workflow = workflow {
     this.navigation = navigation ?? PipelineNavigationService(state: state);
     feedController =
         feed ??
@@ -31,10 +36,14 @@ class MessageWorkbenchController {
           settings: settings,
           remainingCount: remainingCount ?? RemainingCountService(),
           reportGeneralError: reportError,
+          skippedMessageRepository: _skippedMessageRepository,
+          workflow: workflow,
         );
   }
 
   final MessageWorkbenchState state;
+  final SkippedMessageRepository _skippedMessageRepository;
+  final SkippedMessageWorkflow _workflow;
   late final PipelineNavigationService navigation;
   late final PipelineFeedController feedController;
 
@@ -91,12 +100,24 @@ class MessageWorkbenchController {
   }
 
   Future<void> skipCurrent() async {
-    if (processing.value || currentMessage.value == null) {
+    final message = currentMessage.value;
+    if (processing.value || message == null) {
       return;
     }
     processing.value = true;
     try {
+      await _skippedMessageRepository.upsertSkippedMessage(
+        SkippedMessageRecord(
+          id: '${_workflow.name}:${message.sourceChatId}:${message.id}',
+          workflow: _workflow,
+          sourceChatId: message.sourceChatId,
+          primaryMessageId: message.id,
+          messageIds: List<int>.from(message.messageIds),
+          createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
       navigation.removeCurrentAndSync();
+      feedController.decrementRemainingCount(1);
       await feedController.ensureVisibleMessage();
     } finally {
       processing.value = false;

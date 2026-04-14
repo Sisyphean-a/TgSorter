@@ -7,6 +7,7 @@ import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.da
 import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
+import 'package:tgsorter/app/services/skipped_message_repository.dart';
 
 void registerTaggingModule() {
   final coordinator = TaggingCoordinator(
@@ -17,6 +18,7 @@ void registerTaggingModule() {
     taggingGateway: Get.find<TaggingGateway>(),
     settingsReader: Get.find<PipelineSettingsReader>(),
     errorController: Get.find<AppErrorController>(),
+    skippedMessageRepository: Get.find<SkippedMessageRepository>(),
   );
   Get.put(coordinator, permanent: true);
 }
