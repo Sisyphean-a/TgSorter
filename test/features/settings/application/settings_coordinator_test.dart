@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
-import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
 import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
 import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_port.dart';
@@ -47,7 +46,6 @@ void main() {
       );
 
       expect(harness.persistence.saveCalls, 1);
-      expect(harness.draftCoordinator.isDirty.value, isFalse);
       expect(harness.restartPolicy.calls, 1);
       expect(harness.restartPolicy.previous?.proxy, ProxySettings.empty);
       expect(harness.restartPolicy.next?.proxy.server, '127.0.0.1');
@@ -63,35 +61,6 @@ void main() {
       expect(harness.persistence.saveCalls, 2);
       expect(harness.restartPolicy.calls, 2);
       expect(harness.restartCalls, 1);
-    },
-  );
-
-  test(
-    'saveProxySettings persists proxy only and does not leak unrelated draft edits',
-    () async {
-      final harness = _SettingsCoordinatorHarness();
-      final coordinator = harness.build();
-      coordinator.onInit();
-      harness.draftCoordinator.update(
-        coordinator.savedSettings.value.copyWith(
-          defaultWorkbench: AppDefaultWorkbench.tagging,
-        ),
-      );
-
-      await coordinator.saveProxySettings(
-        server: '127.0.0.1',
-        port: '7890',
-        username: '',
-        password: '',
-        restart: false,
-      );
-
-      expect(
-        coordinator.savedSettings.value.defaultWorkbench,
-        AppDefaultWorkbench.forwarding,
-      );
-      expect(coordinator.savedSettings.value.proxy.server, '127.0.0.1');
-      expect(coordinator.savedSettings.value.proxy.port, 7890);
     },
   );
 
@@ -158,44 +127,10 @@ void main() {
 
       expect(harness.persistence.saveCalls, 1);
       expect(coordinator.savedSettings.value.proxy, ProxySettings.empty);
-      expect(harness.draftCoordinator.draft.value.proxy.server, '127.0.0.1');
       expect(harness.restartPolicy.calls, 0);
       expect(harness.restartCalls, 0);
     },
   );
-
-  test('getCategory resolves from saved settings instead of draft edits', () {
-    final harness = _SettingsCoordinatorHarness()
-      ..persistence.loaded = const AppSettings(
-        categories: <CategoryConfig>[
-          CategoryConfig(
-            key: 'news',
-            targetChatId: 1001,
-            targetChatTitle: '已保存目标',
-          ),
-        ],
-        sourceChatId: null,
-        fetchDirection: MessageFetchDirection.latestFirst,
-        forwardAsCopy: false,
-        batchSize: 5,
-        throttleMs: 1200,
-        proxy: ProxySettings.empty,
-      );
-    final coordinator = harness.build();
-    coordinator.onInit();
-
-    harness.draftCoordinator.update(
-      coordinator.savedSettings.value.updateCategory(
-        const CategoryConfig(
-          key: 'news',
-          targetChatId: 2002,
-          targetChatTitle: '草稿目标',
-        ),
-      ),
-    );
-
-    expect(coordinator.getCategory('news').targetChatId, 1001);
-  });
 
   test(
     'saveProxySettings still commits saved settings when restart fails after persistence',
@@ -286,8 +221,6 @@ void main() {
 
       expect(harness.persistence.lastSaved?.proxy.port, 7890);
       expect(coordinator.savedSettings.value.proxy.port, 7890);
-      expect(harness.draftCoordinator.draft.value.proxy.port, 7890);
-      expect(harness.draftCoordinator.isDirty.value, isFalse);
     },
   );
 
@@ -371,14 +304,6 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(harness.persistence.saveCalls, 1);
-      expect(
-        harness.draftCoordinator.draft.value.fetchDirection,
-        MessageFetchDirection.oldestFirst,
-      );
-      expect(
-        harness.draftCoordinator.draft.value.themeMode,
-        isNot(AppThemeMode.dark),
-      );
 
       harness.persistence.saveCompleter!.complete();
       await firstSave;
@@ -500,9 +425,6 @@ void main() {
 class _SettingsCoordinatorHarness {
   final _FakeSettingsRepository repository = _FakeSettingsRepository();
   final _FakeSessionGateway sessions = _FakeSessionGateway();
-  final SettingsDraftCoordinator draftCoordinator = SettingsDraftCoordinator(
-    AppSettings.defaults(),
-  );
   final _FakeSettingsPersistenceService persistence =
       _FakeSettingsPersistenceService();
   final _FakeSettingsChatLoader chatLoader = _FakeSettingsChatLoader();
@@ -519,7 +441,6 @@ class _SettingsCoordinatorHarness {
       repository,
       sessions,
       auth: sessions,
-      draftCoordinator: draftCoordinator,
       persistence: persistence,
       restartPolicy: restartPolicy,
       chatLoader: chatLoader,

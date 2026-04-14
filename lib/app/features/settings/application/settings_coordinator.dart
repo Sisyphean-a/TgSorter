@@ -8,7 +8,6 @@ import 'package:tgsorter/app/features/settings/application/connection_settings_s
 import 'package:tgsorter/app/features/settings/application/skipped_message_summary.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
-import 'package:tgsorter/app/features/settings/application/settings_draft_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
 import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
 import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
@@ -26,7 +25,6 @@ class SettingsCoordinator extends GetxController
     SettingsRepository repository,
     SessionQueryGateway sessions, {
     AuthGateway? auth,
-    SettingsDraftCoordinator? draftCoordinator,
     SettingsPersistenceService? persistence,
     SettingsRestartPolicy? restartPolicy,
     ConnectionSettingsService? connection,
@@ -35,8 +33,6 @@ class SettingsCoordinator extends GetxController
     SkippedMessageRestoreRegistry? skippedRestoreRegistry,
     List<SkippedMessageRestorePort>? skippedRestoreTargets,
   }) : _auth = auth,
-       _draftCoordinator =
-           draftCoordinator ?? SettingsDraftCoordinator(AppSettings.defaults()),
        _persistence = persistence ?? SettingsPersistenceService(repository),
        _restartPolicy = restartPolicy ?? SettingsRestartPolicy(),
        _connection = connection ?? ConnectionSettingsService(),
@@ -48,7 +44,6 @@ class SettingsCoordinator extends GetxController
        _skippedRestoreTargets = skippedRestoreTargets;
 
   final AuthGateway? _auth;
-  final SettingsDraftCoordinator _draftCoordinator;
   final SettingsPersistenceService _persistence;
   final SettingsRestartPolicy _restartPolicy;
   final ConnectionSettingsService _connection;
@@ -56,19 +51,21 @@ class SettingsCoordinator extends GetxController
   final SkippedMessageRepository _skippedMessageRepository;
   final SkippedMessageRestoreRegistry? _skippedRestoreRegistry;
   final List<SkippedMessageRestorePort>? _skippedRestoreTargets;
+  final _savedState = AppSettings.defaults().obs;
+  final _draftState = AppSettings.defaults().obs;
   Future<SettingsSaveResult>? _pendingSaveDraft;
   Future<void>? _pendingChatLoad;
-  final saveState = false.obs;
-  final chatsState = <SelectableChat>[].obs;
+  final _saveState = false.obs;
+  final _chatsState = <SelectableChat>[].obs;
   final chatsLoading = false.obs;
   final chatsError = RxnString();
-  final skippedMessageSummaryState = const SkippedMessageSummary.empty().obs;
+  final _skippedMessageSummaryState = const SkippedMessageSummary.empty().obs;
 
-  Rx<AppSettings> get savedSettings => _draftCoordinator.saved;
-  RxBool get isSaving => saveState;
-  RxList<SelectableChat> get chats => chatsState;
+  Rx<AppSettings> get savedSettings => _savedState;
+  RxBool get isSaving => _saveState;
+  RxList<SelectableChat> get chats => _chatsState;
   Rx<SkippedMessageSummary> get skippedMessageSummary =>
-      skippedMessageSummaryState;
+      _skippedMessageSummaryState;
 
   @override
   Rx<AppSettings> get settingsStream => savedSettings;
@@ -82,7 +79,7 @@ class SettingsCoordinator extends GetxController
   @override
   void onInit() {
     super.onInit();
-    _draftCoordinator.replace(_persistence.load());
+    _replaceDraftState(_persistence.load());
     refreshSkippedMessageSummary();
   }
 
@@ -104,7 +101,7 @@ class SettingsCoordinator extends GetxController
       await pending;
       return;
     }
-    _draftCoordinator.update(
+    _updateDraft(
       _connection.updateProxy(
         current: savedSettings.value,
         server: server,
@@ -130,7 +127,7 @@ class SettingsCoordinator extends GetxController
   }
 
   void refreshSkippedMessageSummary() {
-    skippedMessageSummaryState.value = SkippedMessageSummary.fromRecords(
+    _skippedMessageSummaryState.value = SkippedMessageSummary.fromRecords(
       _skippedMessageRepository.loadSkippedMessages(),
     );
   }
@@ -165,7 +162,7 @@ class SettingsCoordinator extends GetxController
     }
     final completer = Completer<SettingsSaveResult>();
     _pendingSaveDraft = completer.future;
-    saveState.value = true;
+    _saveState.value = true;
     unawaited(() async {
       try {
         completer.complete(
@@ -174,7 +171,7 @@ class SettingsCoordinator extends GetxController
       } catch (error, stackTrace) {
         completer.completeError(error, stackTrace);
       } finally {
-        saveState.value = false;
+        _saveState.value = false;
         if (identical(_pendingSaveDraft, completer.future)) {
           _pendingSaveDraft = null;
         }
@@ -191,12 +188,12 @@ class SettingsCoordinator extends GetxController
     if (pending != null) {
       return pending;
     }
-    final previousDraft = _draftCoordinator.draft.value;
-    _draftCoordinator.update(next);
+    final previousDraft = _draftState.value;
+    _updateDraft(next);
     try {
       return await _saveDraft(restartOnProxyChange: restartOnProxyChange);
     } catch (_) {
-      _draftCoordinator.update(previousDraft);
+      _updateDraft(previousDraft);
       rethrow;
     }
   }
@@ -205,9 +202,9 @@ class SettingsCoordinator extends GetxController
     required bool restartOnProxyChange,
   }) async {
     final previous = savedSettings.value;
-    final next = _draftCoordinator.draft.value;
+    final next = _draftState.value;
     await _persistence.save(next);
-    _draftCoordinator.commit();
+    _commitDraft();
     final shouldRestart = _restartPolicy.shouldRestart(previous, next);
     if (!shouldRestart || !restartOnProxyChange || _auth == null) {
       return SettingsSaveResult.saved;
@@ -262,5 +259,18 @@ class SettingsCoordinator extends GetxController
     }
     return _skippedRestoreRegistry?.targets ??
         const <SkippedMessageRestorePort>[];
+  }
+
+  void _replaceDraftState(AppSettings next) {
+    _savedState.value = next;
+    _draftState.value = next;
+  }
+
+  void _updateDraft(AppSettings next) {
+    _draftState.value = next;
+  }
+
+  void _commitDraft() {
+    _savedState.value = _draftState.value;
   }
 }
