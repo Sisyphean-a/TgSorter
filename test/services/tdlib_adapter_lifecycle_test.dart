@@ -125,6 +125,52 @@ void main() {
         2,
       );
     });
+
+    test('start failure disposes transport so retry can recreate tdlib client', () async {
+      final transport = _LifecycleFakeTransport(
+        responses: <String, List<TdObject>>{
+          'getAuthorizationState': <TdObject>[
+            const AuthorizationStateWaitTdlibParameters(),
+          ],
+          'setTdlibParameters': <TdObject>[
+            const TdError(
+              code: 400,
+              message: 'Can\'t lock file "db/td.binlog"',
+            ),
+          ],
+        },
+      );
+      final adapter = _buildAdapter(transport);
+
+      await expectLater(adapter.start(), throwsA(isA<Exception>()));
+
+      expect(adapter.isRunning, isFalse);
+      expect(adapter.lifecycleState, TdlibLifecycleState.failed);
+      expect(transport.stopCount, 1);
+    });
+
+    test('restart from failed startup starts fresh without second close', () async {
+      final transport = _LifecycleFakeTransport(
+        responses: <String, List<TdObject>>{
+          'getAuthorizationState': <TdObject>[
+            const AuthorizationStateWaitTdlibParameters(),
+            const AuthorizationStateReady(),
+          ],
+          'setTdlibParameters': <TdObject>[
+            const TdError(code: 400, message: 'db lock'),
+          ],
+          'disableProxy': <TdObject>[const Ok()],
+        },
+      );
+      final adapter = _buildAdapter(transport);
+
+      await expectLater(adapter.start(), throwsA(isA<Exception>()));
+      await adapter.restart();
+
+      expect(adapter.lifecycleState, TdlibLifecycleState.running);
+      expect(transport.requestConstructors.where((item) => item == 'close'), isEmpty);
+      expect(transport.startCount, 2);
+    });
   });
 }
 

@@ -193,6 +193,34 @@ void main() {
       expect(media.prepareCalls, [2, 3]);
     },
   );
+
+  test(
+    'prepareUpcomingPreviews refreshes cached message after preview download completes',
+    () async {
+      final state = PipelineRuntimeState();
+      final navigation = PipelineNavigationService(state: state);
+      final messages = _RefreshableMessageReadGateway();
+      final media = _PreparedPreviewMediaGateway();
+      final controller = PipelineFeedController(
+        state: state,
+        navigation: navigation,
+        messages: messages,
+        media: media,
+        settings: _FakeSettingsReader(),
+        remainingCount: _FakeRemainingCountService(),
+        reportGeneralError: (_) {},
+      );
+      navigation.replaceMessages(<PipelineMessage>[
+        _message(1, 'first'),
+        _message(2, 'second'),
+      ]);
+
+      await controller.prepareUpcomingPreviews();
+
+      expect(state.cache[1].preview.localImagePath, 'C:/preview-2.jpg');
+      expect(state.cache[1].preview.mediaItems.first.previewPath, 'C:/preview-2.jpg');
+    },
+  );
 }
 
 PipelineMessage _message(int id, String title) {
@@ -259,8 +287,45 @@ class _FakeMessageReadGateway implements MessageReadGateway {
   Future<PipelineMessage> refreshMessage({
     required int sourceChatId,
     required int messageId,
-  }) {
-    throw UnimplementedError();
+  }) async {
+    return PipelineMessage(
+      id: messageId,
+      messageIds: <int>[messageId],
+      sourceChatId: sourceChatId,
+      preview: MessagePreview(
+        kind: MessagePreviewKind.video,
+        title: 'refreshed-$messageId',
+      ),
+    );
+  }
+}
+
+class _RefreshableMessageReadGateway extends _FakeMessageReadGateway {
+  _RefreshableMessageReadGateway();
+
+  @override
+  Future<PipelineMessage> refreshMessage({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    return PipelineMessage(
+      id: messageId,
+      messageIds: <int>[messageId],
+      sourceChatId: sourceChatId,
+      preview: MessagePreview(
+        kind: MessagePreviewKind.photo,
+        title: 'prepared',
+        localImagePath: 'C:/preview-$messageId.jpg',
+        mediaItems: <MediaItemPreview>[
+          MediaItemPreview(
+            messageId: messageId,
+            kind: MediaItemKind.photo,
+            previewPath: 'C:/preview-$messageId.jpg',
+            fullPath: 'C:/full-$messageId.jpg',
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -328,6 +393,8 @@ class _FakeMediaGateway implements MediaGateway {
     throw UnimplementedError();
   }
 }
+
+class _PreparedPreviewMediaGateway extends _FakeMediaGateway {}
 
 class _RetryMediaGateway extends _FakeMediaGateway {
   final List<int> prepareCalls = <int>[];

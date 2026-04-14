@@ -12,14 +12,23 @@ void main() {
       final probe = TdlibSchemaProbe(
         send: (function) async {
           requests.add(function);
-          return TdWireEnvelope.fromTdObject(const Ok());
+          if (function is AddProxy) {
+            return TdWireEnvelope.fromTdObject(const Ok());
+          }
+          return TdWireEnvelope.fromTdObject(
+            TdError(code: 404, message: 'Not Found'),
+          );
         },
       );
 
       final capabilities = await probe.detect();
 
       expect(capabilities.addProxyMode, TdlibAddProxyMode.flatArgs);
-      expect(requests.single.getConstructor(), 'addProxy');
+      expect(capabilities.supportsGetWebPagePreview, isTrue);
+      expect(requests.map((item) => item.getConstructor()), <String>[
+        'addProxy',
+        'getWebPagePreview',
+      ]);
     });
 
     test('detects nested addProxy mode for legacy proxy shape error', () async {
@@ -32,6 +41,7 @@ void main() {
       final capabilities = await probe.detect();
 
       expect(capabilities.addProxyMode, TdlibAddProxyMode.nestedProxyObject);
+      expect(capabilities.supportsGetWebPagePreview, isTrue);
     });
 
     test('treats proxy response as successful flat addProxy mode', () async {
@@ -51,6 +61,32 @@ void main() {
       final capabilities = await probe.detect();
 
       expect(capabilities.addProxyMode, TdlibAddProxyMode.flatArgs);
+      expect(capabilities.supportsGetWebPagePreview, isTrue);
+    });
+
+    test('marks getWebPagePreview as unsupported when runtime rejects class', () async {
+      var addProxyCalls = 0;
+      final probe = TdlibSchemaProbe(
+        send: (function) async {
+          if (function is AddProxy) {
+            addProxyCalls++;
+            return TdWireEnvelope.fromTdObject(const Ok());
+          }
+          return TdWireEnvelope.fromTdObject(
+            TdError(
+              code: 400,
+              message:
+                  'Failed to parse JSON object as TDLib request: Unknown class "getWebPagePreview"',
+            ),
+          );
+        },
+      );
+
+      final capabilities = await probe.detect();
+
+      expect(addProxyCalls, 1);
+      expect(capabilities.addProxyMode, TdlibAddProxyMode.flatArgs);
+      expect(capabilities.supportsGetWebPagePreview, isFalse);
     });
 
     test('throws TdlibFailure for unexpected td error', () async {

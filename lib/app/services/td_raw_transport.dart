@@ -23,6 +23,8 @@ class TdRawTransport {
 
   static const Duration _defaultPollInterval = Duration(milliseconds: 16);
   static const Duration _defaultTimeout = Duration(seconds: 20);
+  static const Duration _closeTimeout = Duration(seconds: 5);
+  static const double _closeReceiveTimeoutSeconds = 0.05;
   static const double _nonBlockingReceiveTimeoutSeconds = 0;
   static const int _minimalTdlibLogLevel = 0;
 
@@ -54,12 +56,14 @@ class TdRawTransport {
       throw StateError('TDLib 客户端创建失败');
     }
     _clientId = clientId;
+    await _closeStaleClients(currentClientId: clientId);
     _running = true;
     _pollTimer = Timer.periodic(_pollInterval, (_) => _pollOnce());
     _setTdlibLogLevel();
   }
 
   Future<void> stop() async {
+    final clientId = _clientId;
     _running = false;
     _pollTimer?.cancel();
     _pollTimer = null;
@@ -69,6 +73,10 @@ class TdRawTransport {
       }
     }
     _pending.clear();
+    if (clientId != null) {
+      await _closeClient(clientId);
+    }
+    _clientId = null;
   }
 
   Future<Map<String, dynamic>> send(
@@ -127,6 +135,61 @@ class TdRawTransport {
   }
 
   TdPlugin get _plugin => _pluginProvider();
+
+  Future<void> _closeStaleClients({required int currentClientId}) async {
+    for (var staleClientId = 1; staleClientId < currentClientId; staleClientId++) {
+      await _closeClient(staleClientId);
+    }
+  }
+
+  Future<void> _closeClient(int clientId) async {
+    const payload = <String, dynamic>{'@type': 'close'};
+    _logger.logSend(request: 'close', extra: null, payload: payload);
+    _plugin.tdSend(clientId, jsonEncode(payload));
+    final deadline = DateTime.now().add(_closeTimeout);
+    while (DateTime.now().isBefore(deadline)) {
+      final event = _plugin.tdReceive(_closeReceiveTimeoutSeconds);
+      if (event == null) {
+        continue;
+      }
+      if (_isClientClosedEvent(rawPayload: event, clientId: clientId)) {
+        return;
+      }
+    }
+    throw TimeoutException('TDLib close 超时');
+  }
+
+  bool _isClientClosedEvent({
+    required String rawPayload,
+    required int clientId,
+  }) {
+    try {
+      final decoded = jsonDecode(rawPayload);
+      if (decoded is! Map) {
+        return false;
+      }
+      final payload = Map<String, dynamic>.from(
+        decoded.cast<String, dynamic>(),
+      );
+      final payloadClientId = payload['@client_id'];
+      if (payloadClientId is int && payloadClientId != clientId) {
+        return false;
+      }
+      final state = payload['authorization_state'];
+      return payload['@type'] == 'updateAuthorizationState' &&
+          state is Map &&
+          state['@type'] == 'authorizationStateClosed';
+    } catch (error, stackTrace) {
+      _logger.logParseError(
+        stage: 'close_receive',
+        payload: rawPayload,
+        reason: error.toString(),
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
 
   void _pollOnce() {
     if (!_running || _polling) {

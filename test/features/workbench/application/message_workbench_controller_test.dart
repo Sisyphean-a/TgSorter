@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
@@ -51,6 +53,34 @@ void main() {
       await controller.showNextMessage();
 
       expect(controller.currentMessage.value?.id, 2);
+    });
+
+    test('showNext preserves repeated next intents while append is in flight', () async {
+      final messages = _DelayedPageMessageReadGateway(
+        firstPage: <PipelineMessage>[_message(1, 'first')],
+        secondPage: <PipelineMessage>[
+          _message(2, 'second'),
+          _message(3, 'third'),
+        ],
+      );
+      final controller = MessageWorkbenchController(
+        state: MessageWorkbenchState(),
+        messages: messages,
+        media: _FakeMediaGateway(),
+        settings: _SettingsReader(sourceChatId: 888),
+        reportError: (_) {},
+      );
+      controller.isOnline.value = true;
+
+      await controller.fetchNext();
+      final firstTap = controller.showNextMessage();
+      final secondTap = controller.showNextMessage();
+      messages.releaseSecondPage();
+
+      await firstTap;
+      await secondTap;
+
+      expect(controller.currentMessage.value?.id, 3);
     });
 
     test('skipCurrent removes the current message', () async {
@@ -126,6 +156,38 @@ class _FakeMessageReadGateway implements MessageReadGateway {
     required int messageId,
   }) async {
     return pages.firstWhere((item) => item.id == messageId);
+  }
+}
+
+class _DelayedPageMessageReadGateway extends _FakeMessageReadGateway {
+  _DelayedPageMessageReadGateway({
+    required this.firstPage,
+    required this.secondPage,
+  }) : super(const <PipelineMessage>[]);
+
+  final List<PipelineMessage> firstPage;
+  final List<PipelineMessage> secondPage;
+  final Completer<void> _secondPageRelease = Completer<void>();
+
+  @override
+  Future<List<PipelineMessage>> fetchMessagePage({
+    required MessageFetchDirection direction,
+    required int? sourceChatId,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    lastSourceChatId = sourceChatId;
+    if (fromMessageId == null) {
+      return firstPage;
+    }
+    await _secondPageRelease.future;
+    return secondPage;
+  }
+
+  void releaseSecondPage() {
+    if (!_secondPageRelease.isCompleted) {
+      _secondPageRelease.complete();
+    }
   }
 }
 

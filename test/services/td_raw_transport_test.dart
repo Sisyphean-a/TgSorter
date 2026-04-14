@@ -63,19 +63,13 @@ void main() {
       await response;
       await transport.stop();
 
+      final getMeLog = logs.firstWhere(
+        (entry) => entry.contains('[TD SEND]') && entry.contains('request=getMe'),
+      );
       expect(logs.any((entry) => entry.contains('[TD SEND]')), isTrue);
-      expect(
-        logs.singleWhere((entry) => entry.contains('[TD SEND]')),
-        contains('request=getMe'),
-      );
-      expect(
-        logs.singleWhere((entry) => entry.contains('[TD SEND]')),
-        contains('"@type":"getMe"'),
-      );
-      expect(
-        logs.singleWhere((entry) => entry.contains('[TD SEND]')),
-        contains('"@extra":"$extra"'),
-      );
+      expect(getMeLog, contains('request=getMe'));
+      expect(getMeLog, contains('"@type":"getMe"'));
+      expect(getMeLog, contains('"@extra":"$extra"'));
     });
 
     test('logs full receive payload before parsing', () async {
@@ -200,15 +194,53 @@ void main() {
       expect(firstPayload['@extra'], firstExtra);
       expect(secondPayload['@extra'], secondExtra);
     });
+
+    test('stop sends close request and waits for closed update', () async {
+      final plugin = _FakeTdPlugin();
+      final transport = TdRawTransport(
+        plugin: plugin,
+        logger: TdJsonLogger(isEnabled: false),
+        pollInterval: const Duration(milliseconds: 1),
+      );
+
+      await transport.start();
+      plugin.enqueueReceive(
+        '{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateClosed"},"@client_id":1}',
+      );
+
+      await transport.stop();
+
+      expect(
+        plugin.sentPayloads.any((payload) => payload['@type'] == 'close'),
+        isTrue,
+      );
+    });
+
+    test('start closes stale lower client ids before using current client', () async {
+      final plugin = _FakeTdPlugin(startClientId: 2);
+      final transport = TdRawTransport(
+        plugin: plugin,
+        logger: TdJsonLogger(isEnabled: false),
+        pollInterval: const Duration(milliseconds: 1),
+      );
+
+      await transport.start();
+      await transport.stop();
+
+      expect(plugin.sentEvents, contains(_SentTdEvent(clientId: 1, type: 'close')));
+    });
   });
 }
 
 class _FakeTdPlugin extends TdPlugin {
+  _FakeTdPlugin({int startClientId = 1}) : _nextClientId = startClientId;
+
   final Queue<String> _receiveQueue = Queue<String>();
 
   final List<Map<String, dynamic>> sentPayloads = <Map<String, dynamic>>[];
+  final List<_SentTdEvent> sentEvents = <_SentTdEvent>[];
   Map<String, dynamic>? lastSentPayload;
-  int _nextClientId = 1;
+  int _nextClientId;
   int createCallCount = 0;
 
   @override
@@ -231,6 +263,17 @@ class _FakeTdPlugin extends TdPlugin {
       (jsonDecode(event) as Map).cast<String, dynamic>(),
     );
     sentPayloads.add(lastSentPayload!);
+    sentEvents.add(
+      _SentTdEvent(
+        clientId: clientId,
+        type: lastSentPayload!['@type']?.toString() ?? 'unknown',
+      ),
+    );
+    if (lastSentPayload!['@type'] == 'close') {
+      enqueueReceive(
+        '{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateClosed"},"@client_id":$clientId}',
+      );
+    }
   }
 
   void enqueueReceive(String event) {
@@ -263,4 +306,21 @@ class _FakeTdPlugin extends TdPlugin {
 
   @override
   void removeLogMessageCallback() {}
+}
+
+class _SentTdEvent {
+  const _SentTdEvent({required this.clientId, required this.type});
+
+  final int clientId;
+  final String type;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _SentTdEvent &&
+        other.clientId == clientId &&
+        other.type == type;
+  }
+
+  @override
+  int get hashCode => Object.hash(clientId, type);
 }

@@ -19,7 +19,7 @@ class MediaDownloadCoordinator {
 
   Future<void> warmUpPreview(TdMessageContentDto content) async {
     if (content.kind == TdMessageContentKind.photo) {
-      await _ensureFileDownloadStarted(
+      await _ensurePreviewReady(
         fileId: content.remoteImageFileId,
         localPath: content.localImagePath,
         priority: _downloadPriorityPhotoPreview,
@@ -27,7 +27,7 @@ class MediaDownloadCoordinator {
       return;
     }
     if (content.kind == TdMessageContentKind.video) {
-      await _ensureFileDownloadStarted(
+      await _ensurePreviewReady(
         fileId: content.remoteVideoThumbnailFileId,
         localPath: content.localVideoThumbnailPath,
         priority: _downloadPriorityVideoPreview,
@@ -39,7 +39,7 @@ class MediaDownloadCoordinator {
     }
     final linkPreview = content.linkPreview;
     if (linkPreview != null) {
-      await _ensureFileDownloadStarted(
+      await _ensurePreviewReady(
         fileId: linkPreview.remoteImageFileId,
         localPath: linkPreview.localImagePath,
         priority: _downloadPriorityPhotoPreview,
@@ -76,6 +76,7 @@ class MediaDownloadCoordinator {
     required int? fileId,
     required String? localPath,
     required int priority,
+    bool synchronous = false,
   }) async {
     if (fileId == null || (localPath != null && localPath.isNotEmpty)) {
       return false;
@@ -86,11 +87,24 @@ class MediaDownloadCoordinator {
         priority: priority,
         offset: _downloadOffsetStart,
         limit: _downloadLimitUnlimited,
-        synchronous: false,
+        synchronous: synchronous,
       ),
       request: 'downloadFile',
       phase: TdlibPhase.business,
     );
     return true;
+  }
+
+  Future<bool> _ensurePreviewReady({
+    required int? fileId,
+    required String? localPath,
+    required int priority,
+  }) {
+    return _ensureFileDownloadStarted(
+      fileId: fileId,
+      localPath: localPath,
+      priority: priority,
+      synchronous: true,
+    );
   }
 }

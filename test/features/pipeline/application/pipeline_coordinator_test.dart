@@ -81,6 +81,30 @@ void main() {
     expect(harness.runtimeState.currentMessage.value?.id, 2);
   });
 
+  test('coordinator showNextMessage preserves repeated next intents', () async {
+    final runtimeState = PipelineRuntimeState();
+    final navigation = PipelineNavigationService(state: runtimeState);
+    final feed = _DelayedAppendPipelineFeedController(
+      state: runtimeState,
+      navigation: navigation,
+    );
+    final harness = _PipelineCoordinatorHarness(
+      runtimeState: runtimeState,
+      navigation: navigation,
+      feed: feed,
+    );
+    navigation.replaceMessages(<PipelineMessage>[_textMessage(1, 'first')]);
+
+    final firstTap = harness.coordinator.showNextMessage();
+    final secondTap = harness.coordinator.showNextMessage();
+    feed.releaseAppend();
+
+    await firstTap;
+    await secondTap;
+
+    expect(harness.runtimeState.currentMessage.value?.id, 3);
+  });
+
   test(
     'coordinator fetchNext delegates feed loading to feed controller',
     () async {
@@ -382,6 +406,40 @@ class _RecordingPipelineFeedController extends PipelineFeedController {
   @override
   void reset() {
     resetCalls++;
+  }
+}
+
+class _DelayedAppendPipelineFeedController extends PipelineFeedController {
+  _DelayedAppendPipelineFeedController({
+    required PipelineRuntimeState state,
+    required PipelineNavigationService navigation,
+  }) : _navigation = navigation,
+       super(
+         state: state,
+         navigation: navigation,
+         messages: _NoopMessageReadGateway(),
+         media: _NoopMediaGateway(),
+         settings: _FakeSettingsReader(),
+         remainingCount: RemainingCountService(),
+         reportGeneralError: (_) {},
+       );
+
+  final PipelineNavigationService _navigation;
+  final Completer<void> _appendRelease = Completer<void>();
+
+  @override
+  Future<void> appendMoreMessages() async {
+    await _appendRelease.future;
+    _navigation.appendUniqueMessages(<PipelineMessage>[
+      _textMessage(2, 'second'),
+      _textMessage(3, 'third'),
+    ]);
+  }
+
+  void releaseAppend() {
+    if (!_appendRelease.isCompleted) {
+      _appendRelease.complete();
+    }
   }
 }
 

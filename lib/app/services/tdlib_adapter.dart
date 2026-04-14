@@ -97,13 +97,18 @@ class TdlibAdapter {
   TdlibLifecycleState get lifecycleState => _lifecycleState;
   bool get isRunning => _lifecycleState == TdlibLifecycleState.running;
 
-  Future<void> start() async {
+  Future<void> start() {
     final running = _startCompleter;
     if (running != null) {
       return running.future;
     }
     final completer = Completer<void>();
     _startCompleter = completer;
+    unawaited(_runStart(completer));
+    return completer.future;
+  }
+
+  Future<void> _runStart(Completer<void> completer) async {
     try {
       _emitLifecycle(TdlibLifecycleState.starting);
       _emitStartup(TdlibStartupState.init);
@@ -126,14 +131,13 @@ class TdlibAdapter {
       _emitLifecycle(TdlibLifecycleState.running);
       completer.complete();
     } catch (error, stackTrace) {
-      await _cancelUpdateSubscriptions();
+      await _disposeTransport();
+      _resetSessionState();
       _emitLifecycle(TdlibLifecycleState.failed);
       _emitStartup(TdlibStartupState.failed);
       if (!completer.isCompleted) {
         completer.completeError(error, stackTrace);
       }
-      _startCompleter = null;
-      rethrow;
     }
   }
 
@@ -170,7 +174,8 @@ class TdlibAdapter {
 
   Future<void> restart() async {
     if (_lifecycleState == TdlibLifecycleState.idle ||
-        _lifecycleState == TdlibLifecycleState.closed) {
+        _lifecycleState == TdlibLifecycleState.closed ||
+        _lifecycleState == TdlibLifecycleState.failed) {
       await start();
       return;
     }

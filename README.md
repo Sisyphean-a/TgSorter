@@ -80,9 +80,15 @@ docs/
 ```json
 {
   "TDLIB_API_ID": "你的_api_id",
-  "TDLIB_API_HASH": "你的_api_hash"
+  "TDLIB_API_HASH": "你的_api_hash",
+  "TD_LOG_DETAIL": "verbose"
 }
 ```
+
+`TD_LOG_DETAIL` 支持两个值：
+
+- `summary`：默认摘要模式，只打印事件类型和少量关键字段。
+- `verbose`：打印完整 TDLib request / response / update 原始 JSON，便于排查预览、生命周期和协议兼容问题。
 
 2. 安装依赖：
 

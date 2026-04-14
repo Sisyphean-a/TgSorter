@@ -179,6 +179,7 @@ class PipelineFeedController {
           return;
         }
         final item = items[nextIndex++];
+        var shouldRefreshItem = false;
         for (final messageId in item.messageIds) {
           if (session != _feedSession) {
             return;
@@ -194,6 +195,7 @@ class PipelineFeedController {
               sourceChatId: item.sourceChatId,
               messageId: messageId,
             );
+            shouldRefreshItem = true;
             if (session != _feedSession) {
               _previewPreparedMessageIds.remove(messageId);
               return;
@@ -203,6 +205,9 @@ class PipelineFeedController {
             firstError ??= error;
             return;
           }
+        }
+        if (shouldRefreshItem) {
+          await _refreshPreparedItem(session: session, item: item);
         }
       }
     }
@@ -220,6 +225,20 @@ class PipelineFeedController {
 
   void _startBackgroundPreviewPrefetch() {
     unawaited(_prepareUpcomingPreviewsSafely());
+  }
+
+  Future<void> _refreshPreparedItem({
+    required int session,
+    required PipelineMessage item,
+  }) async {
+    final refreshed = await _messages.refreshMessage(
+      sourceChatId: item.sourceChatId,
+      messageId: item.id,
+    );
+    if (session != _feedSession) {
+      return;
+    }
+    _replaceCachedMessage(refreshed);
   }
 
   Future<void> _prepareUpcomingPreviewsSafely() async {
@@ -261,6 +280,19 @@ class PipelineFeedController {
   bool _shouldAppendMoreMessages() {
     final remaining = _messageCache.length - _currentIndex - 1;
     return remaining <= 2;
+  }
+
+  void _replaceCachedMessage(PipelineMessage message) {
+    final index = _messageCache.indexWhere((item) => item.id == message.id);
+    if (index < 0) {
+      return;
+    }
+    _messageCache[index] = message;
+    if (_state.currentIndex == index) {
+      _navigation.syncCurrentMessage();
+      return;
+    }
+    _navigation.syncNavigationState();
   }
 
   Future<_VisiblePageResult> _fetchVisiblePage({

@@ -192,6 +192,59 @@ void main() {
       );
     });
 
+    test('parses text message link preview', () {
+      final dto = TdMessagesDto.fromEnvelope(
+        TdWireEnvelope.fromJson(<String, dynamic>{
+          '@type': 'messages',
+          'messages': [
+            {
+              'id': 9,
+              'content': {
+                '@type': 'messageText',
+                'text': {'text': 'https://example.com', 'entities': []},
+                'link_preview': {
+                  'url': 'https://example.com',
+                  'display_url': 'example.com',
+                  'site_name': 'Example',
+                  'title': 'Example Title',
+                  'description': {
+                    'text': 'Example Description',
+                    'entities': [],
+                  },
+                  'type': {
+                    '@type': 'linkPreviewTypeArticle',
+                    'photo': {
+                      'sizes': [
+                        {
+                          'type': 's',
+                          'width': 90,
+                          'height': 90,
+                          'photo': {
+                            'id': '91',
+                            'local': {'path': '/tmp/link-preview.jpg'},
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(
+        dto.messages.single.content.linkPreview?.url,
+        'https://example.com',
+      );
+      expect(dto.messages.single.content.linkPreview?.title, 'Example Title');
+      expect(
+        dto.messages.single.content.linkPreview?.localImagePath,
+        '/tmp/link-preview.jpg',
+      );
+    });
+
     test('parses voice note metadata and local file path', () {
       final dto = TdMessagesDto.fromEnvelope(
         TdWireEnvelope.fromJson(<String, dynamic>{
@@ -332,26 +385,29 @@ void main() {
       expect(dto.messages.single.content.text?.text, '可编辑');
     });
 
-    test('treats outgoing message without editability flag as editable probe', () {
-      final dto = TdMessagesDto.fromEnvelope(
-        TdWireEnvelope.fromJson(<String, dynamic>{
-          '@type': 'messages',
-          'messages': [
-            {
-              'id': 10,
-              'is_outgoing': true,
-              'content': {
-                '@type': 'messageText',
-                'text': {'text': '待打标', 'entities': []},
+    test(
+      'treats outgoing message without editability flag as editable probe',
+      () {
+        final dto = TdMessagesDto.fromEnvelope(
+          TdWireEnvelope.fromJson(<String, dynamic>{
+            '@type': 'messages',
+            'messages': [
+              {
+                'id': 10,
+                'is_outgoing': true,
+                'content': {
+                  '@type': 'messageText',
+                  'text': {'text': '待打标', 'entities': []},
+                },
               },
-            },
-          ],
-        }),
-      );
+            ],
+          }),
+        );
 
-      expect(dto.messages.single.hasEditabilityFlag, isFalse);
-      expect(dto.messages.single.isOutgoing, isTrue);
-      expect(dto.messages.single.isTagEditAllowed, isTrue);
-    });
+        expect(dto.messages.single.hasEditabilityFlag, isFalse);
+        expect(dto.messages.single.isOutgoing, isTrue);
+        expect(dto.messages.single.isTagEditAllowed, isTrue);
+      },
+    );
   });
 }

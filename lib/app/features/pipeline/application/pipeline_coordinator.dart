@@ -205,6 +205,7 @@ class PipelineCoordinator extends GetxController
   Worker? _settingsWorker;
   ClassifyReceipt? _lastSuccessReceipt;
   Future<void>? _showNextTask;
+  int _pendingShowNextCount = 0;
   bool _authorized = false;
 
   List<PipelineMessage> get _messageCache => runtimeState.cache;
@@ -341,12 +342,13 @@ class PipelineCoordinator extends GetxController
   }
 
   Future<void> showNextMessage() async {
+    _pendingShowNextCount++;
     final inFlight = _showNextTask;
     if (inFlight != null) {
       await inFlight;
       return;
     }
-    final task = _showNextMessageInternal();
+    final task = _drainShowNextQueue();
     _showNextTask = task;
     try {
       await task;
@@ -354,6 +356,13 @@ class PipelineCoordinator extends GetxController
       if (identical(_showNextTask, task)) {
         _showNextTask = null;
       }
+    }
+  }
+
+  Future<void> _drainShowNextQueue() async {
+    while (_pendingShowNextCount > 0) {
+      _pendingShowNextCount--;
+      await _showNextMessageInternal();
     }
   }
 

@@ -12,20 +12,21 @@ class LinkPreviewInstantViewEnricher {
   final TdlibAdapter _adapter;
 
   Future<TdMessageDto> enrich(TdMessageDto message) async {
-    final preview = message.content.linkPreview;
+    final resolvedMessage = await _resolveLinkPreview(message);
+    final preview = resolvedMessage.content.linkPreview;
     if (preview == null || _hasPreviewImage(preview)) {
-      return message;
+      return resolvedMessage;
     }
     final url = preview.url.trim();
     if (url.isEmpty) {
-      return message;
+      return resolvedMessage;
     }
     final instantImageUrl = await _loadFirstInstantImageUrl(url);
     if (instantImageUrl == null) {
-      return message;
+      return resolvedMessage;
     }
     return _withLinkPreview(
-      message,
+      resolvedMessage,
       TdLinkPreviewDto(
         url: preview.url,
         displayUrl: preview.displayUrl,
@@ -37,6 +38,98 @@ class LinkPreviewInstantViewEnricher {
         remoteImageUrl: instantImageUrl,
       ),
     );
+  }
+
+  Future<TdMessageDto> _resolveLinkPreview(TdMessageDto message) async {
+    if (message.content.linkPreview != null) {
+      return message;
+    }
+    final capabilities = _adapter.capabilities;
+    if (capabilities != null && !capabilities.supportsGetWebPagePreview) {
+      return message;
+    }
+    final text = message.content.text;
+    if (message.content.kind != TdMessageContentKind.text ||
+        text == null ||
+        !_hasResolvableLink(text)) {
+      return message;
+    }
+    final preview = await _loadWebPagePreview(text);
+    if (preview == null) {
+      return message;
+    }
+    return _withLinkPreview(message, preview);
+  }
+
+  Future<TdLinkPreviewDto?> _loadWebPagePreview(TdFormattedTextDto text) async {
+    try {
+      final envelope = await _adapter.sendWire(
+        GetWebPagePreview(text: _toTdFormattedText(text)),
+        request: 'getWebPagePreview',
+        phase: TdlibPhase.business,
+      );
+      return TdMessageDto.parseLegacyWebPagePreview(envelope.payload);
+    } on TdlibFailure catch (error) {
+      if (error.code == 404) {
+        return null;
+      }
+      if (_isUnsupportedFunctionError(error, 'getWebPagePreview')) {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  FormattedText _toTdFormattedText(TdFormattedTextDto text) {
+    return FormattedText(
+      text: text.text,
+      entities: text.entities
+          .map(_toTdTextEntity)
+          .nonNulls
+          .toList(growable: false),
+    );
+  }
+
+  TextEntity? _toTdTextEntity(TdTextEntityDto entity) {
+    final type = _toTdTextEntityType(entity);
+    if (type == null) {
+      return null;
+    }
+    return TextEntity(offset: entity.offset, length: entity.length, type: type);
+  }
+
+  TextEntityType? _toTdTextEntityType(TdTextEntityDto entity) {
+    switch (entity.kind) {
+      case TdTextEntityKind.url:
+        return const TextEntityTypeUrl();
+      case TdTextEntityKind.textUrl:
+        final url = entity.url?.trim() ?? '';
+        if (url.isEmpty) {
+          return null;
+        }
+        return TextEntityTypeTextUrl(url: url);
+      case TdTextEntityKind.emailAddress:
+        return const TextEntityTypeEmailAddress();
+      case TdTextEntityKind.phoneNumber:
+        return const TextEntityTypePhoneNumber();
+      case TdTextEntityKind.other:
+        return null;
+    }
+  }
+
+  bool _hasResolvableLink(TdFormattedTextDto text) {
+    for (final entity in text.entities) {
+      if (entity.kind == TdTextEntityKind.url ||
+          entity.kind == TdTextEntityKind.textUrl) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isUnsupportedFunctionError(TdlibFailure error, String constructor) {
+    return error.code == 400 &&
+        error.message.contains('Unknown class "$constructor"');
   }
 
   Future<String?> _loadFirstInstantImageUrl(String url) async {

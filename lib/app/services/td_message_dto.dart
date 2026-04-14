@@ -439,15 +439,40 @@ class TdMessageDto {
   }
 
   static TdLinkPreviewDto? _parseLinkPreview(Map<String, dynamic> content) {
-    final raw = content['web_page'];
+    final modern = parseModernLinkPreview(content['link_preview']);
+    if (modern != null) {
+      return modern;
+    }
+    return parseLegacyWebPagePreview(content['web_page']);
+  }
+
+  static TdLinkPreviewDto? parseModernLinkPreview(dynamic raw) {
+    if (raw == null) {
+      return null;
+    }
+    final preview = TdResponseReader.readMap(<String, dynamic>{
+      'link_preview': raw,
+    }, 'link_preview');
+    final image = _parseModernLinkPreviewPhoto(preview['type']);
+    return TdLinkPreviewDto(
+      url: preview['url']?.toString() ?? '',
+      displayUrl: preview['display_url']?.toString() ?? '',
+      siteName: preview['site_name']?.toString() ?? '',
+      title: preview['title']?.toString() ?? '',
+      description: _readFormattedTextText(preview['description']),
+      localImagePath: image?.localPath,
+      remoteImageFileId: image?.remoteFileId,
+    );
+  }
+
+  static TdLinkPreviewDto? parseLegacyWebPagePreview(dynamic raw) {
     if (raw == null) {
       return null;
     }
     final webPage = TdResponseReader.readMap(<String, dynamic>{
       'web_page': raw,
     }, 'web_page');
-    final photo = webPage['photo'];
-    final image = photo == null ? null : _parsePreviewPhoto(photo);
+    final image = _parsePreviewPhoto(webPage['photo']);
     return TdLinkPreviewDto(
       url: webPage['url']?.toString() ?? '',
       displayUrl: webPage['display_url']?.toString() ?? '',
@@ -457,6 +482,21 @@ class TdMessageDto {
       localImagePath: image?.localPath,
       remoteImageFileId: image?.remoteFileId,
     );
+  }
+
+  static TdPhotoSizeDto? _parseModernLinkPreviewPhoto(dynamic typeRaw) {
+    if (typeRaw is! Map<String, dynamic>) {
+      return null;
+    }
+    final photo = typeRaw['photo'];
+    if (photo != null) {
+      return _parsePreviewPhoto(photo);
+    }
+    final cover = typeRaw['cover'];
+    if (cover is Map<String, dynamic>) {
+      return _parsePreviewPhoto(cover['photo']);
+    }
+    return null;
   }
 
   static TdPhotoSizeDto? _parsePreviewPhoto(dynamic photoRaw) {

@@ -156,6 +156,87 @@ void main() {
     });
 
     test(
+      'fetchNextMessage resolves missing text link preview from message text',
+      () async {
+        final adapter = _FakeTdlibAdapter(
+          wireResponses: <String, List<TdWireEnvelope>>{
+            'getChatHistory': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'messages',
+                'messages': [
+                  {
+                    'id': 10,
+                    'content': {
+                      '@type': 'messageText',
+                      'text': {
+                        'text': 'https://t.me/sexology_ZH',
+                        'entities': [
+                          {
+                            'offset': 0,
+                            'length': 24,
+                            'type': {'@type': 'textEntityTypeUrl'},
+                          },
+                        ],
+                      },
+                    },
+                  },
+                ],
+              }),
+            ],
+            'getWebPagePreview': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{
+                '@type': 'webPage',
+                'url': 'https://t.me/sexology_ZH',
+                'display_url': 't.me/sexology_ZH',
+                'type': 'profile',
+                'site_name': 'Telegram',
+                'title': 'sexology_ZH',
+                'description': {'text': '频道简介', 'entities': []},
+                'photo': {
+                  'sizes': [
+                    {
+                      'type': 's',
+                      'width': 90,
+                      'height': 90,
+                      'photo': {
+                        'id': '71',
+                        'local': {'path': '/tmp/channel.jpg'},
+                      },
+                    },
+                  ],
+                },
+                'embed_url': '',
+                'embed_type': '',
+                'embed_width': 0,
+                'embed_height': 0,
+                'duration': 0,
+                'author': '',
+                'story_sender_chat_id': 0,
+                'story_id': 0,
+                'instant_view_version': 0,
+              }),
+            ],
+            'downloadFile': <TdWireEnvelope>[
+              TdWireEnvelope.fromJson(<String, dynamic>{'@type': 'ok'}),
+            ],
+          },
+        );
+        final service = TelegramService(adapter: adapter);
+
+        final message = await service.fetchNextMessage(
+          direction: MessageFetchDirection.latestFirst,
+          sourceChatId: 777,
+        );
+
+        expect(message, isNotNull);
+        expect(message!.preview.linkCard, isNotNull);
+        expect(message.preview.linkCard!.url, 'https://t.me/sexology_ZH');
+        expect(message.preview.linkCard!.title, 'sexology_ZH');
+        expect(message.preview.linkCard!.localImagePath, '/tmp/channel.jpg');
+      },
+    );
+
+    test(
       'fetchMessagePage skips duplicate cursor in latestFirst mode',
       () async {
         final adapter = _FakeTdlibAdapter(

@@ -33,6 +33,7 @@ void main() {
       );
 
       expect(adapter.downloadedFileIds, <int>[110]);
+      expect(adapter.downloadFileSyncFlags, <bool>[true]);
     });
 
     test('warmUpPreview downloads video thumbnail only', () async {
@@ -227,6 +228,7 @@ class _FakeTdlibAdapter extends TdlibAdapter {
 
   final Map<String, List<TdWireEnvelope>> wireResponses;
   final List<int> downloadedFileIds = <int>[];
+  final List<bool> downloadFileSyncFlags = <bool>[];
 
   @override
   Future<void> waitUntilReady() async {}
@@ -241,6 +243,7 @@ class _FakeTdlibAdapter extends TdlibAdapter {
     final constructor = function.getConstructor();
     if (function is DownloadFile) {
       downloadedFileIds.add(function.fileId);
+      downloadFileSyncFlags.add(function.synchronous);
     }
     final queue = wireResponses[constructor];
     if (queue == null || queue.isEmpty) {
