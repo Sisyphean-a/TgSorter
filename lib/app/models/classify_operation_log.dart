@@ -3,6 +3,9 @@ enum ClassifyOperationStatus {
   failed,
   retrySuccess,
   retryFailed,
+  mediaFailed,
+  mediaRetrySuccess,
+  mediaRetryFailed,
   skipped,
   undoSuccess,
   undoFailed,
@@ -61,6 +64,12 @@ class ClassifyOperationLog {
         return 'retry_success';
       case ClassifyOperationStatus.retryFailed:
         return 'retry_failed';
+      case ClassifyOperationStatus.mediaFailed:
+        return 'media_failed';
+      case ClassifyOperationStatus.mediaRetrySuccess:
+        return 'media_retry_success';
+      case ClassifyOperationStatus.mediaRetryFailed:
+        return 'media_retry_failed';
       case ClassifyOperationStatus.skipped:
         return 'skipped';
       case ClassifyOperationStatus.undoSuccess:
@@ -80,6 +89,12 @@ class ClassifyOperationLog {
         return ClassifyOperationStatus.retrySuccess;
       case 'retry_failed':
         return ClassifyOperationStatus.retryFailed;
+      case 'media_failed':
+        return ClassifyOperationStatus.mediaFailed;
+      case 'media_retry_success':
+        return ClassifyOperationStatus.mediaRetrySuccess;
+      case 'media_retry_failed':
+        return ClassifyOperationStatus.mediaRetryFailed;
       case 'skipped':
         return ClassifyOperationStatus.skipped;
       case 'undo_success':

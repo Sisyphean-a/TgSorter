@@ -1,7 +1,13 @@
 import 'dart:async';
 
+import 'package:get/get.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
+import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
+import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/models/proxy_settings.dart';
 
 import 'pipeline_media_refresh_service.dart';
 import 'pipeline_media_session_controller.dart';
@@ -11,19 +17,34 @@ class PipelineMediaController implements PipelineLegacyMediaController {
   PipelineMediaController({
     required PipelineRuntimeState state,
     required PipelineMediaRefreshService mediaRefresh,
+    PipelineSettingsReader? settingsReader,
+    Future<void> Function(ClassifyOperationLog log)? appendLog,
+    String Function(String prefix, int messageId)? logIdBuilder,
+    int Function()? nowMs,
     void Function(Object error)? reportGeneralError,
     Duration videoRefreshInterval = const Duration(seconds: 1),
   }) : _state = state,
        _mediaRefresh = mediaRefresh,
+       _settingsReader =
+           settingsReader ?? _StaticPipelineSettingsReader.forMediaRetries(),
+       _appendLog = appendLog,
+       _logIdBuilder = logIdBuilder ?? _defaultLogIdBuilder,
+       _nowMs = nowMs ?? _defaultNowMs,
        _reportGeneralError = reportGeneralError,
        _videoRefreshInterval = videoRefreshInterval;
 
   final PipelineRuntimeState _state;
   final PipelineMediaRefreshService _mediaRefresh;
+  final PipelineSettingsReader _settingsReader;
+  final Future<void> Function(ClassifyOperationLog log)? _appendLog;
+  final String Function(String prefix, int messageId) _logIdBuilder;
+  final int Function() _nowMs;
   final void Function(Object error)? _reportGeneralError;
   final Duration _videoRefreshInterval;
   Timer? _videoRefreshTimer;
   int? _refreshTargetMessageId;
+  int _refreshCycle = 0;
+  final Map<int, Timer> _mediaRetryTimers = <int, Timer>{};
 
   @override
   bool isPreparingMessageId(int? messageId) {
@@ -44,6 +65,8 @@ class PipelineMediaController implements PipelineLegacyMediaController {
       return;
     }
     final requestedMessageId = targetMessageId ?? message.id;
+    _cancelMediaRetry(requestedMessageId);
+    _state.mediaRetryAttempts.remove(requestedMessageId);
     _refreshTargetMessageId = requestedMessageId;
     _state.preparingMessageIds
       ..clear()
@@ -62,16 +85,15 @@ class PipelineMediaController implements PipelineLegacyMediaController {
       final base = _messageById(prepared.id) ?? message;
       final merged = mergePreparedMessage(base, prepared);
       _replaceMessage(merged);
-      _state.mediaFailureMessages.remove(requestedMessageId);
+      await _handleMediaSuccess(requestedMessageId);
       if (!_currentMessageContainsTarget()) {
         stop();
         return;
       }
       await refreshCurrentMediaIfNeeded();
     } catch (error) {
-      _recordFailure(requestedMessageId, error);
-      _reportGeneralError?.call(error);
       stop();
+      await _handleMediaFailure(requestedMessageId, error);
     }
   }
 
@@ -86,15 +108,24 @@ class PipelineMediaController implements PipelineLegacyMediaController {
     }
     final previewWarmupMessageId = _nextPreviewWarmupMessageId(message);
     if (previewWarmupMessageId != null) {
-      await _mediaRefresh.prepareCurrentPreview(
-        sourceChatId: message.sourceChatId,
-        messageId: previewWarmupMessageId,
-      );
-      _state.mediaFailureMessages.remove(previewWarmupMessageId);
+      try {
+        await _mediaRefresh.prepareCurrentPreview(
+          sourceChatId: message.sourceChatId,
+          messageId: previewWarmupMessageId,
+        );
+      } catch (error) {
+        await _handleMediaFailure(previewWarmupMessageId, error);
+        stop();
+        return;
+      }
     }
     _syncPreparingState(message.preview);
     _videoRefreshTimer?.cancel();
+    final refreshCycle = ++_refreshCycle;
     _videoRefreshTimer = Timer.periodic(_videoRefreshInterval, (_) async {
+      if (refreshCycle != _refreshCycle) {
+        return;
+      }
       try {
         final current = _state.currentMessage.value;
         if (current == null ||
@@ -111,7 +142,7 @@ class PipelineMediaController implements PipelineLegacyMediaController {
         final base = _messageById(refreshed.id) ?? current;
         final merged = mergePreparedMessage(base, refreshed);
         _replaceMessage(merged);
-        _state.mediaFailureMessages.remove(refreshMessageId);
+        await _handleMediaSuccess(refreshMessageId);
         _syncPreparingState(merged.preview);
         if (!_needsMediaRefresh(merged.preview)) {
           stop();
@@ -120,9 +151,8 @@ class PipelineMediaController implements PipelineLegacyMediaController {
         final currentTarget = _state.currentMessage.value == null
             ? _refreshTargetMessageId
             : _nextRefreshMessageId(_state.currentMessage.value!);
-        _recordFailure(currentTarget, error);
-        _reportGeneralError?.call(error);
         stop();
+        await _handleMediaFailure(currentTarget, error);
       }
     });
   }
@@ -227,11 +257,56 @@ class PipelineMediaController implements PipelineLegacyMediaController {
 
   @override
   void stop() {
+    _refreshCycle++;
     _videoRefreshTimer?.cancel();
     _videoRefreshTimer = null;
     _refreshTargetMessageId = null;
     _state.preparingMessageIds.clear();
     _state.videoPreparing.value = false;
+  }
+
+  Future<void> _handleMediaSuccess(int messageId) async {
+    final hadRetries = (_state.mediaRetryAttempts.remove(messageId) ?? 0) > 0;
+    _cancelMediaRetry(messageId);
+    _state.mediaFailureMessages.remove(messageId);
+    if (!hadRetries) {
+      return;
+    }
+    await _appendMediaLog(
+      messageId: messageId,
+      status: ClassifyOperationStatus.mediaRetrySuccess,
+    );
+  }
+
+  Future<void> _handleMediaFailure(int? messageId, Object error) async {
+    _recordFailure(messageId, error);
+    if (messageId == null) {
+      _reportGeneralError?.call(error);
+      return;
+    }
+    final attempt = (_state.mediaRetryAttempts[messageId] ?? 0) + 1;
+    _state.mediaRetryAttempts[messageId] = attempt;
+    final retryLimit = _settingsReader.currentSettings.mediaRetryLimit;
+    final canRetry = attempt <= retryLimit;
+    final status = attempt == 1
+        ? ClassifyOperationStatus.mediaFailed
+        : ClassifyOperationStatus.mediaRetryFailed;
+    await _appendMediaLog(
+      messageId: messageId,
+      status: status,
+      reason: _mediaFailureReason(
+        error: error,
+        attempt: attempt,
+        canRetry: canRetry,
+      ),
+    );
+    if (canRetry) {
+      _scheduleMediaRetry(messageId);
+      return;
+    }
+    _state.mediaRetryAttempts.remove(messageId);
+    _cancelMediaRetry(messageId);
+    _reportGeneralError?.call(error);
   }
 
   bool _needsMediaRefresh(MessagePreview preview) {
@@ -356,5 +431,106 @@ class PipelineMediaController implements PipelineLegacyMediaController {
       return;
     }
     _state.mediaFailureMessages[messageId] = '媒体加载失败：$error';
+  }
+
+  void _scheduleMediaRetry(int messageId) {
+    _cancelMediaRetry(messageId);
+    final delay = Duration(
+      milliseconds: _settingsReader.currentSettings.mediaRetryDelayMs,
+    );
+    _mediaRetryTimers[messageId] = Timer(delay, () async {
+      _mediaRetryTimers.remove(messageId);
+      final current = _state.currentMessage.value;
+      if (current == null || !_messageContains(current, messageId)) {
+        _state.mediaRetryAttempts.remove(messageId);
+        return;
+      }
+      _refreshTargetMessageId = messageId;
+      _state.preparingMessageIds
+        ..clear()
+        ..add(messageId);
+      _state.videoPreparing.value = true;
+      await refreshCurrentMediaIfNeeded();
+    });
+  }
+
+  void _cancelMediaRetry(int messageId) {
+    _mediaRetryTimers.remove(messageId)?.cancel();
+  }
+
+  bool _messageContains(PipelineMessage message, int messageId) {
+    return message.id == messageId || message.messageIds.contains(messageId);
+  }
+
+  Future<void> _appendMediaLog({
+    required int messageId,
+    required ClassifyOperationStatus status,
+    String? reason,
+  }) async {
+    final append = _appendLog;
+    if (append == null) {
+      return;
+    }
+    await append(
+      ClassifyOperationLog(
+        id: _logIdBuilder('media', messageId),
+        categoryKey: 'media',
+        messageId: messageId,
+        targetChatId: 0,
+        createdAtMs: _nowMs(),
+        status: status,
+        reason: reason,
+      ),
+    );
+  }
+
+  String _mediaFailureReason({
+    required Object error,
+    required int attempt,
+    required bool canRetry,
+  }) {
+    final delayMs = _settingsReader.currentSettings.mediaRetryDelayMs;
+    if (canRetry) {
+      return '第 $attempt 次失败，${delayMs}ms 后自动重试：$error';
+    }
+    return '自动重试已耗尽：$error';
+  }
+
+  static String _defaultLogIdBuilder(String prefix, int messageId) {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    return '$prefix-$messageId-$now';
+  }
+
+  static int _defaultNowMs() => DateTime.now().millisecondsSinceEpoch;
+}
+
+class _StaticPipelineSettingsReader implements PipelineSettingsReader {
+  _StaticPipelineSettingsReader(this.settingsStream);
+
+  factory _StaticPipelineSettingsReader.forMediaRetries() {
+    return _StaticPipelineSettingsReader(
+      const AppSettings(
+        categories: <CategoryConfig>[],
+        sourceChatId: null,
+        fetchDirection: MessageFetchDirection.latestFirst,
+        forwardAsCopy: false,
+        batchSize: 5,
+        throttleMs: 1200,
+        proxy: ProxySettings.empty,
+        mediaRetryLimit: 0,
+        mediaRetryDelayMs: 0,
+      ).obs,
+    );
+  }
+
+  @override
+  final Rx<AppSettings> settingsStream;
+
+  @override
+  AppSettings get currentSettings => settingsStream.value;
+
+  @override
+  CategoryConfig getCategory(String key) {
+    throw UnimplementedError();
   }
 }

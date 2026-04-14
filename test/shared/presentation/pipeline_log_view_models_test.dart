@@ -68,6 +68,32 @@ void main() {
       hasLength(1),
     );
   });
+
+  test('groups media failure and retry success into one recovered chain', () {
+    final chains = buildPipelineLogChains([
+      _log(
+        id: 'm1',
+        messageId: 404,
+        targetChatId: 0,
+        createdAtMs: 1000,
+        status: ClassifyOperationStatus.mediaFailed,
+        reason: '首轮失败',
+        categoryKey: 'media',
+      ),
+      _log(
+        id: 'm2',
+        messageId: 404,
+        targetChatId: 0,
+        createdAtMs: 2000,
+        status: ClassifyOperationStatus.mediaRetrySuccess,
+        categoryKey: 'media',
+      ),
+    ]);
+
+    expect(chains, hasLength(1));
+    expect(chains.single.state, PipelineLogChainState.recovered);
+    expect(chains.single.events.last.statusLabel, '媒体重试成功');
+  });
 }
 
 ClassifyOperationLog _log({
@@ -77,10 +103,11 @@ ClassifyOperationLog _log({
   int createdAtMs = 1000,
   required ClassifyOperationStatus status,
   String? reason,
+  String categoryKey = 'cat',
 }) {
   return ClassifyOperationLog(
     id: id,
-    categoryKey: 'cat',
+    categoryKey: categoryKey,
     messageId: messageId,
     targetChatId: targetChatId,
     createdAtMs: createdAtMs,

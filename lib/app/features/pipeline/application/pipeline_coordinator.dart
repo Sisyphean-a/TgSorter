@@ -100,6 +100,10 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
     mediaController = PipelineMediaController(
       state: this.runtimeState,
       mediaRefresh: resolvedMediaRefresh,
+      settingsReader: settingsReader,
+      appendLog: _appendMediaLog,
+      logIdBuilder: _buildId,
+      nowMs: _nowMs,
       reportGeneralError: _showGeneralError,
       videoRefreshInterval: _videoRefreshInterval,
     );
@@ -460,6 +464,11 @@ class PipelineCoordinator extends GetxController implements PipelineLogsPort {
 
   Future<void> _refreshCurrentMediaIfNeeded() async {
     await mediaSessionController.refreshCurrentMediaIfNeeded();
+  }
+
+  Future<void> _appendMediaLog(ClassifyOperationLog log) async {
+    logs.insert(0, log);
+    await _journalRepository.saveLogs(List<ClassifyOperationLog>.from(logs));
   }
 
   Future<void> _recoverPendingTransactionsAndReload() async {

@@ -134,6 +134,8 @@ PipelineLogChainState _resolveState(List<ClassifyOperationLog> logs) {
     (log) =>
         log.status == ClassifyOperationStatus.failed ||
         log.status == ClassifyOperationStatus.retryFailed ||
+        log.status == ClassifyOperationStatus.mediaFailed ||
+        log.status == ClassifyOperationStatus.mediaRetryFailed ||
         log.status == ClassifyOperationStatus.undoFailed,
   );
   if (last == ClassifyOperationStatus.skipped ||
@@ -142,11 +144,14 @@ PipelineLogChainState _resolveState(List<ClassifyOperationLog> logs) {
   }
   if (last == ClassifyOperationStatus.failed ||
       last == ClassifyOperationStatus.retryFailed ||
+      last == ClassifyOperationStatus.mediaFailed ||
+      last == ClassifyOperationStatus.mediaRetryFailed ||
       last == ClassifyOperationStatus.undoFailed) {
     return PipelineLogChainState.failedInProgress;
   }
   if (hadFailure &&
       (last == ClassifyOperationStatus.retrySuccess ||
+          last == ClassifyOperationStatus.mediaRetrySuccess ||
           last == ClassifyOperationStatus.success)) {
     return PipelineLogChainState.recovered;
   }
@@ -202,6 +207,12 @@ String _labelStatus(ClassifyOperationStatus status) {
       return '重试成功';
     case ClassifyOperationStatus.retryFailed:
       return '重试失败';
+    case ClassifyOperationStatus.mediaFailed:
+      return '媒体失败';
+    case ClassifyOperationStatus.mediaRetrySuccess:
+      return '媒体重试成功';
+    case ClassifyOperationStatus.mediaRetryFailed:
+      return '媒体重试失败';
     case ClassifyOperationStatus.skipped:
       return '跳过';
     case ClassifyOperationStatus.undoSuccess:

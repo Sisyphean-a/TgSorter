@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get/get.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_media_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_media_refresh_service.dart';
@@ -8,7 +9,10 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_navigation_s
 import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_state.dart';
 import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
+import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
+import 'package:tgsorter/app/models/category_config.dart';
+import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 
 void main() {
@@ -440,6 +444,98 @@ void main() {
       expect(state.videoPreparing.value, isFalse);
     },
   );
+
+  test(
+    'refreshCurrentMediaIfNeeded retries media failure and logs recovery',
+    () async {
+      final state = PipelineRuntimeState();
+      state.currentMessage.value = PipelineMessage(
+        id: 21,
+        messageIds: const <int>[21],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.video,
+          title: 'video-1',
+        ),
+      );
+      final logs = <Object>[];
+      final mediaRefresh = _FailOnceRefreshMediaService();
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: mediaRefresh,
+        settingsReader: _MediaSettingsReader(retryLimit: 1, retryDelayMs: 1),
+        appendLog: (log) async {
+          logs.add(log);
+        },
+        videoRefreshInterval: const Duration(milliseconds: 20),
+      );
+
+      await controller.refreshCurrentMediaIfNeeded();
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+
+      expect(mediaRefresh.refreshCalls, [21, 21]);
+      expect(
+        logs.map((item) => (item as dynamic).status).toList(growable: false),
+        [
+          ClassifyOperationStatus.mediaFailed,
+          ClassifyOperationStatus.mediaRetrySuccess,
+        ],
+      );
+      expect(state.mediaFailureMessages.containsKey(21), isFalse);
+    },
+  );
+
+  test(
+    'refreshCurrentMediaIfNeeded logs final media failure after retry budget exhausted',
+    () async {
+      final state = PipelineRuntimeState();
+      state.currentMessage.value = PipelineMessage(
+        id: 21,
+        messageIds: const <int>[21],
+        sourceChatId: 8888,
+        preview: const MessagePreview(
+          kind: MessagePreviewKind.video,
+          title: 'video-1',
+        ),
+      );
+      final errors = <Object>[];
+      final uncaughtErrors = <Object>[];
+      final logs = <Object>[];
+      final mediaRefresh = _FailingRefreshMediaService();
+      final controller = PipelineMediaController(
+        state: state,
+        mediaRefresh: mediaRefresh,
+        reportGeneralError: errors.add,
+        settingsReader: _MediaSettingsReader(retryLimit: 1, retryDelayMs: 1),
+        appendLog: (log) async {
+          logs.add(log);
+        },
+        videoRefreshInterval: const Duration(milliseconds: 20),
+      );
+
+      await runZonedGuarded(
+        () async {
+          await controller.refreshCurrentMediaIfNeeded();
+          await Future<void>.delayed(const Duration(milliseconds: 80));
+        },
+        (error, _) {
+          uncaughtErrors.add(error);
+        },
+      );
+
+      expect(mediaRefresh.refreshCalls, [21, 21]);
+      expect(
+        logs.map((item) => (item as dynamic).status).toList(growable: false),
+        [
+          ClassifyOperationStatus.mediaFailed,
+          ClassifyOperationStatus.mediaRetryFailed,
+        ],
+      );
+      expect(errors, hasLength(1));
+      expect(uncaughtErrors, isEmpty);
+      expect(state.mediaFailureMessages[21], contains('媒体加载失败'));
+    },
+  );
 }
 
 class _FakeMediaRefreshService extends PipelineMediaRefreshService {
@@ -708,6 +804,48 @@ class _GroupedAudioRefreshService extends PipelineMediaRefreshService {
   }
 }
 
+class _FailOnceRefreshMediaService extends PipelineMediaRefreshService {
+  _FailOnceRefreshMediaService()
+    : super.legacy(
+        mediaGateway: _NoopMediaGateway(),
+        messageGateway: _NoopMessageReadGateway(),
+      );
+
+  final List<int> refreshCalls = <int>[];
+  bool _failedOnce = false;
+
+  @override
+  Future<PipelineMessage> prepareCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PipelineMessage> refreshCurrentMedia({
+    required int sourceChatId,
+    required int messageId,
+  }) async {
+    refreshCalls.add(messageId);
+    if (!_failedOnce) {
+      _failedOnce = true;
+      throw StateError('refresh failed once');
+    }
+    return PipelineMessage(
+      id: messageId,
+      messageIds: <int>[messageId],
+      sourceChatId: sourceChatId,
+      preview: const MessagePreview(
+        kind: MessagePreviewKind.video,
+        title: 'video-1',
+        localVideoPath: 'C:/video.mp4',
+        localVideoThumbnailPath: 'C:/video.jpg',
+      ),
+    );
+  }
+}
+
 class _NoopMediaGateway implements MediaGateway {
   @override
   Future<void> prepareMediaPreview({
@@ -749,6 +887,29 @@ class _NoopMessageReadGateway implements MessageReadGateway {
     required int sourceChatId,
     required int messageId,
   }) {
+    throw UnimplementedError();
+  }
+}
+
+class _MediaSettingsReader implements PipelineSettingsReader {
+  _MediaSettingsReader({required int retryLimit, required int retryDelayMs})
+    : settingsStream = AppSettings.defaults()
+          .updateMediaLoadOptions(
+            backgroundConcurrency:
+                AppSettings.defaultMediaBackgroundDownloadConcurrency,
+            retryLimit: retryLimit,
+            retryDelayMs: retryDelayMs,
+          )
+          .obs;
+
+  @override
+  final Rx<AppSettings> settingsStream;
+
+  @override
+  AppSettings get currentSettings => settingsStream.value;
+
+  @override
+  CategoryConfig getCategory(String key) {
     throw UnimplementedError();
   }
 }
