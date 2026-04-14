@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:tgsorter/app/core/routing/app_routes.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
 import 'package:tgsorter/app/features/download/presentation/download_workbench_page.dart';
+import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
+import 'package:tgsorter/app/features/login_alerts/presentation/login_alert_workbench_page.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
@@ -27,6 +29,7 @@ class MainShellPage extends StatefulWidget {
     required this.pipeline,
     required this.tagging,
     required this.downloads,
+    required this.loginAlerts,
     required this.pipelineSettings,
     required this.errors,
     required this.settings,
@@ -37,6 +40,7 @@ class MainShellPage extends StatefulWidget {
   final PipelineCoordinator pipeline;
   final TaggingCoordinator tagging;
   final DownloadWorkbenchController downloads;
+  final LoginAlertWorkbenchController loginAlerts;
   final PipelineSettingsReader pipelineSettings;
   final AppErrorController errors;
   final SettingsCoordinator settings;
@@ -91,6 +95,7 @@ class _MainShellPageState extends State<MainShellPage> {
             errors: widget.errors,
           ),
           TaggingScreen(controller: widget.tagging, errors: widget.errors),
+          LoginAlertWorkbenchPage(controller: widget.loginAlerts),
           DownloadWorkbenchScreen(controller: widget.downloads),
           SettingsScreen(
             controller: widget.settings,
@@ -116,6 +121,16 @@ class _MainShellPageState extends State<MainShellPage> {
       case MainShellDestination.taggingWorkbench:
         return TaggingCompactAppBar(
           controller: widget.tagging,
+          leading: leading,
+        );
+      case MainShellDestination.loginAlerts:
+        return SettingsAppBar(
+          draftSession: _settingsDraftSession,
+          isSaving: widget.settings.isSaving,
+          navigation: _settingsNavigation,
+          onSave: _saveSettings,
+          canPopOverride: false,
+          title: '接码',
           leading: leading,
         );
       case MainShellDestination.downloads:
@@ -289,12 +304,14 @@ class _MainShellDrawer extends StatelessWidget {
   }
 
   List<MainShellDestination> _visibleDestinations() {
-    return MainShellDestination.values.where((item) {
-      if (item == MainShellDestination.downloads) {
-        return downloadWorkbenchEnabled;
-      }
-      return true;
-    }).toList(growable: false);
+    return MainShellDestination.values
+        .where((item) {
+          if (item == MainShellDestination.downloads) {
+            return downloadWorkbenchEnabled;
+          }
+          return true;
+        })
+        .toList(growable: false);
   }
 }
 

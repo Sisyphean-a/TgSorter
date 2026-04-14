@@ -14,6 +14,7 @@ import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
+import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
@@ -29,6 +30,7 @@ import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/download_sync_service.dart';
+import 'package:tgsorter/app/services/login_alert_repository.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -84,6 +86,10 @@ void main() {
       settings: settings,
       sync: const NoopDownloadSyncPort(),
     )..onInit();
+    final loginAlerts = LoginAlertWorkbenchController(
+      updates: const Stream<Map<String, dynamic>>.empty(),
+      repository: LoginAlertRepository(prefs),
+    )..onInit();
     settings.onInit();
     pipeline.onInit();
     pipelineGateway.emitConnectionReady();
@@ -102,6 +108,7 @@ void main() {
               pipeline: pipeline,
               tagging: tagging,
               downloads: downloads,
+              loginAlerts: loginAlerts,
               pipelineSettings: settings,
               errors: errors,
               settings: settings,

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
+import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
@@ -22,10 +23,12 @@ import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/download_sync_service.dart';
+import 'package:tgsorter/app/services/login_alert_repository.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
+import 'package:tgsorter/app/services/telegram_login_alert.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 
@@ -95,6 +98,10 @@ void main() {
       settings: settingsController,
       sync: const NoopDownloadSyncPort(),
     )..onInit();
+    final loginAlerts = LoginAlertWorkbenchController(
+      updates: const Stream<Map<String, dynamic>>.empty(),
+      repository: _MemoryLoginAlertRepository(),
+    )..onInit();
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -103,6 +110,7 @@ void main() {
           pipeline: pipeline,
           tagging: tagging,
           downloads: downloads,
+          loginAlerts: loginAlerts,
           pipelineSettings: settingsController,
           errors: errors,
           settings: settingsController,
@@ -122,6 +130,7 @@ void main() {
     expect(drawerSubtitle.style?.color, const Color(0xFF74808B));
     expect(find.text('转发工作台'), findsOneWidget);
     expect(find.text('标签工作台'), findsOneWidget);
+    expect(find.text('接码'), findsOneWidget);
     expect(find.text('下载工作台'), findsNothing);
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('日志'), findsOneWidget);
@@ -213,6 +222,10 @@ void main() {
         settings: settingsController,
         sync: const NoopDownloadSyncPort(),
       )..onInit();
+      final loginAlerts = LoginAlertWorkbenchController(
+        updates: const Stream<Map<String, dynamic>>.empty(),
+        repository: _MemoryLoginAlertRepository(),
+      )..onInit();
 
       await tester.pumpWidget(
         GetMaterialApp(
@@ -221,6 +234,7 @@ void main() {
             pipeline: pipeline,
             tagging: tagging,
             downloads: downloads,
+            loginAlerts: loginAlerts,
             pipelineSettings: settingsController,
             errors: errors,
             settings: settingsController,
@@ -290,6 +304,10 @@ void main() {
       settings: settingsController,
       sync: const NoopDownloadSyncPort(),
     )..onInit();
+    final loginAlerts = LoginAlertWorkbenchController(
+      updates: const Stream<Map<String, dynamic>>.empty(),
+      repository: _MemoryLoginAlertRepository(),
+    )..onInit();
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -298,6 +316,7 @@ void main() {
           pipeline: pipeline,
           tagging: tagging,
           downloads: downloads,
+          loginAlerts: loginAlerts,
           pipelineSettings: settingsController,
           errors: errors,
           settings: settingsController,
@@ -356,6 +375,10 @@ void main() {
         settings: settingsController,
         sync: const NoopDownloadSyncPort(),
       )..onInit();
+      final loginAlerts = LoginAlertWorkbenchController(
+        updates: const Stream<Map<String, dynamic>>.empty(),
+        repository: _MemoryLoginAlertRepository(),
+      )..onInit();
 
       await tester.pumpWidget(
         GetMaterialApp(
@@ -364,6 +387,7 @@ void main() {
             pipeline: pipeline,
             tagging: tagging,
             downloads: downloads,
+            loginAlerts: loginAlerts,
             pipelineSettings: settingsController,
             errors: errors,
             settings: settingsController,
@@ -440,6 +464,10 @@ void main() {
       settings: settingsController,
       sync: const NoopDownloadSyncPort(),
     )..onInit();
+    final loginAlerts = LoginAlertWorkbenchController(
+      updates: const Stream<Map<String, dynamic>>.empty(),
+      repository: _MemoryLoginAlertRepository(),
+    )..onInit();
 
     await tester.pumpWidget(
       GetMaterialApp(
@@ -448,6 +476,7 @@ void main() {
           pipeline: pipeline,
           tagging: tagging,
           downloads: downloads,
+          loginAlerts: loginAlerts,
           pipelineSettings: settingsController,
           errors: errors,
           settings: settingsController,
@@ -608,4 +637,12 @@ class _ShellPipelineGateway
   }) async {
     throw UnimplementedError();
   }
+}
+
+class _MemoryLoginAlertRepository implements LoginAlertRepositoryPort {
+  @override
+  Future<List<TelegramLoginAlert>> load() async => const [];
+
+  @override
+  Future<void> save(List<TelegramLoginAlert> entries) async {}
 }
