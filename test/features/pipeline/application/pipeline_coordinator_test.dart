@@ -411,12 +411,10 @@ class _RecordingPipelineFeedController extends PipelineFeedController {
 
 class _DelayedAppendPipelineFeedController extends PipelineFeedController {
   _DelayedAppendPipelineFeedController({
-    required PipelineRuntimeState state,
-    required PipelineNavigationService navigation,
+    required super.state,
+    required super.navigation,
   }) : _navigation = navigation,
        super(
-         state: state,
-         navigation: navigation,
          messages: _NoopMessageReadGateway(),
          media: _NoopMediaGateway(),
          settings: _FakeSettingsReader(),

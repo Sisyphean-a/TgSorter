@@ -81,9 +81,6 @@ class LoginAlertWorkbenchController extends GetxController {
     if (existingIndex != -1) {
       return _normalize(working);
     }
-    if (incoming.kind == TelegramLoginAlertKind.newLogin) {
-      _markLatestCodeAsUsed(working, incoming);
-    }
     working.add(incoming);
     return _normalize(working);
   }
@@ -92,10 +89,10 @@ class LoginAlertWorkbenchController extends GetxController {
     List<TelegramLoginAlert> entries,
     TelegramLoginAlert loginAlert,
   ) {
-    for (var index = 0; index < entries.length; index++) {
+    for (var index = entries.length - 1; index >= 0; index--) {
       final candidate = entries[index];
       if (candidate.kind != TelegramLoginAlertKind.code ||
-          candidate.status != TelegramLoginAlertStatus.active) {
+          candidate.status == TelegramLoginAlertStatus.used) {
         continue;
       }
       final delta = loginAlert.receivedAtMs - candidate.receivedAtMs;
@@ -115,15 +112,32 @@ class LoginAlertWorkbenchController extends GetxController {
     for (final item in source) {
       final existing = deduped[item.identityKey];
       if (existing == null || item.receivedAtMs >= existing.receivedAtMs) {
-        deduped[item.identityKey] = _applyStatus(item);
+        deduped[item.identityKey] = item;
       }
     }
-    final normalized = deduped.values.toList(growable: false)
+    final timeline = deduped.values.toList(growable: false)
+      ..sort((left, right) => left.receivedAtMs.compareTo(right.receivedAtMs));
+    final reconciled = _reconcileTimeline(timeline)
       ..sort((left, right) => right.receivedAtMs.compareTo(left.receivedAtMs));
-    if (normalized.length <= _maxEntries) {
-      return normalized;
+    if (reconciled.length <= _maxEntries) {
+      return reconciled;
     }
-    return normalized.take(_maxEntries).toList(growable: false);
+    return reconciled.take(_maxEntries).toList(growable: false);
+  }
+
+  List<TelegramLoginAlert> _reconcileTimeline(
+    List<TelegramLoginAlert> timeline,
+  ) {
+    final reconciled = <TelegramLoginAlert>[];
+    for (final item in timeline) {
+      if (item.kind == TelegramLoginAlertKind.newLogin) {
+        _markLatestCodeAsUsed(reconciled, item);
+        reconciled.add(item);
+        continue;
+      }
+      reconciled.add(item);
+    }
+    return reconciled.map(_applyStatus).toList(growable: false);
   }
 
   TelegramLoginAlert _applyStatus(TelegramLoginAlert item) {

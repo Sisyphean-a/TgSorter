@@ -83,6 +83,82 @@ void main() {
   });
 
   test(
+    'marks code as used when new login arrives before code update',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final updates = StreamController<Map<String, dynamic>>.broadcast();
+      late LoginAlertWorkbenchController controller;
+      addTearDown(() async {
+        controller.onClose();
+        await updates.close();
+      });
+      controller = LoginAlertWorkbenchController(
+        updates: updates.stream,
+        repository: LoginAlertRepository(prefs),
+        nowMs: () => 1700000000000,
+      );
+
+      controller.onInit();
+      updates.add(_newLoginUpdate());
+      await Future<void>.delayed(Duration.zero);
+      updates.add(_codeUpdate(type: 'updateNewMessage'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.entries, hasLength(2));
+      final codeEntry = controller.entries.firstWhere(
+        (item) => item.kind == TelegramLoginAlertKind.code,
+      );
+      expect(codeEntry.status, TelegramLoginAlertStatus.used);
+      expect(codeEntry.consumedAtMs, 1700000005000);
+    },
+  );
+
+  test('recomputes used status from restored code and login history', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final repository = LoginAlertRepository(prefs);
+    await repository.save(const <TelegramLoginAlert>[
+      TelegramLoginAlert(
+        kind: TelegramLoginAlertKind.code,
+        status: TelegramLoginAlertStatus.active,
+        messageId: 18,
+        chatId: 777000,
+        receivedAtMs: 1700000000000,
+        sourceLabel: 'Telegram 官方账号 777000',
+        text: 'Login code: 404237',
+        code: '404237',
+      ),
+      TelegramLoginAlert(
+        kind: TelegramLoginAlertKind.newLogin,
+        status: TelegramLoginAlertStatus.info,
+        messageId: 19,
+        chatId: 777000,
+        receivedAtMs: 1700000005000,
+        sourceLabel: 'Telegram 官方账号 777000',
+        text: 'New login.\nDevice: Telegram Desktop\nLocation: Hangzhou, China',
+        deviceSummary: 'Telegram Desktop',
+        location: 'Hangzhou, China',
+      ),
+    ]);
+    final controller = LoginAlertWorkbenchController(
+      updates: const Stream<Map<String, dynamic>>.empty(),
+      repository: repository,
+      nowMs: () => 1700000000000,
+    );
+    addTearDown(controller.onClose);
+
+    controller.onInit();
+    await Future<void>.delayed(Duration.zero);
+
+    final codeEntry = controller.entries.firstWhere(
+      (item) => item.kind == TelegramLoginAlertKind.code,
+    );
+    expect(codeEntry.status, TelegramLoginAlertStatus.used);
+    expect(codeEntry.consumedAtMs, 1700000005000);
+  });
+
+  test(
     'restored empty state does not overwrite alert captured during bootstrap',
     () async {
       final updates = StreamController<Map<String, dynamic>>.broadcast();
@@ -245,6 +321,30 @@ Map<String, dynamic> _authUpdate(String stateType) {
   return <String, dynamic>{
     '@type': 'updateAuthorizationState',
     'authorization_state': <String, dynamic>{'@type': stateType},
+  };
+}
+
+Map<String, dynamic> _newLoginUpdate() {
+  return <String, dynamic>{
+    '@type': 'updateNewMessage',
+    'message': <String, dynamic>{
+      '@type': 'message',
+      'id': 19,
+      'chat_id': 777000,
+      'date': 1700000005,
+      'sender_id': <String, dynamic>{
+        '@type': 'messageSenderUser',
+        'user_id': 777000,
+      },
+      'content': <String, dynamic>{
+        '@type': 'messageText',
+        'text': <String, dynamic>{
+          'text':
+              'New login.\nDevice: Telegram Desktop\nLocation: Hangzhou, China',
+          'entities': <Object>[],
+        },
+      },
+    },
   };
 }
 

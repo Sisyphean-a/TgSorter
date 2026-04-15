@@ -45,11 +45,17 @@ void main() {
     expect(find.byKey(const Key('logs-filter-bar')), findsOneWidget);
     expect(find.byKey(const Key('log-chain-row-1002_cat_200')), findsOneWidget);
     expect(find.text('消息 #1002'), findsOneWidget);
-    expect(find.text('失败'), findsWidgets);
-    expect(find.text('失败 -> 重试成功'), findsOneWidget);
+    expect(find.textContaining('失败'), findsWidgets);
+    expect(find.textContaining('失败 -> 重试成功'), findsOneWidget);
     expect(find.text('最近失败：NETWORK'), findsOneWidget);
     expect(find.text('消息 #1001'), findsOneWidget);
     expect(find.text('已恢复'), findsWidgets);
+    expect(
+      tester
+          .getSize(find.byKey(const Key('log-chain-row-1002_cat_200')))
+          .height,
+      lessThan(120),
+    );
     final chainRow = tester.widget<Container>(
       find.byKey(const Key('log-chain-row-1002_cat_200')),
     );
