@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_surface.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
+import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class SettingsHomePage extends StatelessWidget {
   const SettingsHomePage({required this.onOpenRoute, super.key});
@@ -10,10 +11,25 @@ class SettingsHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final palette = AppTokens.colorsOf(context);
+
     return SettingsScrollableSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(36, 16, 36, 8),
+            child: Text(
+              'Settings',
+              style: textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: palette.textPrimary,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
           const SettingsSectionHeader(title: '工作流'),
           SettingsSectionBlock(
             children: [

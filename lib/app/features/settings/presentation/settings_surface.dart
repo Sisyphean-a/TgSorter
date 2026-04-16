@@ -20,30 +20,23 @@ class SettingsScrollableSurface extends StatelessWidget {
       color: palette.settingsBackground,
       child: IgnorePointer(
         ignoring: ignoring,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isDesktop = constraints.maxWidth >= 960;
-            final content = Padding(
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          slivers: [
+            SliverPadding(
               padding: padding,
-              child: child,
-            );
-            return ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                if (isDesktop)
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      key: const ValueKey('settings-desktop-column'),
-                      constraints: const BoxConstraints(maxWidth: 720),
-                      child: content,
-                    ),
-                  )
-                else
-                  content,
-              ],
-            );
-          },
+              sliver: SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 860),
+                    child: child,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -19,6 +19,8 @@ class SettingsNavigationTile extends StatelessWidget {
     super.key,
   });
 
+
+
   final IconData icon;
   final String title;
   final String? subtitle;
@@ -29,51 +31,60 @@ class SettingsNavigationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppTokens.colorsOf(context);
     final textTheme = Theme.of(context).textTheme;
-    return Material(
-      color: palette.settingsSurface,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Icon(icon, color: palette.settingsIcon, size: 24),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: _settingsTileHorizontalPadding, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: palette.brandAccentSoft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Icon(icon, color: palette.brandAccent, size: 20),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: textTheme.bodyLarge?.copyWith(
+                      color: palette.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
                     Text(
-                      title,
-                      style: textTheme.bodyLarge?.copyWith(
-                        color: palette.textPrimary,
+                      subtitle!,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: palette.textMuted,
                       ),
                     ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: palette.textMuted,
-                        ),
-                      ),
-                    ],
                   ],
+                ],
+              ),
+            ),
+            if (value != null) ...[
+              const SizedBox(width: 12),
+              Text(
+                value!,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: palette.settingsValue,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              if (value != null) ...[
-                const SizedBox(width: 12),
-                Text(
-                  value!,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: palette.settingsValue,
-                  ),
-                ),
-              ],
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right_rounded, color: palette.textMuted),
             ],
-          ),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded, color: palette.textMuted, size: 20),
+          ],
         ),
       ),
     );
@@ -103,15 +114,13 @@ class SettingsValueTile extends StatelessWidget {
     final palette = AppTokens.colorsOf(context);
     final titleColor = danger ? palette.danger : palette.textPrimary;
     final valueColor = danger ? palette.danger : palette.settingsValue;
-    return Material(
-      color: palette.settingsSurface,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: _settingsTileHorizontalPadding,
-            vertical: 14,
-          ),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: _settingsTileHorizontalPadding,
+          vertical: 14,
+        ),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final indicatorWidth = trailing != null
@@ -168,7 +177,6 @@ class SettingsValueTile extends StatelessWidget {
             },
           ),
         ),
-      ),
     );
   }
 
@@ -199,8 +207,8 @@ class SettingsSwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppTokens.colorsOf(context);
-    return Material(
-      color: palette.settingsSurface,
+    return InkWell(
+      onTap: () => onChanged(!value),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: _settingsTileHorizontalPadding,
@@ -247,12 +255,13 @@ class SettingsSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppTokens.colorsOf(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(36, 24, 36, 10),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
           color: palette.brandAccent,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -270,26 +279,39 @@ class SettingsSectionBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppTokens.colorsOf(context);
-    final rounded = MediaQuery.sizeOf(context).width >= 960;
-    return Material(
-      color: palette.settingsSurface,
-      borderRadius: rounded ? BorderRadius.circular(16) : null,
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var index = 0; index < children.length; index++) ...[
-            children[index],
-            if (index < children.length - 1)
-              Padding(
-                padding: const EdgeInsets.only(left: _settingsTileHorizontalPadding),
-                child: Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: palette.settingsDivider,
-                ),
-              ),
-          ],
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: palette.settingsSurface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(16),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
         ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          children: [
+            for (var index = 0; index < children.length; index++) ...[
+              children[index],
+              if (index < children.length - 1)
+                Padding(
+                  padding: const EdgeInsets.only(left: _settingsTileHorizontalPadding),
+                  child: Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: palette.settingsDivider.withAlpha(120),
+                  ),
+                ),
+            ],
+          ],
+        ),
       ),
     );
   }
