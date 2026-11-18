@@ -1,19 +1,11 @@
 # Android TDLib 运行参数说明
 
-当前实现在 `TelegramService._configureTdlib()` 中完成 TDLib 参数初始化，重点如下：
+TDLib 启动时由 `lib/app/services/tdlib_adapter.dart` 配置参数，运行目录由 `lib/app/services/tdlib_runtime_paths.dart` 创建。参数也适用于使用同一适配器的其他宿主；平台动态库加载另见 `tdlib_library_locator.dart`。
 
-- 数据目录：`${ApplicationSupportDirectory}/tgsorter/tdlib/db`
-- 文件目录：`${ApplicationSupportDirectory}/tgsorter/tdlib/files`
-- 目录创建：启动时递归创建，避免目录缺失导致初始化失败
-- 日志级别：`setLogVerbosityLevel(1)`（错误级）
-- 设备信息：
-  - `deviceModel = Flutter <operatingSystem>`
-  - `systemVersion = Platform.operatingSystemVersion`
-- 应用版本：`applicationVersion = 1.0.0`
-- 数据库配置：
-  - `useFileDatabase = true`
-  - `useChatInfoDatabase = true`
-  - `useMessageDatabase = true`
-  - `enableStorageOptimizer = true`
+- 数据库和文件目录分别为应用支持目录下的 `tgsorter/tdlib/db`、`tgsorter/tdlib/files`。
+- 启用文件、会话信息和消息数据库及存储优化；不启用秘密聊天。
+- 使用正式数据中心，`systemLanguageCode` 为 `zh-hans`，`deviceModel` 为 `Flutter`，`systemVersion` 为 `unknown`，`applicationVersion` 为 `1.0.0`。
+- API ID 和 API Hash 的准备方式见 [README](../README.md#启动方式)。
+- 启动失败会清理传输并向调用方报告错误，不静默降级。
 
-这些参数遵循“显式失败”策略：配置异常会直接抛错，不做静默降级。
+参数的完整当前值以 `TdlibAdapter._setTdlibParameters` 为准。

@@ -21,8 +21,7 @@ TgSorter 是一个基于 Flutter + TDLib 的 Telegram 消息分流工具。当�
 
 ## 文档
 
-- 架构文档：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- 媒体预览现状与方案：[docs/MEDIA_PREVIEW_ANALYSIS.md](docs/MEDIA_PREVIEW_ANALYSIS.md)
+- 项目架构与开发定位：[.codestable/architecture/INDEX.md](.codestable/architecture/INDEX.md)
 - Android TDLib 参数说明：[docs/tdlib-android-params.md](docs/tdlib-android-params.md)
 
 ## 技术栈
@@ -71,7 +70,7 @@ test/
 docs/
 ```
 
-更完整的职责说明见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+更完整的职责说明见 [架构索引](.codestable/architecture/INDEX.md)。
 
 ## 启动方式
 
@@ -131,4 +130,4 @@ $env:TDLIB_DLL_PATH="D:\\path\\to\\tdjson.dll"
 
 - 安卓端“跳过当前”文案已改为“略过此条”，用于规避第三方跳过工具误判。
 - 第三方 TG 客户端的删除显示样式仍受其自身实现影响。
-- 现有文档设计稿较多，真正反映当前代码状态的文档以 `README.md`、`docs/ARCHITECTURE.md`、`docs/MEDIA_PREVIEW_ANALYSIS.md` 为准。
+- 旧设计与实施计划可从 Git 历史查阅；当前架构及领域规则以代码和 `.codestable/` 为准。
