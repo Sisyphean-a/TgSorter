@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 import 'package:tgsorter/app/services/skipped_message_repository.dart';
 
@@ -58,6 +59,8 @@ class PipelineFeedController {
 
   Future<void> loadInitialMessages() async {
     final session = ++_feedSession;
+    _appendTask = null;
+    _state.historyExhausted = false;
     unawaited(refreshRemainingCount());
     _navigation.replaceMessages(const <PipelineMessage>[]);
     _previewPreparedMessageIds.clear();
@@ -69,27 +72,48 @@ class PipelineFeedController {
     if (session != _feedSession) {
       return;
     }
-    _navigation.replaceMessages(page.messages);
+    _state.historyExhausted = page.exhausted;
     tailMessageId = page.exhausted ? null : page.tailMessageId;
+    _navigation.replaceMessages(page.messages);
     if (page.messages.isNotEmpty) {
       _startBackgroundPreviewPrefetch();
     }
   }
 
+  Future<void>? _appendTask;
+
   Future<void> appendMoreMessages() async {
-    if (!_state.isOnline.value || tailMessageId == null) {
+    final pending = _appendTask;
+    if (pending != null) {
+      return pending;
+    }
+    final cursor = tailMessageId;
+    if (!_state.isOnline.value || cursor == null) {
       return;
     }
-    final session = _feedSession;
+    final task = _appendPage(_feedSession, cursor);
+    _appendTask = task;
+    try {
+      await task;
+    } finally {
+      if (identical(_appendTask, task)) {
+        _appendTask = null;
+      }
+    }
+  }
+
+  Future<void> _appendPage(int session, int cursor) async {
     final page = await _fetchVisiblePage(
-      fromMessageId: tailMessageId,
+      fromMessageId: cursor,
       limit: messagePageSize,
     );
     if (session != _feedSession) {
       return;
     }
     tailMessageId = page.exhausted ? null : page.tailMessageId;
+    _state.historyExhausted = page.exhausted;
     if (page.messages.isEmpty) {
+      _navigation.syncNavigationState();
       return;
     }
     _navigation.appendUniqueMessages(page.messages);
@@ -257,6 +281,8 @@ class PipelineFeedController {
 
   void reset() {
     _feedSession++;
+    _appendTask = null;
+    _state.historyExhausted = false;
     _remainingCount.beginRequest();
     _navigation.replaceMessages(const <PipelineMessage>[]);
     _previewPreparedMessageIds.clear();
@@ -330,8 +356,16 @@ class PipelineFeedController {
         exhausted = true;
         break;
       }
-      lastRawMessageId = page.last.id;
-      cursor = lastRawMessageId;
+      final last = page.last;
+      // 相册内按正序显示；分页游标须取扫描方向上最后一条原始消息。
+      final nextCursor = direction == MessageFetchDirection.oldestFirst
+          ? last.messageIds.last
+          : last.messageIds.first;
+      if (nextCursor == cursor) {
+        throw StateError('消息分页游标未前进：$nextCursor');
+      }
+      lastRawMessageId = nextCursor;
+      cursor = nextCursor;
       final visible = _filterSkippedMessages(page);
       if (visible.isNotEmpty) {
         return _VisiblePageResult(
@@ -349,13 +383,15 @@ class PipelineFeedController {
   }
 
   List<PipelineMessage> _filterSkippedMessages(List<PipelineMessage> messages) {
-    return messages.where((item) {
-      return !_skippedMessageRepository.containsMessage(
-        workflow: _workflow,
-        sourceChatId: item.sourceChatId,
-        messageIds: item.messageIds,
-      );
-    }).toList(growable: false);
+    return messages
+        .where((item) {
+          return !_skippedMessageRepository.containsMessage(
+            workflow: _workflow,
+            sourceChatId: item.sourceChatId,
+            messageIds: item.messageIds,
+          );
+        })
+        .toList(growable: false);
   }
 }
 

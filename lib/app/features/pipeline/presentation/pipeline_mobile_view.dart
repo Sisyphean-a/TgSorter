@@ -104,6 +104,7 @@ class PipelineMobileView extends StatelessWidget {
                     vm: vm.message,
                     processing: processing,
                     onMediaAction: onMediaAction,
+                    onRetryMessages: vm.workflow.online ? onNavigateNext : null,
                   ),
                 ),
                 const SizedBox(height: 8),

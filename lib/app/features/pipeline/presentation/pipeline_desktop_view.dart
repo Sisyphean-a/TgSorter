@@ -72,6 +72,7 @@ class PipelineDesktopView extends StatelessWidget {
                 processing: vm.workflow.processingOverlay,
                 embedded: true,
                 onMediaAction: pipeline.performMediaAction,
+                onRetryMessages: vm.workflow.online ? pipeline.fetchNext : null,
               ),
             ),
           ),

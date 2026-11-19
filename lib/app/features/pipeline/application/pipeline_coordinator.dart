@@ -182,6 +182,7 @@ class PipelineCoordinator extends GetxController
   PipelineScreenVm get screenVm => PipelineScreenVm(
     message: MessagePreviewVm(
       content: currentMessage.value,
+      hasRemainingMessages: (remainingCount.value ?? 0) > 0,
       media: MediaSessionVm.fromState(runtimeState.mediaSession.value),
     ),
     navigation: NavigationVm(
@@ -237,11 +238,12 @@ class PipelineCoordinator extends GetxController
   }
 
   Future<void> fetchNext() async {
+    if (loading.value || processing.value) return;
     _stopVideoRefresh();
     loading.value = true;
     try {
       await feedController.loadInitialMessages();
-      await _refreshCurrentMediaIfNeeded();
+      _scheduleVisibleMessageWork();
     } on TdlibFailure catch (error) {
       _showTdlibError(error);
     } catch (error) {
@@ -337,8 +339,7 @@ class PipelineCoordinator extends GetxController
     }
     _stopVideoRefresh();
     await navigation.showPrevious();
-    await _refreshCurrentMediaIfNeeded();
-    await feedController.prefetchIfNeeded();
+    _scheduleVisibleMessageWork();
   }
 
   Future<void> showNextMessage() async {
@@ -367,21 +368,48 @@ class PipelineCoordinator extends GetxController
   }
 
   Future<void> _showNextMessageInternal() async {
-    if (processing.value || currentMessage.value == null) {
+    if (processing.value || loading.value) return;
+    if (currentMessage.value == null) {
+      if (isOnline.value && (remainingCount.value ?? 0) > 0) await fetchNext();
       return;
     }
-    _stopVideoRefresh();
-    if (_currentIndex + 1 < _messageCache.length) {
-      await navigation.showNext();
-      await _refreshCurrentMediaIfNeeded();
-      await feedController.prefetchIfNeeded();
-      return;
+    if (_currentIndex + 1 >= _messageCache.length) {
+      final before = currentMessage.value;
+      try {
+        await feedController.appendMoreMessages();
+      } on TdlibFailure catch (error) {
+        _showTdlibError(error);
+        return;
+      } catch (error) {
+        _showGeneralError(error);
+        return;
+      }
+      final current = currentMessage.value;
+      if (processing.value ||
+          current?.id != before?.id ||
+          current?.sourceChatId != before?.sourceChatId) {
+        return;
+      }
     }
-    await feedController.appendMoreMessages();
     if (_currentIndex + 1 < _messageCache.length) {
+      _stopVideoRefresh();
       await navigation.showNext();
-      await _refreshCurrentMediaIfNeeded();
-      await feedController.prefetchIfNeeded();
+      _scheduleVisibleMessageWork();
+    }
+  }
+
+  void _scheduleVisibleMessageWork() {
+    unawaited(_runBackground(_refreshCurrentMediaIfNeeded));
+    unawaited(_runBackground(feedController.prefetchIfNeeded));
+  }
+
+  Future<void> _runBackground(Future<void> Function() operation) async {
+    try {
+      await operation();
+    } on TdlibFailure catch (error) {
+      _showTdlibError(error);
+    } catch (error) {
+      _showGeneralError(error);
     }
   }
 

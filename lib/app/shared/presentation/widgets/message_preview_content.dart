@@ -13,11 +13,13 @@ class MessagePreviewContent extends StatelessWidget {
   const MessagePreviewContent({
     super.key,
     required this.vm,
+    this.onRetryMessages,
     required this.onMediaAction,
     required this.videoControllerInitializer,
   });
 
   final MessagePreviewVm vm;
+  final Future<void> Function()? onRetryMessages;
   final Future<void> Function(MediaAction action) onMediaAction;
   final VideoControllerInitializer? videoControllerInitializer;
 
@@ -31,6 +33,19 @@ class MessagePreviewContent extends StatelessWidget {
   }
 
   Widget _buildEmptyState() {
+    if (vm.hasRemainingMessages) {
+      return Column(
+        children: [
+          const SizedBox(height: 100),
+          const Text('还有剩余消息，但当前没有加载到可显示的消息。'),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: onRetryMessages,
+            child: const Text('重新加载消息'),
+          ),
+        ],
+      );
+    }
     return const Column(
       key: Key('message-preview-empty-state'),
       mainAxisAlignment: MainAxisAlignment.center,
@@ -70,15 +85,7 @@ class MessagePreviewContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        MessagePreviewMedia(
-          items: preview.mediaItems,
-          preparing: _isPreparing,
-          onRequestPlayback: ([messageId]) => _openMedia(data, messageId),
-          controllerInitializer: videoControllerInitializer,
-          fallbackImagePath: preview.localImagePath,
-          isMediaPreparing: _isMediaPreparing,
-          errorForMedia: _mediaError,
-        ),
+        _buildMediaPages(data),
         const SizedBox(height: 12),
         _buildText(preview, fontSize: 16),
       ],
@@ -90,20 +97,30 @@ class MessagePreviewContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        MessagePreviewMedia(
-          items: preview.mediaItems,
-          preparing: _isPreparing,
-          onRequestPlayback: ([messageId]) => _openMedia(data, messageId),
-          controllerInitializer: videoControllerInitializer,
-          preferVideoFallback: true,
-          fallbackVideoPath: preview.localVideoPath,
-          fallbackThumbnailPath: preview.localVideoThumbnailPath,
-          isMediaPreparing: _isMediaPreparing,
-          errorForMedia: _mediaError,
-        ),
+        _buildMediaPages(data),
         _buildVideoSpacing(preview),
         _buildText(preview, fontSize: 16),
       ],
+    );
+  }
+
+  Widget _buildMediaPages(PipelineMessage data) {
+    final preview = data.preview;
+    return _PreviewPages(
+      key: ValueKey((data.sourceChatId, data.id)),
+      itemCount: preview.mediaItems.length,
+      builder: (start, end) => MessagePreviewMedia(
+        items: preview.mediaItems.sublist(start, end),
+        preparing: _isPreparing,
+        onRequestPlayback: ([messageId]) => _openMedia(data, messageId),
+        controllerInitializer: videoControllerInitializer,
+        preferVideoFallback: preview.kind == MessagePreviewKind.video,
+        fallbackImagePath: preview.localImagePath,
+        fallbackVideoPath: preview.localVideoPath,
+        fallbackThumbnailPath: preview.localVideoThumbnailPath,
+        isMediaPreparing: _isMediaPreparing,
+        errorForMedia: _mediaError,
+      ),
     );
   }
 
@@ -112,13 +129,17 @@ class MessagePreviewContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        MessagePreviewAudio(
-          audioPath: preview.localAudioPath,
-          preparing: _isPreparing,
-          onRequestPlayback: ([messageId]) => _openMedia(data, messageId),
-          tracks: preview.audioTracks,
-          isPreparingTrack: _isMediaPreparing,
-          errorForTrack: _mediaError,
+        _PreviewPages(
+          key: ValueKey((data.sourceChatId, data.id)),
+          itemCount: preview.audioTracks.length,
+          builder: (start, end) => MessagePreviewAudio(
+            audioPath: preview.localAudioPath,
+            preparing: _isPreparing,
+            onRequestPlayback: ([messageId]) => _openMedia(data, messageId),
+            tracks: preview.audioTracks.sublist(start, end),
+            isPreparingTrack: _isMediaPreparing,
+            errorForTrack: _mediaError,
+          ),
         ),
         const SizedBox(height: 12),
       ],
@@ -164,5 +185,63 @@ class MessagePreviewContent extends StatelessWidget {
 
   Future<void> _openMedia(PipelineMessage data, int? messageId) async {
     await onMediaAction(OpenInApp(messageId: messageId ?? data.id));
+  }
+}
+
+class _PreviewPages extends StatefulWidget {
+  const _PreviewPages({
+    super.key,
+    required this.itemCount,
+    required this.builder,
+  });
+
+  final int itemCount;
+  final Widget Function(int start, int end) builder;
+
+  @override
+  State<_PreviewPages> createState() => _PreviewPagesState();
+}
+
+class _PreviewPagesState extends State<_PreviewPages> {
+  static const _itemsPerPage = 4;
+  int _page = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = widget.itemCount;
+    if (count <= _itemsPerPage) return widget.builder(0, count);
+    final pageCount = (count + _itemsPerPage - 1) ~/ _itemsPerPage;
+    final page = _page.clamp(0, pageCount - 1);
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              tooltip: '预览上一页',
+              onPressed: page == 0
+                  ? null
+                  : () => setState(() => _page = page - 1),
+              icon: const Icon(Icons.chevron_left),
+            ),
+            Text('预览 ${page + 1} / $pageCount'),
+            IconButton(
+              tooltip: '预览下一页',
+              onPressed: page + 1 == pageCount
+                  ? null
+                  : () => setState(() => _page = page + 1),
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
+        ),
+        KeyedSubtree(
+          key: ValueKey(page),
+          child: widget.builder(
+            page * _itemsPerPage,
+            ((page + 1) * _itemsPerPage).clamp(0, count),
+          ),
+        ),
+      ],
+    );
   }
 }

@@ -141,7 +141,8 @@ class _FakeMessageReadGateway implements MessageReadGateway {
     if (fromMessageId == null) {
       return pages.take(1).toList(growable: false);
     }
-    return pages.skip(1).toList(growable: false);
+    final cursorIndex = pages.indexWhere((item) => item.id == fromMessageId);
+    return pages.skip(cursorIndex + 1).take(limit).toList(growable: false);
   }
 
   @override
@@ -179,6 +180,9 @@ class _DelayedPageMessageReadGateway extends _FakeMessageReadGateway {
     lastSourceChatId = sourceChatId;
     if (fromMessageId == null) {
       return firstPage;
+    }
+    if (fromMessageId != firstPage.last.id) {
+      return const <PipelineMessage>[];
     }
     await _secondPageRelease.future;
     return secondPage;

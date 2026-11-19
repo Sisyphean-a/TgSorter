@@ -4,6 +4,7 @@ import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/pipeline/application/media_session_state.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/shared/presentation/widgets/message_preview_media.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_viewer_card.dart';
 import 'package:tgsorter/app/theme/app_theme.dart';
 
@@ -829,6 +830,91 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'positive remaining count shows a reload instead of an empty success',
+    (tester) async {
+      var retries = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MessageViewerCard(
+              vm: MessagePreviewVm(
+                content: null,
+                hasRemainingMessages: true,
+                media: MediaSessionVm.fromState(
+                  const MediaSessionState.empty(),
+                ),
+              ),
+              processing: false,
+              onRetryMessages: () async {
+                retries++;
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('暂无消息'), findsNothing);
+      await tester.tap(find.widgetWithText(OutlinedButton, '重新加载消息'));
+      expect(retries, 1);
+    },
+  );
+
+  testWidgets('large album paginates inside the same classification item', (
+    tester,
+  ) async {
+    final ids = List.generate(5, (i) => i + 101);
+    final message = PipelineMessage(
+      id: ids.first,
+      messageIds: ids,
+      sourceChatId: 100,
+      preview: MessagePreview(
+        kind: MessagePreviewKind.photo,
+        title: 'album',
+        mediaItems: [
+          for (final id in ids)
+            MediaItemPreview(messageId: id, kind: MediaItemKind.photo),
+        ],
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MessageViewerCard(
+            message: message,
+            processing: false,
+            videoPreparing: false,
+            onRequestMediaPlayback: ([messageId]) async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('预览 1 / 2'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('message-preview-media-tile-105')),
+      findsNothing,
+    );
+    await tester.tap(find.byTooltip('预览下一页'));
+    await tester.pumpAndSettle();
+    expect(find.text('预览 2 / 2'), findsOneWidget);
+    expect(
+      tester
+          .widget<MessagePreviewMedia>(find.byType(MessagePreviewMedia))
+          .items
+          .single
+          .messageId,
+      105,
+    );
+    expect(
+      tester
+          .widget<MessageViewerCard>(find.byType(MessageViewerCard))
+          .message
+          ?.messageIds,
+      ids,
+    );
+  });
 
   testWidgets('grouped video preparing spinner is scoped to selected item', (
     tester,

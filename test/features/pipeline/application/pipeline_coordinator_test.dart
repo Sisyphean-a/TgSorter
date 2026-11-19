@@ -80,6 +80,34 @@ void main() {
     expect(harness.runtimeState.currentMessage.value?.id, 2);
   });
 
+  test('cached next taps do not wait for media or page prefetch', () async {
+    final media = _RecordingPipelineMediaSessionController();
+    final pendingMedia = Completer<void>();
+    media.refreshGate = pendingMedia.future;
+    addTearDown(() => pendingMedia.complete());
+    addTearDown(media.dispose);
+    final feed = _RecordingPipelineFeedController();
+    final pendingPage = Completer<void>();
+    feed.prefetchGate = pendingPage.future;
+    addTearDown(() => pendingPage.complete());
+    final harness = _PipelineCoordinatorHarness(
+      mediaSession: media,
+      feed: feed,
+    );
+    harness.navigation.replaceMessages([
+      _textMessage(1, 'first'),
+      _textMessage(2, 'second'),
+      _textMessage(3, 'third'),
+    ]);
+
+    final first = harness.coordinator.showNextMessage();
+    final second = harness.coordinator.showNextMessage();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(harness.runtimeState.currentMessage.value?.id, 3);
+    await Future.wait([first, second]);
+  });
+
   test('coordinator showNextMessage preserves repeated next intents', () async {
     final runtimeState = PipelineRuntimeState();
     final navigation = PipelineNavigationService(state: runtimeState);
@@ -385,7 +413,13 @@ class _RecordingPipelineFeedController extends PipelineFeedController {
   int loadInitialCalls = 0;
   int ensureVisibleCalls = 0;
   int resetCalls = 0;
+  Future<void>? prefetchGate;
   final List<int> decrementCalls = <int>[];
+
+  @override
+  Future<void> prefetchIfNeeded() async {
+    await prefetchGate;
+  }
 
   @override
   Future<void> loadInitialMessages() async {
@@ -564,6 +598,12 @@ class _RecordingPipelineMediaSessionController
       );
 
   int requestPlaybackCalls = 0;
+  Future<void>? refreshGate;
+
+  @override
+  Future<void> refreshCurrentMediaIfNeeded() async {
+    await refreshGate;
+  }
 
   @override
   Future<void> requestPlayback([int? targetMessageId]) async {

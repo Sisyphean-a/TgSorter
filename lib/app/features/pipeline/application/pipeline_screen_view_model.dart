@@ -49,7 +49,13 @@ class PipelineScreenVm {
 }
 
 class MessagePreviewVm {
-  const MessagePreviewVm({required this.content, required this.media});
+  const MessagePreviewVm({
+    required this.content,
+    required this.media,
+    this.hasRemainingMessages = false,
+  });
+
+  final bool hasRemainingMessages;
 
   final PipelineMessage? content;
   final MediaSessionVm media;

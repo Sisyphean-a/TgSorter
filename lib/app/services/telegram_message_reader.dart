@@ -60,13 +60,8 @@ class TelegramMessageReader {
       fromMessageId: fromMessageId,
       limit: limit,
     );
-    final preparedMessages = <TdMessageDto>[];
-    for (final item in messages) {
-      final prepared = await _preparePreview(item);
-      preparedMessages.add(prepared);
-    }
     return _previewBuilder.groupPipelineMessages(
-      messages: preparedMessages,
+      messages: messages,
       sourceChatId: sourceChatId,
       direction: direction,
     );

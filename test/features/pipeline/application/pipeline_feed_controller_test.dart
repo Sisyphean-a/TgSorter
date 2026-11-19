@@ -15,6 +15,36 @@ import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
 
 void main() {
+  test('oldest-first pagination resumes after the last album member', () async {
+    final state = PipelineRuntimeState()..isOnline.value = true;
+    final settings = _FakeSettingsReader();
+    settings.settingsStream.value = settings.currentSettings.copyWith(
+      fetchDirection: MessageFetchDirection.oldestFirst,
+    );
+    final messages = _AlbumBoundaryGateway();
+    final controller = PipelineFeedController(
+      state: state,
+      navigation: PipelineNavigationService(state: state),
+      messages: messages,
+      media: _FakeMediaGateway(),
+      settings: settings,
+      remainingCount: _FakeRemainingCountService(),
+      reportGeneralError: (_) {},
+    );
+
+    await controller.loadInitialMessages();
+    await Future.wait([
+      controller.prefetchIfNeeded(),
+      controller.appendMoreMessages(),
+    ]);
+
+    expect(messages.cursors, [null, 3]);
+    expect(state.cache.map((item) => item.messageIds), [
+      [1, 2, 3],
+      [4],
+    ]);
+  });
+
   test(
     'loadInitialMessages replaces cache and records tail message id',
     () async {
@@ -344,6 +374,35 @@ class _FakeMessageReadGateway implements MessageReadGateway {
         title: 'refreshed-$messageId',
       ),
     );
+  }
+}
+
+class _AlbumBoundaryGateway extends _FakeMessageReadGateway {
+  final cursors = <int?>[];
+
+  @override
+  Future<List<PipelineMessage>> fetchMessagePage({
+    required MessageFetchDirection direction,
+    required int? sourceChatId,
+    required int? fromMessageId,
+    required int limit,
+  }) async {
+    cursors.add(fromMessageId);
+    return switch (fromMessageId) {
+      null => [
+        const PipelineMessage(
+          id: 1,
+          messageIds: [1, 2, 3],
+          sourceChatId: 8888,
+          preview: MessagePreview(
+            kind: MessagePreviewKind.photo,
+            title: 'album',
+          ),
+        ),
+      ],
+      3 => [_singleMessage(4, 'next')],
+      _ => [_singleMessage(2, 'duplicate album member')],
+    };
   }
 }
 

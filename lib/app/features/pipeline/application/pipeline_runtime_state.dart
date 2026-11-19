@@ -34,4 +34,5 @@ class PipelineRuntimeState {
 
   final List<PipelineMessage> cache = <PipelineMessage>[];
   int currentIndex = -1;
+  bool historyExhausted = false;
 }

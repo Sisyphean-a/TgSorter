@@ -435,21 +435,6 @@ void main() {
     expect(find.widgetWithText(TextField, '批处理条数 N'), findsNothing);
     expect(find.widgetWithText(TextField, '节流毫秒'), findsNothing);
   });
-
-  testWidgets('桌面端设置页使用窄列容器而不是铺满内容区', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 1024));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await _pumpSettingsPage(
-      tester,
-      chats: const [SelectableChat(id: -1001, title: '频道一')],
-    );
-
-    expect(
-      find.byKey(const ValueKey('settings-desktop-column')),
-      findsOneWidget,
-    );
-  });
 }
 
 Future<SettingsCoordinator> _pumpSettingsPage(

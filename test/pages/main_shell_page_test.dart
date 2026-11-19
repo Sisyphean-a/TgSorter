@@ -551,9 +551,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('关于账号与会话'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '退出登录'));
+    await tester.tap(find.text('退出登录'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '确认退出'));
+    final confirmation = find.byType(AlertDialog);
+    expect(confirmation, findsOneWidget);
+    await tester.tap(
+      find.descendant(of: confirmation, matching: find.text('确认退出')),
+    );
     await tester.pumpAndSettle();
 
     expect(settingsGateway.logoutCalls, 1);

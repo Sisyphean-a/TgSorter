@@ -7,6 +7,7 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
+import 'package:tgsorter/app/services/td_message_dto.dart';
 
 import 'pipeline_media_refresh_service.dart';
 import 'pipeline_prepared_message_merger.dart';
@@ -99,7 +100,26 @@ class PipelineMediaController implements PipelineLegacyMediaController {
 
   @override
   Future<void> refreshCurrentMediaIfNeeded() async {
+    final refreshCycle = ++_refreshCycle;
+    _videoRefreshTimer?.cancel();
     final message = _state.currentMessage.value;
+    bool isCurrent() {
+      final current = _state.currentMessage.value;
+      return refreshCycle == _refreshCycle &&
+          current?.id == message?.id &&
+          current?.sourceChatId == message?.sourceChatId;
+    }
+
+    if (message != null && _needsLinkPreview(message.preview)) {
+      final refreshed = await _mediaRefresh.refreshCurrentMedia(
+        sourceChatId: message.sourceChatId,
+        messageId: message.id,
+      );
+      if (isCurrent() && refreshed.preview.linkCard != null) {
+        _replaceMessage(refreshed);
+      }
+      return;
+    }
     if (message == null || !_needsMediaRefresh(message.preview)) {
       _state.preparingMessageIds.clear();
       _state.videoPreparing.value = false;
@@ -114,18 +134,20 @@ class PipelineMediaController implements PipelineLegacyMediaController {
           messageId: previewWarmupMessageId,
         );
       } catch (error) {
-        await _handleMediaFailure(previewWarmupMessageId, error);
+        if (!isCurrent()) return;
         stop();
+        await _handleMediaFailure(previewWarmupMessageId, error);
         return;
       }
     }
-    _syncPreparingState(message.preview);
-    _videoRefreshTimer?.cancel();
-    final refreshCycle = ++_refreshCycle;
+    if (!isCurrent()) return;
+    _syncPreparingState(_state.currentMessage.value!.preview);
+    var polling = false;
     _videoRefreshTimer = Timer.periodic(_videoRefreshInterval, (_) async {
-      if (refreshCycle != _refreshCycle) {
+      if (!isCurrent() || polling) {
         return;
       }
+      polling = true;
       try {
         final current = _state.currentMessage.value;
         if (current == null ||
@@ -139,22 +161,38 @@ class PipelineMediaController implements PipelineLegacyMediaController {
           sourceChatId: current.sourceChatId,
           messageId: refreshMessageId,
         );
+        if (!isCurrent()) return;
         final base = _messageById(refreshed.id) ?? current;
         final merged = mergePreparedMessage(base, refreshed);
         _replaceMessage(merged);
         await _handleMediaSuccess(refreshMessageId);
+        if (!isCurrent()) return;
         _syncPreparingState(merged.preview);
         if (!_needsMediaRefresh(merged.preview)) {
           stop();
         }
       } catch (error) {
-        final currentTarget = _state.currentMessage.value == null
-            ? _refreshTargetMessageId
-            : _nextRefreshMessageId(_state.currentMessage.value!);
+        if (!isCurrent()) return;
+        final currentTarget = _nextRefreshMessageId(
+          _state.currentMessage.value!,
+        );
         stop();
         await _handleMediaFailure(currentTarget, error);
+      } finally {
+        polling = false;
       }
     });
+  }
+
+  bool _needsLinkPreview(MessagePreview preview) {
+    return preview.kind == MessagePreviewKind.text &&
+        (preview.linkCard != null ||
+            (preview.text?.entities.any(
+                  (item) =>
+                      item.kind == TdTextEntityKind.url ||
+                      item.kind == TdTextEntityKind.textUrl,
+                ) ??
+                false));
   }
 
   PipelineMessage? _messageById(int messageId) {

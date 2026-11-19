@@ -103,7 +103,9 @@ class PipelineNavigationService {
 
   bool _hasUnloadedNext() {
     final remainingCount = _state.remainingCount.value;
-    if (remainingCount == null || _state.currentIndex < 0) {
+    if (_state.historyExhausted ||
+        remainingCount == null ||
+        _state.currentIndex < 0) {
       return false;
     }
     return _state.currentIndex + 1 < remainingCount;
