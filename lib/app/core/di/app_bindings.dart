@@ -1,10 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
-import 'package:flutter/services.dart' show appFlavor;
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/services/td_json_ffi.dart';
-import 'package:tgsorter/app/services/tdlib_preview_wire.dart';
+import 'package:tgsorter/app/services/tdlib_modern_wire.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/di/download_module.dart';
@@ -53,12 +53,12 @@ Future<void> registerAppBindings() async {
   final tdLogger = TdJsonLogger(
     detailLevel: parseTdJsonLogDetailLevel(tdLogDetailRaw),
   );
-  final isTdlibPreview = appFlavor == 'tdlibPreview';
-  TdJsonFfi? previewClient;
+  final useModernTdlib = Platform.isAndroid;
+  TdJsonFfi? nativeClient;
   final rawTransport = TdRawTransport(
     logger: tdLogger,
-    usePreviewSchema: isTdlibPreview,
-    nativeClientProvider: isTdlibPreview ? () => previewClient! : null,
+    useModernSchema: useModernTdlib,
+    nativeClientProvider: useModernTdlib ? () => nativeClient! : null,
   );
   final transport = TdClientTransport(
     rawTransport: rawTransport,
@@ -70,18 +70,17 @@ Future<void> registerAppBindings() async {
     rawTransport: rawTransport,
     credentials: credentials,
     runtimePaths: runtimePaths,
-    initializeTdlib: isTdlibPreview
+    initializeTdlib: useModernTdlib
         ? (path) async {
             final client = TdJsonFfi(path);
             final revision = client.execute(
               '{"@type":"getOption","name":"commit_hash"}',
             );
             if (revision == null ||
-                (jsonDecode(revision) as Map)['value'] !=
-                    tdlibPreviewRevision) {
-              throw StateError('预览包没有加载到指定版本的 TDLib。');
+                (jsonDecode(revision) as Map)['value'] != tdlibModernRevision) {
+              throw StateError('没有加载到指定版本的官方 TDLib。');
             }
-            previewClient = client;
+            nativeClient = client;
           }
         : defaultTdlibInitializer,
   );

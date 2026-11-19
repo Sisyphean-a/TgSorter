@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# 在 Linux/WSL 中构建 Android TDLib 预览库；NDK 使用 r28 或更高版本。
+# 在 Linux/WSL 中构建项目使用的 Android TDLib；NDK 使用 r28 或更高版本。
 set -euo pipefail
 
 : "${ANDROID_NDK_HOME:?请设置 Linux 版 Android NDK 的目录}"
 revision=03220f6b3043c6fd7785fbf0901d63f19ad19974
 openssl_version=3.5.9
 root=$(cd -- "$(dirname -- "$0")/.." && pwd)
-output=${1:-"$root/build/tdlib-preview/jniLibs"}
+output=${1:-"$root/android/tdlib/jniLibs"}
 [[ $output = /* ]] || { echo '输出目录须为绝对路径' >&2; exit 2; }
 ndk=$(cd -- "$ANDROID_NDK_HOME" && pwd)
 toolchain="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin"
@@ -31,7 +31,7 @@ jobs=${TDLIB_BUILD_JOBS:-4}
 cmake -G Ninja -S "$work/td" -B "$work/host" -DTD_GENERATE_SOURCE_FILES=ON -DTD_GIT_COMMIT_HASH="$revision"
 cmake --build "$work/host" --target prepare_cross_compiling --parallel "$jobs"
 
-# 预览包暂只交付真机 arm64，稳定包原来的 ABI 不变。
+# 主包暂只交付真机 arm64；原生库产物固定在 android/tdlib/。
 (
   cd "$work/openssl"
   export ANDROID_NDK_ROOT="$ndk" PATH="$toolchain:$PATH"
@@ -42,7 +42,11 @@ cmake --build "$work/host" --target prepare_cross_compiling --parallel "$jobs"
 cmake -G Ninja -S "$work/td" -B "$work/android" \
   -DCMAKE_TOOLCHAIN_FILE="$ndk/build/cmake/android.toolchain.cmake" \
   -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DANDROID_STL=c++_static \
-  -DCMAKE_BUILD_TYPE=MinSizeRel -DOPENSSL_ROOT_DIR="$work/ssl" -DOPENSSL_USE_STATIC_LIBS=ON \
+  -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_CXX_FLAGS_MINSIZEREL='-O0 -DNDEBUG' \
+  -DOPENSSL_USE_STATIC_LIBS=ON \
+  -DOPENSSL_INCLUDE_DIR:PATH="$work/ssl/include" \
+  -DOPENSSL_CRYPTO_LIBRARY:FILEPATH="$work/ssl/lib/libcrypto.a" \
+  -DOPENSSL_SSL_LIBRARY:FILEPATH="$work/ssl/lib/libssl.a" \
   -DCMAKE_SHARED_LINKER_FLAGS='-Wl,-z,max-page-size=16384' -DTD_GIT_COMMIT_HASH="$revision"
 cmake --build "$work/android" --target tdjson --parallel "$jobs"
 "$toolchain/llvm-strip" --strip-unneeded "$work/android/libtdjson.so"

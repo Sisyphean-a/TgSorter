@@ -10,25 +10,23 @@ TDLib 启动时由 `lib/app/services/tdlib_adapter.dart` 配置参数，运行�
 
 参数的完整当前值以 `TdlibAdapter._setTdlibParameters` 为准。
 
-## 16 KB 预览包（Android arm64）
+## 16 KB Android 原生库（arm64）
 
-`stable` 仍是默认变体。预览包的应用 ID 为 `com.example.tgsorter.tdlibpreview`，与稳定包并存，各自有独立的登录、数据库和设置。预览包缺少新版原生库时构建会失败，不会使用稳定包的旧库。
+Android 主包使用已验证的官方 TDLib，并沿用试用版的应用 ID `com.example.tgsorter.tdlibpreview`。使用相同签名覆盖安装可保留登录和设置。仓库已包含 `android/tdlib/` 下的原生库和许可证，常规 Flutter 构建直接复用。只有 TDLib、OpenSSL、NDK、目标架构或原生构建参数变化时才需重编译。
 
 1. 在 Linux/WSL x86_64 安装 C/C++ 编译器、make、CMake、Ninja、gperf、Perl、Python 3 和 curl。准备 **Linux 版 NDK r28c**，将 `ANDROID_NDK_HOME` 指向解压目录；不能使用 Windows 版 NDK。
-2. 在 Linux/WSL 的仓库根目录构建原生库。脚本下载并校验固定版本的官方 TDLib 和 OpenSSL 源码，产物写入 `build/tdlib-preview/`。若执行了 `flutter clean`，需重新准备原生库。
+2. 需要重编译时，在 Linux/WSL 的仓库根目录运行脚本。脚本会校验固定版本的官方 TDLib 和 OpenSSL 源码，并将产物写入 `android/tdlib/`。
 
    ```bash
-   bash tool/build_tdlib_preview.sh
+   bash tool/build_tdlib_android.sh
    ```
 
-   没有 Linux 构建环境时，可在 GitHub Actions 使用 `TDLib Android Preview Native`。预览分支 `feat/tdlib-16k-preview` 推送构建脚本或工作流变更时会自动运行；工作流进入默认分支后也可手动运行。将 `tdlib-preview-arm64` 产物解压到 `build/tdlib-preview/`（保留 `jniLibs/` 与 `notices/` 目录）。
+   没有 Linux 构建环境时，可在 GitHub Actions 使用 `TDLib Android Native`。手动运行工作流后，将 `tdlib-android-arm64` 产物解压到 `android/tdlib/`，保留 `jniLibs/` 与 `notices/` 目录。
 
 3. 回到 Flutter 所在环境打包、校验。若 `zipalign` 不在 PATH，传入 Android SDK Build Tools 中的完整路径。
 
    ```bash
-   flutter build apk --debug --flavor tdlibPreview --target-platform android-arm64 --dart-define-from-file=.env.local.json
-   python tool/check_android_16k.py build/app/outputs/flutter-apk/app-tdlibpreview-debug.apk --zipalign /path/to/zipalign
-   adb install -r build/app/outputs/flutter-apk/app-tdlibpreview-debug.apk
+   flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env.local.json
+   python tool/check_android_16k.py build/app/outputs/flutter-apk/app-release.apk --zipalign /path/to/zipalign
+   adb install -r build/app/outputs/flutter-apk/app-release.apk
    ```
-
-4. 在预览包中单独登录，验证登录、拉消息和媒体后再考虑稳定版迁移。预览包不能用来证明旧会话覆盖升级的数据兼容性。

@@ -15,8 +15,10 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.tgsorter"
+        // 沿用已验证的应用 ID，保留已登录设备的数据。
+        applicationId = "com.example.tgsorter.tdlibpreview"
+        ndk.abiFilters += "arm64-v8a"
+        resValue("string", "app_name", "TgSorter")
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -26,23 +28,10 @@ android {
     }
 
     buildFeatures.resValues = true
-    flavorDimensions += "tdlib"
-    productFlavors {
-        create("stable") {
-            dimension = "tdlib"
-            resValue("string", "app_name", "tgsorter")
-        }
-        create("tdlibPreview") {
-            dimension = "tdlib"
-            applicationIdSuffix = ".tdlibpreview"
-            ndk.abiFilters += "arm64-v8a"
-            resValue("string", "app_name", "TgSorter TDLib Preview")
-        }
+    sourceSets.getByName("main") {
+        jniLibs.directories.add(rootProject.file("tdlib/jniLibs").absolutePath)
+        assets.directories.add(rootProject.file("tdlib/notices").absolutePath)
     }
-
-    sourceSets.getByName("tdlibPreview").assets.directories.add(
-        rootProject.file("../build/tdlib-preview/notices").absolutePath,
-    )
 
     buildTypes {
         release {
@@ -52,6 +41,22 @@ android {
         }
     }
 }
+
+val checkTdlibAndroid = tasks.register("checkTdlibAndroid") {
+    doLast {
+        for (path in listOf(
+            "jniLibs/arm64-v8a/libtdjson.so",
+            "notices/TDLib-LICENSE.txt",
+            "notices/OpenSSL-LICENSE.txt",
+        )) {
+            val artifact = rootProject.file("tdlib/$path")
+            check(artifact.isFile && artifact.length() > 0) {
+                "缺少 Android TDLib 产物 $path，请参阅 docs/tdlib-android-params.md。"
+            }
+        }
+    }
+}
+tasks.named("preBuild") { dependsOn(checkTdlibAndroid) }
 
 kotlin {
     compilerOptions {

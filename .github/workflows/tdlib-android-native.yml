@@ -1,12 +1,6 @@
-name: TDLib Android Preview Native
+name: TDLib Android Native
 
 on:
-  push:
-    branches: [feat/tdlib-16k-preview]
-    paths:
-      - '.github/workflows/tdlib-preview-native.yml'
-      - 'tool/build_tdlib_preview.sh'
-      - 'tool/check_android_16k.py'
   workflow_dispatch:
 
 permissions:
@@ -36,9 +30,9 @@ jobs:
       - name: 编译并校验 arm64 原生库
         run: |
           export TDLIB_BUILD_JOBS=2
-          bash tool/build_tdlib_preview.sh
+          bash tool/build_tdlib_android.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: tdlib-preview-arm64
-          path: build/tdlib-preview/
+          name: tdlib-android-arm64
+          path: android/tdlib/
           if-no-files-found: error

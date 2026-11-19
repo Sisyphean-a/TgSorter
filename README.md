@@ -105,7 +105,7 @@ flutter run --dart-define-from-file=.env.local.json
 flutter build apk --release --dart-define-from-file=.env.local.json
 ```
 
-默认稳定版 APK 输出为 `build/app/outputs/flutter-apk/app-stable-release.apk`。新版 TDLib 的隔离测试包见 [16 KB 预览包](docs/tdlib-android-params.md#16-kb-预览包android-arm64)。当前 Release 使用调试签名，仅供自测。如果 Windows 在解析依赖后提示插件符号链接不可用，请在 Windows 设置启用开发人员模式。
+默认 APK 使用已验证的官方 TDLib，输出为 `build/app/outputs/flutter-apk/app-release.apk`。原生库构建和 16 KB 检查见 [Android TDLib 参数说明](docs/tdlib-android-params.md#16-kb-android-原生库arm64)。当前 Release 使用调试签名，仅供自测。如果 Windows 在解析依赖后提示插件符号链接不可用，请在 Windows 设置启用开发人员模式。
 
 若 Release 长时间停在 `minifyReleaseWithR8`，可在当前 PowerShell 窗口显式选择系统安装的 JDK 21，再执行打包命令（将示例路径替换为实际路径）：
 

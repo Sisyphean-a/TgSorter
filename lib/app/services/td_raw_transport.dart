@@ -6,7 +6,7 @@ import 'package:tdlib/td_client.dart';
 
 import 'td_json_ffi.dart';
 import 'td_json_logger.dart';
-import 'tdlib_preview_wire.dart';
+import 'tdlib_modern_wire.dart';
 
 typedef TdPluginProvider = TdPlugin Function();
 typedef TdNowMicros = int Function();
@@ -16,7 +16,7 @@ class TdRawTransport {
     TdPlugin? plugin,
     TdPluginProvider? pluginProvider,
     TdJsonClient Function()? nativeClientProvider,
-    bool usePreviewSchema = false,
+    bool useModernSchema = false,
     TdJsonLogger? logger,
     Duration pollInterval = _defaultPollInterval,
     TdNowMicros? nowMicros,
@@ -25,7 +25,7 @@ class TdRawTransport {
            (() => _LegacyJsonClient(
              pluginProvider?.call() ?? plugin ?? TdPlugin.instance,
            )),
-       _usePreviewSchema = usePreviewSchema,
+       _useModernSchema = useModernSchema,
        _logger = logger ?? TdJsonLogger(),
        _pollInterval = pollInterval,
        _nowMicros = nowMicros ?? _defaultNowMicros;
@@ -38,7 +38,7 @@ class TdRawTransport {
   static const int _minimalTdlibLogLevel = 0;
 
   final TdJsonClient Function() _clientProvider;
-  final bool _usePreviewSchema;
+  final bool _useModernSchema;
   final TdJsonLogger _logger;
   final Duration _pollInterval;
   final TdNowMicros _nowMicros;
@@ -137,7 +137,7 @@ class TdRawTransport {
 
   Map<String, dynamic> _buildPayload(TdFunction function, String? extra) {
     final payload = Map<String, dynamic>.from(function.toJson(extra));
-    return _usePreviewSchema ? adaptPreviewRequest(payload) : payload;
+    return _useModernSchema ? adaptModernRequest(payload) : payload;
   }
 
   String _nextExtra() {

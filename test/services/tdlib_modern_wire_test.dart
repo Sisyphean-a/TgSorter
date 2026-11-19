@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tdlib/td_api.dart';
-import 'package:tgsorter/app/services/tdlib_preview_wire.dart';
+import 'package:tgsorter/app/services/tdlib_modern_wire.dart';
 
 void main() {
   test('forwarding to the main chat leaves the modern topic unset', () {
@@ -11,7 +11,7 @@ void main() {
       'message_thread_id': 0,
       'message_ids': [50, 51],
     };
-    final outgoing = adaptPreviewRequest(existing);
+    final outgoing = adaptModernRequest(existing);
 
     expect(outgoing['topic_id'], isNull);
     expect(outgoing, isNot(contains('message_thread_id')));
@@ -20,12 +20,12 @@ void main() {
     expect(existing['message_thread_id'], 0);
   });
 
-  test('preview translates a removed legacy link preview request', () {
+  test('modern TDLib translates a removed legacy link preview request', () {
     final preview = GetWebPagePreview(
       text: const FormattedText(text: 'https://telegram.org', entities: []),
     );
     final original = Map<String, dynamic>.from(preview.toJson('request'));
-    final request = adaptPreviewRequest(original);
+    final request = adaptModernRequest(original);
     expect(request['@type'], 'getLinkPreview');
     expect(request['@extra'], 'request');
     expect(request['text']['text'], 'https://telegram.org');

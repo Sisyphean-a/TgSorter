@@ -1,8 +1,8 @@
-/// 预览库固定到官方 TDLib 源码提交；与 tool/build_tdlib_preview.sh 一致。
-const tdlibPreviewRevision = '03220f6b3043c6fd7785fbf0901d63f19ad19974';
+/// 官方 TDLib 源码提交；与 tool/build_tdlib_android.sh 一致。
+const tdlibModernRevision = '03220f6b3043c6fd7785fbf0901d63f19ad19974';
 
-/// 现有 Dart DTO 仍可供稳定版使用；只在预览版的 JSON 边界转换。
-Map<String, dynamic> adaptPreviewRequest(Map<String, dynamic> payload) {
+/// 现有 Dart DTO 仍可供业务层使用；只在 TDLib JSON 边界转换。
+Map<String, dynamic> adaptModernRequest(Map<String, dynamic> payload) {
   switch (payload['@type']) {
     case 'setTdlibParameters':
       return {...payload}
