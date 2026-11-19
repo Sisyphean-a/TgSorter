@@ -1,4 +1,10 @@
+import com.android.build.api.dsl.ApplicationExtension
+import com.android.build.api.variant.LibraryAndroidComponentsExtension
 import java.io.File
+
+plugins {
+    id("com.android.application") apply false
+}
 
 allprojects {
     repositories {
@@ -23,6 +29,13 @@ subprojects {
 
 subprojects {
     pluginManager.withPlugin("com.android.library") {
+        if (path == ":tdlib") {
+            val appCompileSdk = project(":app").extensions.getByType<ApplicationExtension>().compileSdk
+            // TDLib 插件固定使用 API 31；其 AndroidX 依赖要求更高的编译 SDK。
+            extensions.getByType<LibraryAndroidComponentsExtension>().finalizeDsl { library ->
+                library.compileSdk = appCompileSdk
+            }
+        }
         val androidExt = extensions.findByName("android") ?: return@withPlugin
         val getNamespace = androidExt.javaClass.methods.firstOrNull {
             it.name == "getNamespace" && it.parameterCount == 0

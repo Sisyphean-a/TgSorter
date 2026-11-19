@@ -262,7 +262,7 @@ class TdlibAdapter {
         systemLanguageCode: 'zh-hans',
         deviceModel: 'Flutter',
         systemVersion: 'unknown',
-        applicationVersion: '1.0.0',
+        applicationVersion: '1.1.0',
         enableStorageOptimizer: true,
         ignoreFileNames: false,
       ),
