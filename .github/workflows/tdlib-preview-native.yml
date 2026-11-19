@@ -21,11 +21,20 @@ jobs:
       - name: 安装原生构建工具
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build gperf
-          sdkmanager --install 'ndk;28.2.13676358'
+          sudo apt-get install -y --no-install-recommends ninja-build gperf unzip
+      - name: 准备 Linux NDK r28c
+        run: |
+          archive="$RUNNER_TEMP/android-ndk-r28c-linux.zip"
+          curl --fail --location --retry 3 \
+            https://dl.google.com/android/repository/android-ndk-r28c-linux.zip -o "$archive"
+          # 校验值来自 Google Android SDK 仓库的 r28c Linux 元数据。
+          printf '%s  %s\n' a7b54a5de87fecd125a17d54f73c446199e72a64 "$archive" | sha1sum -c -
+          unzip -q "$archive" -d "$RUNNER_TEMP"
+          rm "$archive"
+          test -x "$RUNNER_TEMP/android-ndk-r28c/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          echo "ANDROID_NDK_HOME=$RUNNER_TEMP/android-ndk-r28c" >> "$GITHUB_ENV"
       - name: 编译并校验 arm64 原生库
         run: |
-          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/28.2.13676358"
           export TDLIB_BUILD_JOBS=2
           bash tool/build_tdlib_preview.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
