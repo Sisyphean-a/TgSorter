@@ -23,10 +23,10 @@ Android 主包使用已验证的官方 TDLib，并沿用试用版的应用 ID `c
 
    没有 Linux 构建环境时，可在 GitHub Actions 使用 `TDLib Android Native`。手动运行工作流后，将 `tdlib-android-arm64` 产物解压到 `android/tdlib/`，保留 `jniLibs/` 与 `notices/` 目录。
 
-3. 回到 Flutter 所在环境打包、校验。若 `zipalign` 不在 PATH，传入 Android SDK Build Tools 中的完整路径。
+3. 回到 Flutter 所在环境，先按 [README](../README.md#启动方式) 从锁文件安装依赖，再打包和校验。若 `zipalign` 不在 PATH，传入 Android SDK Build Tools 中的完整路径。
 
    ```bash
-   flutter build apk --release --target-platform android-arm64 --dart-define-from-file=.env.local.json
+   flutter build apk --release --no-pub --target-platform android-arm64 --dart-define-from-file=.env.local.json
    python tool/check_android_16k.py build/app/outputs/flutter-apk/app-release.apk --zipalign /path/to/zipalign
    adb install -r build/app/outputs/flutter-apk/app-release.apk
    ```

@@ -89,20 +89,20 @@ docs/
 - `summary`：默认摘要模式，只打印事件类型和少量关键字段。
 - `verbose`：打印完整 TDLib request / response / update 原始 JSON，便于排查预览、生命周期和协议兼容问题。
 
-2. 安装依赖：
+2. 从锁文件安装依赖。若已配置 Pub 镜像，先将当前终端的 `PUB_HOSTED_URL` 设为 `https://pub.dev`，与锁文件一致（PowerShell 使用 `$env:PUB_HOSTED_URL = "https://pub.dev"`）。
 
 ```bash
-flutter pub get
+flutter pub get --enforce-lockfile
 ```
 
 3. Android：准备 JDK 17 或 21 和 Android SDK Platform 36（构建所需 NDK 等组件可由 Gradle 下载）。使用项目自带的 Gradle Wrapper，不需要另装 Gradle。首次构建会下载构建工具和依赖，不要跳过 Flutter 的版本检查。
 
 ```bash
 # 连手机运行 Debug 版
-flutter run --dart-define-from-file=.env.local.json
+flutter run --no-pub --dart-define-from-file=.env.local.json
 
 # 只打包，不需要接手机
-flutter build apk --release --dart-define-from-file=.env.local.json
+flutter build apk --release --no-pub --target-platform android-arm64 --dart-define-from-file=.env.local.json
 ```
 
 默认 APK 使用已验证的官方 TDLib，输出为 `build/app/outputs/flutter-apk/app-release.apk`。原生库构建和 16 KB 检查见 [Android TDLib 参数说明](docs/tdlib-android-params.md#16-kb-android-原生库arm64)。当前 Release 使用调试签名，仅供自测。如果 Windows 在解析依赖后提示插件符号链接不可用，请在 Windows 设置启用开发人员模式。
