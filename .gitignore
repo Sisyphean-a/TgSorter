@@ -43,9 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.kotlin/
 
 # Local secrets (never commit)
 .env.local.json
 
 # Local git worktrees
 .worktrees/
+
+.tmp

@@ -12,4 +12,5 @@ Flutter 应用通过 TDLib 操作 Telegram，不使用 Bot API。`lib/main.dart`
 - 预览和下载：`domain/message_preview_builder.dart`、`services/media_download_coordinator.dart`、`features/pipeline/application/`；不同媒体的准备与播放路径不可混同。
 - 设置：`features/settings/application/` 与 `services/settings_repository.dart`；身份认证由 `services/tdlib_adapter.dart` 及相关服务承接。连接使用宿主网络（包括系统 VPN），启动时禁用旧版本留在 TDLib 中的内置代理；链接预览兼容性只在实际需要预览时检查，不作为启动前提。
 - 原生边界：`android/`、`windows/`；TDLib 动态库定位见 `services/tdlib_library_locator.dart`，运行路径见 `services/tdlib_runtime_paths.dart`。
+- Android 构建使用 AGP 的内置 Kotlin 和新版 DSL；`android/build.gradle.kts` 只适配仍使用旧 Manifest 包名和过低编译 SDK 的 `:tdlib`。升级 TDLib 插件时先检查能否删除这段适配，不将其扩展为全局插件规则。
 - 回归测试按同名功能分布在 `test/features/`、`test/services/`，跨层流程见 `test/integration/`。

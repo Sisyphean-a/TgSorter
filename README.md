@@ -26,7 +26,7 @@ TgSorter 是一个基于 Flutter + TDLib 的 Telegram 消息分流工具。当�
 
 ## 技术栈
 
-- Flutter / Dart 3.11
+- Flutter 3.50+（使用其自带的 Dart SDK）
 - GetX
 - TDLib Dart 插件 `tdlib`
 - `shared_preferences`
@@ -95,10 +95,22 @@ docs/
 flutter pub get
 ```
 
-3. Android 运行：
+3. Android：准备 JDK 17 或 21 和 Android SDK Platform 36（构建所需 NDK 等组件可由 Gradle 下载）。使用项目自带的 Gradle Wrapper，不需要另装 Gradle。首次构建会下载构建工具和依赖，不要跳过 Flutter 的版本检查。
 
 ```bash
+# 连手机运行 Debug 版
 flutter run --dart-define-from-file=.env.local.json
+
+# 只打包，不需要接手机
+flutter build apk --release --dart-define-from-file=.env.local.json
+```
+
+APK 输出为 `build/app/outputs/flutter-apk/app-release.apk`。当前 Release 使用调试签名，仅供自测。如果 Windows 在解析依赖后提示插件符号链接不可用，请在 Windows 设置启用开发人员模式。
+
+若 Release 长时间停在 `minifyReleaseWithR8`，可在当前 PowerShell 窗口显式选择系统安装的 JDK 21，再执行打包命令（将示例路径替换为实际路径）：
+
+```powershell
+$env:GRADLE_OPTS += ' -Dorg.gradle.java.home="C:/path/to/jdk-21"'
 ```
 
 4. Windows 运行前需要额外准备 TDLib 动态库：

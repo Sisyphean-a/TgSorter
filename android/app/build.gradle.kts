@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // Flutter 插件须在 Android 插件之后加载。
     id("dev.flutter.flutter-gradle-plugin")
 }
 

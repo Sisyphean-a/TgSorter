@@ -1,6 +1,5 @@
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.variant.LibraryAndroidComponentsExtension
-import java.io.File
 
 plugins {
     id("com.android.application") apply false
@@ -27,37 +26,14 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-subprojects {
+project(":tdlib") {
     pluginManager.withPlugin("com.android.library") {
-        if (path == ":tdlib") {
-            val appCompileSdk = project(":app").extensions.getByType<ApplicationExtension>().compileSdk
-            // TDLib 插件固定使用 API 31；其 AndroidX 依赖要求更高的编译 SDK。
-            extensions.getByType<LibraryAndroidComponentsExtension>().finalizeDsl { library ->
-                library.compileSdk = appCompileSdk
-            }
+        val appCompileSdk = project(":app").extensions.getByType<ApplicationExtension>().compileSdk
+        // tdlib 1.6.0 仅在 Manifest 声明包名，且旧 compileSdk 低于其 AndroidX 依赖要求。
+        extensions.getByType<LibraryAndroidComponentsExtension>().finalizeDsl {
+            it.namespace = it.namespace ?: "org.naji.td.tdlib"
+            it.compileSdk = appCompileSdk
         }
-        val androidExt = extensions.findByName("android") ?: return@withPlugin
-        val getNamespace = androidExt.javaClass.methods.firstOrNull {
-            it.name == "getNamespace" && it.parameterCount == 0
-        } ?: return@withPlugin
-        val setNamespace = androidExt.javaClass.methods.firstOrNull {
-            it.name == "setNamespace" && it.parameterCount == 1
-        } ?: return@withPlugin
-
-        val namespace = getNamespace.invoke(androidExt) as? String
-        if (!namespace.isNullOrBlank()) {
-            return@withPlugin
-        }
-
-        val manifestFile = File(project.projectDir, "src/main/AndroidManifest.xml")
-        if (!manifestFile.exists()) {
-            return@withPlugin
-        }
-        val match = Regex("""package\s*=\s*"([^"]+)"""")
-            .find(manifestFile.readText())
-            ?: return@withPlugin
-        val manifestPackage = match.groupValues[1]
-        setNamespace.invoke(androidExt, manifestPackage)
     }
 }
 
