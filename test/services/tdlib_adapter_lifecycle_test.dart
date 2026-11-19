@@ -2,12 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tdlib/td_api.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
-import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 
 void main() {
   group('TdlibAdapter lifecycle', () {
@@ -126,74 +124,72 @@ void main() {
       );
     });
 
-    test('start failure disposes transport so retry can recreate tdlib client', () async {
-      final transport = _LifecycleFakeTransport(
-        responses: <String, List<TdObject>>{
-          'getAuthorizationState': <TdObject>[
-            const AuthorizationStateWaitTdlibParameters(),
-          ],
-          'setTdlibParameters': <TdObject>[
-            const TdError(
-              code: 400,
-              message: 'Can\'t lock file "db/td.binlog"',
-            ),
-          ],
-        },
-      );
-      final adapter = _buildAdapter(transport);
+    test(
+      'start failure disposes transport so retry can recreate tdlib client',
+      () async {
+        final transport = _LifecycleFakeTransport(
+          responses: <String, List<TdObject>>{
+            'getAuthorizationState': <TdObject>[
+              const AuthorizationStateWaitTdlibParameters(),
+            ],
+            'setTdlibParameters': <TdObject>[
+              const TdError(
+                code: 400,
+                message: 'Can\'t lock file "db/td.binlog"',
+              ),
+            ],
+          },
+        );
+        final adapter = _buildAdapter(transport);
 
-      await expectLater(adapter.start(), throwsA(isA<Exception>()));
+        await expectLater(adapter.start(), throwsA(isA<Exception>()));
 
-      expect(adapter.isRunning, isFalse);
-      expect(adapter.lifecycleState, TdlibLifecycleState.failed);
-      expect(transport.stopCount, 1);
-    });
+        expect(adapter.isRunning, isFalse);
+        expect(adapter.lifecycleState, TdlibLifecycleState.failed);
+        expect(transport.stopCount, 1);
+      },
+    );
 
-    test('restart from failed startup starts fresh without second close', () async {
-      final transport = _LifecycleFakeTransport(
-        responses: <String, List<TdObject>>{
-          'getAuthorizationState': <TdObject>[
-            const AuthorizationStateWaitTdlibParameters(),
-            const AuthorizationStateReady(),
-          ],
-          'setTdlibParameters': <TdObject>[
-            const TdError(code: 400, message: 'db lock'),
-          ],
-          'disableProxy': <TdObject>[const Ok()],
-        },
-      );
-      final adapter = _buildAdapter(transport);
+    test(
+      'restart from failed startup starts fresh without second close',
+      () async {
+        final transport = _LifecycleFakeTransport(
+          responses: <String, List<TdObject>>{
+            'getAuthorizationState': <TdObject>[
+              const AuthorizationStateWaitTdlibParameters(),
+              const AuthorizationStateReady(),
+            ],
+            'setTdlibParameters': <TdObject>[
+              const TdError(code: 400, message: 'db lock'),
+            ],
+            'disableProxy': <TdObject>[const Ok()],
+          },
+        );
+        final adapter = _buildAdapter(transport);
 
-      await expectLater(adapter.start(), throwsA(isA<Exception>()));
-      await adapter.restart();
+        await expectLater(adapter.start(), throwsA(isA<Exception>()));
+        await adapter.restart();
 
-      expect(adapter.lifecycleState, TdlibLifecycleState.running);
-      expect(transport.requestConstructors.where((item) => item == 'close'), isEmpty);
-      expect(transport.startCount, 2);
-    });
+        expect(adapter.lifecycleState, TdlibLifecycleState.running);
+        expect(
+          transport.requestConstructors.where((item) => item == 'close'),
+          isEmpty,
+        );
+        expect(transport.startCount, 2);
+      },
+    );
   });
 }
 
 TdlibAdapter _buildAdapter(_LifecycleFakeTransport transport) {
   return TdlibAdapter(
     transport: transport,
-    credentials: const TdlibCredentials(
-      apiId: 1,
-      apiHash: 'hash',
-      proxyServer: null,
-      proxyPort: null,
-      proxyUsername: '',
-      proxyPassword: '',
-    ),
+    credentials: const TdlibCredentials(apiId: 1, apiHash: 'hash'),
     runtimePaths: const TdlibRuntimePaths(
       libraryPath: 'tdjson.dll',
       databaseDirectory: 'db',
       filesDirectory: 'files',
     ),
-    readProxySettings: () =>
-        const ProxySettings(server: '', port: null, username: '', password: ''),
-    detectCapabilities: () async =>
-        const TdlibSchemaCapabilities(addProxyMode: TdlibAddProxyMode.flatArgs),
     initializeTdlib: (_) async {},
   );
 }

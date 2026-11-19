@@ -6,7 +6,6 @@ import 'package:tgsorter/app/theme/app_tokens.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_error_panel.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/app_shell.dart';
 
-part 'auth_proxy_config_card.dart';
 part 'auth_stage_card.dart';
 
 class AuthPage extends StatefulWidget {
@@ -26,22 +25,13 @@ class _AuthPageState extends State<AuthPage> {
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _codeCtrl;
   late final TextEditingController _passwordCtrl;
-  late final TextEditingController _proxyServerCtrl;
-  late final TextEditingController _proxyPortCtrl;
-  late final TextEditingController _proxyUsernameCtrl;
-  late final TextEditingController _proxyPasswordCtrl;
 
   @override
   void initState() {
     super.initState();
-    final proxy = _auth.currentProxySettings;
     _phoneCtrl = TextEditingController();
     _codeCtrl = TextEditingController();
     _passwordCtrl = TextEditingController();
-    _proxyServerCtrl = TextEditingController(text: proxy.server);
-    _proxyPortCtrl = TextEditingController(text: proxy.port?.toString() ?? '');
-    _proxyUsernameCtrl = TextEditingController(text: proxy.username);
-    _proxyPasswordCtrl = TextEditingController(text: proxy.password);
   }
 
   @override
@@ -49,10 +39,6 @@ class _AuthPageState extends State<AuthPage> {
     _phoneCtrl.dispose();
     _codeCtrl.dispose();
     _passwordCtrl.dispose();
-    _proxyServerCtrl.dispose();
-    _proxyPortCtrl.dispose();
-    _proxyUsernameCtrl.dispose();
-    _proxyPasswordCtrl.dispose();
     super.dispose();
   }
 
@@ -61,67 +47,44 @@ class _AuthPageState extends State<AuthPage> {
     return Obx(() {
       final stage = _auth.stage.value;
       final isLoading = _auth.loading.value;
+      final canRetry =
+          stage == AuthStage.loading && _auth.startupError.value != null;
       return AppShell(
         appBar: const _AuthCompactAppBar(),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 980;
-            final content = [
-              AnimatedSwitcher(
-                duration: AppTokens.medium,
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                child: _AuthStageCard(
-                  key: ValueKey(stage),
-                  stage: stage,
-                  isLoading: isLoading,
-                  phoneCtrl: _phoneCtrl,
-                  codeCtrl: _codeCtrl,
-                  passwordCtrl: _passwordCtrl,
-                  auth: _auth,
-                ),
-              ),
-              _ProxyConfigCard(
-                serverCtrl: _proxyServerCtrl,
-                portCtrl: _proxyPortCtrl,
-                usernameCtrl: _proxyUsernameCtrl,
-                passwordCtrl: _proxyPasswordCtrl,
-                loading: isLoading,
-                onSaveAndRetry: () => _auth.saveProxyAndRetry(
-                  server: _proxyServerCtrl.text,
-                  port: _proxyPortCtrl.text,
-                  username: _proxyUsernameCtrl.text,
-                  password: _proxyPasswordCtrl.text,
-                ),
-              ),
-            ];
-            final pagePadding = wide ? AppTokens.spaceLg : AppTokens.spaceSm;
-            final sectionGap = wide ? AppTokens.spaceMd : AppTokens.spaceSm;
-            return ListView(
-              padding: EdgeInsets.all(pagePadding),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: ListView(
+              padding: const EdgeInsets.all(AppTokens.spaceSm),
               children: [
                 AppErrorPanel(controller: _errors),
-                if (wide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: content.first),
-                      const SizedBox(width: AppTokens.spaceMd),
-                      Expanded(child: content.last),
-                    ],
-                  )
-                else
-                  ..._stackedSections(content, sectionGap),
+                AnimatedSwitcher(
+                  duration: AppTokens.medium,
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: _AuthStageCard(
+                    key: ValueKey(stage),
+                    stage: stage,
+                    isLoading: isLoading,
+                    phoneCtrl: _phoneCtrl,
+                    codeCtrl: _codeCtrl,
+                    passwordCtrl: _passwordCtrl,
+                    auth: _auth,
+                  ),
+                ),
+                if (canRetry) ...[
+                  const SizedBox(height: AppTokens.spaceSm),
+                  OutlinedButton(
+                    onPressed: isLoading ? null : _auth.retryStartup,
+                    child: const Text('重试连接'),
+                  ),
+                ],
               ],
-            );
-          },
+            ),
+          ),
         ),
       );
     });
-  }
-
-  List<Widget> _stackedSections(List<Widget> content, double sectionGap) {
-    return [content.first, SizedBox(height: sectionGap), content.last];
   }
 }
 

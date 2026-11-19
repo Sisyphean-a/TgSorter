@@ -96,16 +96,4 @@ class SettingsInputValidator {
     }
     return value;
   }
-
-  int? parsePort(String raw) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) {
-      return null;
-    }
-    final value = int.tryParse(trimmed);
-    if (value == null || value <= 0) {
-      throw ArgumentError.value(raw, 'port', '代理端口必须是大于 0 的整数');
-    }
-    return value;
-  }
 }

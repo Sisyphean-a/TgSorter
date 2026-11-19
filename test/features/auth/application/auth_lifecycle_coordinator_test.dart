@@ -44,7 +44,7 @@ void main() {
     expect(event, isNotNull);
     expect(event!.scope, AppErrorScope.auth);
     expect(event.title, '启动失败');
-    expect(event.message, '鉴权失败：PHONE_CODE_INVALID');
+    expect(event.message, '验证码不正确，请核对 Telegram 发来的最新验证码。');
   });
 
   test(

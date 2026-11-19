@@ -3,7 +3,6 @@ import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
 
@@ -43,10 +42,6 @@ class SettingsRepository {
   static const _shortcutCtrlPrefix = 'ctrl+';
   static const _defaultBatchSize = 5;
   static const _defaultThrottleMs = 1200;
-  static const _proxyServerKey = 'tdlib_proxy_server';
-  static const _proxyPortKey = 'tdlib_proxy_port';
-  static const _proxyUsernameKey = 'tdlib_proxy_username';
-  static const _proxyPasswordKey = 'tdlib_proxy_password';
 
   AppSettings load() {
     var settings = AppSettings.defaults();
@@ -64,12 +59,9 @@ class SettingsRepository {
       _prefs.getBool(_forwardAsCopyKey) ?? false,
     );
     settings = settings.updateDownloadSettings(
-      workbenchEnabled:
-          _prefs.getBool(_downloadWorkbenchEnabledKey) ?? false,
-      skipExistingFiles:
-          _prefs.getBool(_downloadSkipExistingFilesKey) ?? true,
-      syncDeletedFiles:
-          _prefs.getBool(_downloadSyncDeletedFilesKey) ?? false,
+      workbenchEnabled: _prefs.getBool(_downloadWorkbenchEnabledKey) ?? false,
+      skipExistingFiles: _prefs.getBool(_downloadSkipExistingFilesKey) ?? true,
+      syncDeletedFiles: _prefs.getBool(_downloadSyncDeletedFilesKey) ?? false,
       conflictStrategy: _parseDownloadConflictStrategy(
         _prefs.getString(_downloadConflictStrategyKey),
       ),
@@ -110,7 +102,6 @@ class SettingsRepository {
           _prefs.getInt(_mediaRetryDelayMsKey) ??
           AppSettings.defaultMediaRetryDelayMs,
     );
-    settings = settings.updateProxySettings(_loadProxySettings());
     for (final action in ShortcutAction.values) {
       final raw = _prefs.getString('$_shortcutPrefix${action.name}');
       final parsed = _parseShortcutBinding(action, raw);
@@ -196,7 +187,6 @@ class SettingsRepository {
     );
     await _prefs.setInt(_mediaRetryLimitKey, settings.mediaRetryLimit);
     await _prefs.setInt(_mediaRetryDelayMsKey, settings.mediaRetryDelayMs);
-    await _saveProxySettings(settings.proxy);
     await _saveCategories(settings.categories);
     await _saveTagGroups(settings.tagGroups);
   }
@@ -255,31 +245,6 @@ class SettingsRepository {
       }
     }
     return TagGroupConfig.emptyDefault;
-  }
-
-  ProxySettings _loadProxySettings() {
-    return ProxySettings(
-      server: _prefs.getString(_proxyServerKey) ?? '',
-      port: _prefs.getInt(_proxyPortKey),
-      username: _prefs.getString(_proxyUsernameKey) ?? '',
-      password: _prefs.getString(_proxyPasswordKey) ?? '',
-    ).sanitize();
-  }
-
-  Future<void> _saveProxySettings(ProxySettings proxy) async {
-    final sanitized = proxy.sanitize();
-    if (sanitized.server.isEmpty) {
-      await _prefs.remove(_proxyServerKey);
-    } else {
-      await _prefs.setString(_proxyServerKey, sanitized.server);
-    }
-    if (sanitized.port == null) {
-      await _prefs.remove(_proxyPortKey);
-    } else {
-      await _prefs.setInt(_proxyPortKey, sanitized.port!);
-    }
-    await _prefs.setString(_proxyUsernameKey, sanitized.username);
-    await _prefs.setString(_proxyPasswordKey, sanitized.password);
   }
 
   MessageFetchDirection _parseFetchDirection(String? raw) {

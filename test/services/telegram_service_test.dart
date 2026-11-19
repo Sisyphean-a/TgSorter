@@ -12,7 +12,6 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_message_send_result.dart';
@@ -21,7 +20,6 @@ import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
-import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 import 'package:tgsorter/app/services/telegram_media_service.dart';
 import 'package:tgsorter/app/services/telegram_message_reader.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
@@ -1211,27 +1209,11 @@ class _FakeTdlibAdapter extends TdlibAdapter {
   _FakeTdlibAdapter({required this.wireResponses})
     : super(
         transport: _NoopTransport(),
-        credentials: const TdlibCredentials(
-          apiId: 1,
-          apiHash: 'hash',
-          proxyServer: null,
-          proxyPort: null,
-          proxyUsername: '',
-          proxyPassword: '',
-        ),
-        readProxySettings: () => const ProxySettings(
-          server: '',
-          port: null,
-          username: '',
-          password: '',
-        ),
+        credentials: const TdlibCredentials(apiId: 1, apiHash: 'hash'),
         runtimePaths: const TdlibRuntimePaths(
           libraryPath: 'tdjson.dll',
           databaseDirectory: 'db',
           filesDirectory: 'files',
-        ),
-        detectCapabilities: () async => const TdlibSchemaCapabilities(
-          addProxyMode: TdlibAddProxyMode.flatArgs,
         ),
         initializeTdlib: (_) async {},
       );

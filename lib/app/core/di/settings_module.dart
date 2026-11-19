@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
-import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_registry.dart';
@@ -17,6 +16,5 @@ void registerSettingsModule() {
     skippedRestoreRegistry: Get.find<SkippedMessageRestoreRegistry>(),
   );
   Get.put(coordinator, permanent: true);
-  Get.put<AuthSettingsPort>(coordinator, permanent: true);
   Get.put<PipelineSettingsReader>(coordinator, permanent: true);
 }

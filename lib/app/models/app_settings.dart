@@ -1,5 +1,4 @@
 import 'package:tgsorter/app/features/settings/domain/common_settings.dart';
-import 'package:tgsorter/app/features/settings/domain/connection_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/forwarding_settings.dart';
 import 'package:tgsorter/app/features/settings/domain/shortcut_settings.dart';
@@ -8,7 +7,6 @@ import 'package:tgsorter/app/features/settings/domain/workflow_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/default_workbench.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
 export 'package:tgsorter/app/models/default_workbench.dart'
@@ -29,7 +27,6 @@ class AppSettings {
     required this.forwardAsCopy,
     required this.batchSize,
     required this.throttleMs,
-    required this.proxy,
     this.downloadWorkbenchEnabled = false,
     this.downloadSkipExistingFiles = true,
     this.downloadSyncDeletedFiles = false,
@@ -54,7 +51,6 @@ class AppSettings {
   final bool forwardAsCopy;
   final int batchSize;
   final int throttleMs;
-  final ProxySettings proxy;
   final bool downloadWorkbenchEnabled;
   final bool downloadSkipExistingFiles;
   final bool downloadSyncDeletedFiles;
@@ -83,8 +79,6 @@ class AppSettings {
     previewPrefetchCount: previewPrefetchCount,
     categories: categories,
   );
-
-  ConnectionSettings get connection => ConnectionSettings(proxy: proxy);
 
   ShortcutSettings get shortcuts =>
       ShortcutSettings(bindings: shortcutBindings);
@@ -125,7 +119,6 @@ class AppSettings {
       forwardAsCopy: false,
       batchSize: 5,
       throttleMs: 1200,
-      proxy: ProxySettings.empty,
       downloadWorkbenchEnabled: false,
       downloadSkipExistingFiles: true,
       downloadSyncDeletedFiles: false,
@@ -181,7 +174,6 @@ class AppSettings {
     bool? forwardAsCopy,
     int? batchSize,
     int? throttleMs,
-    ProxySettings? proxy,
     bool? downloadWorkbenchEnabled,
     bool? downloadSkipExistingFiles,
     bool? downloadSyncDeletedFiles,
@@ -208,7 +200,6 @@ class AppSettings {
       forwardAsCopy: forwardAsCopy ?? this.forwardAsCopy,
       batchSize: batchSize ?? this.batchSize,
       throttleMs: throttleMs ?? this.throttleMs,
-      proxy: proxy ?? this.proxy,
       downloadWorkbenchEnabled:
           downloadWorkbenchEnabled ?? this.downloadWorkbenchEnabled,
       downloadSkipExistingFiles:
@@ -308,10 +299,6 @@ class AppSettings {
     return copyWith(defaultWorkbench: value);
   }
 
-  AppSettings updateProxySettings(ProxySettings nextProxy) {
-    return copyWith(proxy: nextProxy.sanitize());
-  }
-
   AppSettings updateShortcutBinding(
     ShortcutAction action,
     ShortcutBinding binding,
@@ -335,7 +322,6 @@ class AppSettings {
             forwardAsCopy == other.forwardAsCopy &&
             batchSize == other.batchSize &&
             throttleMs == other.throttleMs &&
-            proxy == other.proxy &&
             downloadWorkbenchEnabled == other.downloadWorkbenchEnabled &&
             downloadSkipExistingFiles == other.downloadSkipExistingFiles &&
             downloadSyncDeletedFiles == other.downloadSyncDeletedFiles &&
@@ -363,7 +349,6 @@ class AppSettings {
       forwardAsCopy,
       batchSize,
       throttleMs,
-      proxy,
       downloadWorkbenchEnabled,
       downloadSkipExistingFiles,
       downloadSyncDeletedFiles,

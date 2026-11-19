@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tdlib/td_api.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_json_logger.dart';
 import 'package:tgsorter/app/services/td_raw_transport.dart';
@@ -10,103 +9,9 @@ import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
-import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 
 void main() {
   group('TdlibAdapter', () {
-    test('getProxies returns local proxy dto', () async {
-      final transport = _InspectableFakeTransport(
-        responses: <String, List<TdObject>>{
-          'getProxies': <TdObject>[
-            Proxies(
-              proxies: [
-                Proxy(
-                  id: 1,
-                  server: '127.0.0.1',
-                  port: 1080,
-                  lastUsedDate: 0,
-                  isEnabled: true,
-                  type: const ProxyTypeSocks5(username: '', password: ''),
-                ),
-              ],
-            ),
-          ],
-        },
-      );
-      final adapter = _buildAdapter(
-        transport,
-        capabilities: const TdlibSchemaCapabilities(
-          addProxyMode: TdlibAddProxyMode.flatArgs,
-        ),
-      );
-
-      final proxies = await adapter.getProxies();
-
-      expect(proxies.proxies.single.server, '127.0.0.1');
-    });
-
-    test('addProxy uses nested proxy request for legacy schema', () async {
-      final transport = _InspectableFakeTransport(
-        responses: <String, List<TdObject>>{
-          'getProxies': <TdObject>[
-            Proxies(
-              proxies: [
-                Proxy(
-                  id: 1,
-                  server: '10.0.0.1',
-                  port: 1080,
-                  lastUsedDate: 0,
-                  isEnabled: true,
-                  type: const ProxyTypeSocks5(username: '', password: ''),
-                ),
-              ],
-            ),
-          ],
-        },
-      );
-      final adapter = _buildAdapter(
-        transport,
-        capabilities: const TdlibSchemaCapabilities(
-          addProxyMode: TdlibAddProxyMode.nestedProxyObject,
-        ),
-      );
-
-      await adapter.addProxy();
-
-      expect(transport.sentWithoutResponse.single.getConstructor(), 'addProxy');
-      expect(
-        transport.sentWithoutResponse.single.toJson()['proxy']['server'],
-        '10.0.0.1',
-      );
-    });
-
-    test('addProxy accepts proxy response for flat schema', () async {
-      final transport = _InspectableFakeTransport(
-        responses: <String, List<TdObject>>{
-          'addProxy': <TdObject>[
-            Proxy(
-              id: 1,
-              server: '10.0.0.1',
-              port: 1080,
-              lastUsedDate: 0,
-              isEnabled: true,
-              type: const ProxyTypeSocks5(username: '', password: ''),
-            ),
-          ],
-        },
-      );
-      final adapter = _buildAdapter(
-        transport,
-        capabilities: const TdlibSchemaCapabilities(
-          addProxyMode: TdlibAddProxyMode.flatArgs,
-        ),
-      );
-
-      await adapter.addProxy();
-
-      expect(transport.sentWithoutResponse, isEmpty);
-    });
-
     test('submitPhoneNumber wraps td errors as TdlibFailure', () async {
       final transport = _InspectableFakeTransport(
         responses: <String, List<TdObject>>{
@@ -115,12 +20,7 @@ void main() {
           ],
         },
       );
-      final adapter = _buildAdapter(
-        transport,
-        capabilities: const TdlibSchemaCapabilities(
-          addProxyMode: TdlibAddProxyMode.flatArgs,
-        ),
-      );
+      final adapter = _buildAdapter(transport);
 
       expect(
         adapter.submitPhoneNumber('+8613800000000'),
@@ -151,27 +51,11 @@ void main() {
         final adapter = TdlibAdapter(
           transport: transport,
           rawTransport: rawTransport,
-          credentials: const TdlibCredentials(
-            apiId: 1,
-            apiHash: 'hash',
-            proxyServer: null,
-            proxyPort: null,
-            proxyUsername: '',
-            proxyPassword: '',
-          ),
+          credentials: const TdlibCredentials(apiId: 1, apiHash: 'hash'),
           runtimePaths: const TdlibRuntimePaths(
             libraryPath: 'tdjson.dll',
             databaseDirectory: 'db',
             filesDirectory: 'files',
-          ),
-          readProxySettings: () => const ProxySettings(
-            server: '',
-            port: null,
-            username: '',
-            password: '',
-          ),
-          detectCapabilities: () async => const TdlibSchemaCapabilities(
-            addProxyMode: TdlibAddProxyMode.flatArgs,
           ),
           initializeTdlib: (_) async {},
         );
@@ -225,27 +109,11 @@ void main() {
         final adapter = TdlibAdapter(
           transport: transport,
           rawTransport: rawTransport,
-          credentials: const TdlibCredentials(
-            apiId: 1,
-            apiHash: 'hash',
-            proxyServer: null,
-            proxyPort: null,
-            proxyUsername: '',
-            proxyPassword: '',
-          ),
+          credentials: const TdlibCredentials(apiId: 1, apiHash: 'hash'),
           runtimePaths: const TdlibRuntimePaths(
             libraryPath: 'tdjson.dll',
             databaseDirectory: 'db',
             filesDirectory: 'files',
-          ),
-          readProxySettings: () => const ProxySettings(
-            server: '',
-            port: null,
-            username: '',
-            password: '',
-          ),
-          detectCapabilities: () async => const TdlibSchemaCapabilities(
-            addProxyMode: TdlibAddProxyMode.flatArgs,
           ),
           initializeTdlib: (_) async {},
         );
@@ -261,33 +129,16 @@ void main() {
   });
 }
 
-TdlibAdapter _buildAdapter(
-  _InspectableFakeTransport transport, {
-  required TdlibSchemaCapabilities capabilities,
-}) {
+TdlibAdapter _buildAdapter(_InspectableFakeTransport transport) {
   return TdlibAdapter(
     transport: transport,
     rawTransport: null,
-    credentials: const TdlibCredentials(
-      apiId: 1,
-      apiHash: 'hash',
-      proxyServer: '10.0.0.1',
-      proxyPort: 1080,
-      proxyUsername: '',
-      proxyPassword: '',
-    ),
+    credentials: const TdlibCredentials(apiId: 1, apiHash: 'hash'),
     runtimePaths: const TdlibRuntimePaths(
       libraryPath: 'tdjson.dll',
       databaseDirectory: 'db',
       filesDirectory: 'files',
     ),
-    readProxySettings: () => const ProxySettings(
-      server: '10.0.0.1',
-      port: 1080,
-      username: '',
-      password: '',
-    ),
-    detectCapabilities: () async => capabilities,
     initializeTdlib: (_) async {},
   );
 }

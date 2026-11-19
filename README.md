@@ -121,7 +121,7 @@ $env:TDLIB_DLL_PATH="D:\\path\\to\\tdjson.dll"
 - 全局界面统一复用 `AppTheme`、`AppShell` 和状态徽章组件；登录页继续使用 `BrandAppBar`，流水线与设置页使用各自的紧凑 app bar。
 - 桌面端流水线采用“左侧消息工作区 + 右侧操作面板”的双栏结构。
 - 移动端流水线将主分类按钮固定在底部操作托盘，辅助动作降级到次级区。
-- 设置页按“基础流程 / 分类管理 / 连接设置 / 操作与工具”分组，分类、代理、快捷键都先写入草稿，再统一保存。
+- 分类等可编辑设置先写入草稿，再统一保存。TgSorter 不提供内置代理；手机端如需 VPN，请在系统 VPN 的分应用规则中纳入 TgSorter。
 - 分类操作通过 `forwardMessages -> deleteMessages` 完成，失败时写入日志与重试队列。
 - 删除使用原有 `deleteMessages(revoke: true)` 路径。
 - 所有 TDLib 业务请求都经由 `TelegramService`，TDLib 生命周期由 `TdlibAdapter` 管理。

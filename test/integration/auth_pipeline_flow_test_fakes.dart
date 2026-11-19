@@ -37,14 +37,6 @@ class _IntegrationSettingsGateway implements SessionQueryGateway {
   Future<List<SelectableChat>> listSelectableChats() async => const [];
 }
 
-class _NoopAuthNavigationPort implements AuthNavigationPort {
-  @override
-  void goToApp() {}
-
-  @override
-  void goToAuth() {}
-}
-
 class _IntegrationPipelineGateway
     implements
         ConnectionStateGateway,

@@ -12,7 +12,6 @@ import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
-import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
@@ -63,31 +62,30 @@ void main() {
     expect(find.text('先输入带国家码的手机号，验证码会发送到 Telegram 官方客户端。'), findsNothing);
   });
 
-  testWidgets('mobile auth page has compact title and folded proxy settings', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final gateway = _FakeAuthGateway();
-    await _pumpAuthPage(tester, gateway: gateway, theme: AppTheme.light());
+  testWidgets(
+    'mobile auth page has compact title and no internal proxy settings',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final gateway = _FakeAuthGateway();
+      await _pumpAuthPage(tester, gateway: gateway, theme: AppTheme.light());
 
-    gateway.emitState(
-      const TdAuthState(
-        kind: TdAuthStateKind.waitPhoneNumber,
-        rawType: 'authorizationStateWaitPhoneNumber',
-      ),
-    );
-    await tester.pump();
+      gateway.emitState(
+        const TdAuthState(
+          kind: TdAuthStateKind.waitPhoneNumber,
+          rawType: 'authorizationStateWaitPhoneNumber',
+        ),
+      );
+      await tester.pump();
 
-    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-    final phoneY = tester.getTopLeft(find.text('手机号（含国家码）')).dy;
-    final proxyY = tester.getTopLeft(find.text('代理配置')).dy;
+      final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
 
-    expect(scaffold.appBar?.preferredSize.height, 72);
-    expect(phoneY, lessThan(proxyY));
-    expect(find.text('代理服务器'), findsNothing);
-    expect(find.text('代理端口'), findsNothing);
-  });
+      expect(scaffold.appBar?.preferredSize.height, 72);
+      expect(find.text('代理配置'), findsNothing);
+      expect(find.text('代理服务器'), findsNothing);
+      expect(find.text('代理端口'), findsNothing);
+    },
+  );
 
   testWidgets('auth page animates between auth stages', (tester) async {
     final gateway = _FakeAuthGateway();
@@ -118,19 +116,11 @@ void main() {
   });
 
   test('auth DI module resolves by capability ports only', () async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
     final authGateway = _FakeAuthGateway();
     final errors = AppErrorController();
-    final settings = SettingsCoordinator(
-      SettingsRepository(prefs),
-      authGateway,
-      auth: authGateway,
-    );
 
     Get.put<AuthGateway>(authGateway);
     Get.put<AppErrorController>(errors);
-    Get.put<AuthSettingsPort>(settings);
 
     expect(registerAuthModule, returnsNormally);
     final coordinator = Get.find<AuthCoordinator>();
@@ -156,7 +146,6 @@ Future<void> _pumpAuthPage(
   final auth = AuthCoordinator(
     service,
     errors,
-    settings,
     lifecycle: AuthLifecycleCoordinator(
       auth: service,
       errors: errors,

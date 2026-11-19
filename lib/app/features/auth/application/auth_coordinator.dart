@@ -3,8 +3,6 @@ import 'package:get/get.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
-import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 
 export 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart'
     show AuthStage;
@@ -12,21 +10,18 @@ export 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinato
 class AuthCoordinator extends GetxController {
   AuthCoordinator(
     this._service,
-    this._errors,
-    this._settings, {
+    this._errors, {
     required AuthLifecycleCoordinator lifecycle,
   }) : _lifecycle = lifecycle;
 
   final AuthGateway _service;
   final AppErrorController _errors;
-  final AuthSettingsPort _settings;
   final AuthLifecycleCoordinator _lifecycle;
   final stage = AuthStage.loading.obs;
   final loading = false.obs;
 
   RxnString get startupError => _errors.currentError;
   RxList<String> get errorHistory => _errors.errorHistory;
-  ProxySettings get currentProxySettings => _settings.currentProxySettings;
   AuthGateway get auth => _service;
   AppErrorController get errors => _errors;
 
@@ -56,26 +51,17 @@ class AuthCoordinator extends GetxController {
 
   Future<void> submitPassword(String password) async {
     await _runAction(
-      action: () => _service.submitPassword(password.trim()),
+      action: () => _service.submitPassword(password),
       errorTitle: '提交密码失败',
     );
   }
 
-  Future<void> saveProxyAndRetry({
-    required String server,
-    required String port,
-    required String username,
-    required String password,
-  }) async {
+  Future<void> retryStartup() async {
+    if (loading.value) return;
     final previousStage = stage.value;
     stage.value = AuthStage.loading;
     await _runAction(
-      action: () => _saveProxyAndRestart(
-        server: server,
-        port: port,
-        username: username,
-        password: password,
-      ),
+      action: _service.restart,
       errorTitle: '启动失败',
       onError: () {
         if (stage.value == AuthStage.loading) {
@@ -89,23 +75,6 @@ class AuthCoordinator extends GetxController {
     _errors.clear();
   }
 
-  Future<void> _saveProxyAndRestart({
-    required String server,
-    required String port,
-    required String username,
-    required String password,
-  }) async {
-    await _settings.saveProxySettings(
-      server: server,
-      port: port,
-      username: username,
-      password: password,
-    );
-    _errors.clear();
-    await _service.restart();
-    _errors.clearCurrent();
-  }
-
   Future<void> _runAction({
     required Future<void> Function() action,
     required String errorTitle,
@@ -115,6 +84,7 @@ class AuthCoordinator extends GetxController {
       return;
     }
     loading.value = true;
+    _errors.clearCurrent();
     try {
       await action();
     } catch (error) {

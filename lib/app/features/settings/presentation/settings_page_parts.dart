@@ -33,7 +33,10 @@ class SettingsCategoryContent extends StatelessWidget {
             title: '新增分类',
             subtitle: '当前没有分类，点击后从可选会话中添加一个目标',
             onTap: chats.isEmpty ? null : onAdd,
-            trailing: Icon(Icons.add_circle_outline, color: colors.settingsValue),
+            trailing: Icon(
+              Icons.add_circle_outline,
+              color: colors.settingsValue,
+            ),
           ),
         ],
       );
@@ -141,21 +144,19 @@ class _CategoryRow extends StatelessWidget {
         ),
       );
     }
+    final chatTitle = category.targetChatTitle.trim();
     return SettingsValueTile(
-      title: category.key,
+      title: chatTitle.isEmpty ? '未命名会话' : chatTitle,
       subtitle: statusLabel,
-      value: category.targetChatTitle,
       onTap: () async {
         final selected = await showSettingsChoiceSheet<int>(
           context,
-          title: '选择 ${category.key} 目标会话',
+          title: '更换分类目标会话',
           selectedValue: category.targetChatId,
           choices: options
               .map(
-                (item) => SettingsChoice<int>(
-                  value: item.id,
-                  label: item.title,
-                ),
+                (item) =>
+                    SettingsChoice<int>(value: item.id, label: item.title),
               )
               .toList(growable: false),
         );

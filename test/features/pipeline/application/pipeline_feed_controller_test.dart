@@ -13,7 +13,6 @@ import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 
 void main() {
   test(
@@ -218,7 +217,10 @@ void main() {
       await controller.prepareUpcomingPreviews();
 
       expect(state.cache[1].preview.localImagePath, 'C:/preview-2.jpg');
-      expect(state.cache[1].preview.mediaItems.first.previewPath, 'C:/preview-2.jpg');
+      expect(
+        state.cache[1].preview.mediaItems.first.previewPath,
+        'C:/preview-2.jpg',
+      );
     },
   );
 
@@ -554,7 +556,6 @@ class _FakeSettingsReader implements PipelineSettingsReader {
     forwardAsCopy: false,
     batchSize: 2,
     throttleMs: 0,
-    proxy: ProxySettings.empty,
   ).obs;
 
   @override

@@ -89,8 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 widget.draftSession.updateDownloadSyncDeletedFiles,
             onConflictStrategyChanged:
                 widget.draftSession.updateDownloadConflictStrategy,
-            onMediaFilterChanged:
-                widget.draftSession.updateDownloadMediaFilter,
+            onMediaFilterChanged: widget.draftSession.updateDownloadMediaFilter,
             onDirectoryModeChanged:
                 widget.draftSession.updateDownloadDirectoryMode,
           ),
@@ -149,13 +148,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SettingsSectionHeader(title: '代理设置'),
-              SettingsConnectionContent(
-                draft: draft,
-                onChanged: widget.draftSession.updateProxy,
-                onValidationChanged: widget.draftSession.setHasValidationErrors,
-              ),
-              const SizedBox(height: 12),
               const SettingsSectionHeader(title: '会话列表'),
               SettingsChatListRow(
                 loading: controller.chatsLoading.value,

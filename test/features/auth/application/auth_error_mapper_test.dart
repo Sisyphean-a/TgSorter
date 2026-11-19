@@ -38,6 +38,29 @@ void main() {
     expect(event.message, '权限受限，请检查 Telegram 账号状态');
   });
 
+  test('distinguishes an incorrect two-step password from a timeout', () {
+    final wrongPassword = mapper.mapTdlibFailure(
+      TdlibFailure.tdError(
+        code: 400,
+        message: 'PASSWORD_HASH_INVALID',
+        request: 'checkAuthenticationPassword',
+        phase: TdlibPhase.auth,
+      ),
+      title: '提交密码失败',
+    );
+    final timeout = mapper.mapTdlibFailure(
+      TdlibFailure.timeout(
+        message: 'timeout',
+        request: 'checkAuthenticationPassword',
+        phase: TdlibPhase.auth,
+      ),
+      title: '提交密码失败',
+    );
+    expect(wrongPassword.message, contains('Telegram 两步验证密码不正确'));
+    expect(timeout.message, contains('等待 Telegram 响应超时'));
+    expect(timeout.message, isNot(contains('密码不正确')));
+  });
+
   test('maps general errors to auth-scoped runtime message', () {
     final event = mapper.mapGeneralError(
       StateError('bad state'),

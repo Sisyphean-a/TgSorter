@@ -31,7 +31,7 @@ class _AuthStageCard extends StatelessWidget {
             controller: phoneCtrl,
             decoration: const InputDecoration(labelText: '手机号（含国家码）'),
           ),
-          buttonLabel: '发送验证码',
+          buttonLabel: isLoading ? '正在请求验证码…' : '发送验证码',
           onPressed: isLoading ? null : () => auth.submitPhone(phoneCtrl.text),
         );
       case AuthStage.waitCode:
@@ -40,7 +40,7 @@ class _AuthStageCard extends StatelessWidget {
             controller: codeCtrl,
             decoration: const InputDecoration(labelText: '验证码'),
           ),
-          buttonLabel: '提交验证码',
+          buttonLabel: isLoading ? '正在验证验证码…' : '提交验证码',
           onPressed: isLoading ? null : () => auth.submitCode(codeCtrl.text),
         );
       case AuthStage.waitPassword:
@@ -50,7 +50,7 @@ class _AuthStageCard extends StatelessWidget {
             decoration: const InputDecoration(labelText: '两步验证密码'),
             obscureText: true,
           ),
-          buttonLabel: '提交密码',
+          buttonLabel: isLoading ? '正在验证两步验证密码…' : '提交密码',
           onPressed: isLoading
               ? null
               : () => auth.submitPassword(passwordCtrl.text),

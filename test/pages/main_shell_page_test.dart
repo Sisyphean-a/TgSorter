@@ -22,7 +22,6 @@ import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/core/routing/app_routes.dart';
 import 'package:tgsorter/app/services/download_sync_service.dart';
 import 'package:tgsorter/app/services/login_alert_repository.dart';
@@ -62,7 +61,6 @@ void main() {
       forwardAsCopy: false,
       batchSize: 2,
       throttleMs: 0,
-      proxy: ProxySettings.empty,
     );
     final errors = AppErrorController();
     final pipeline = PipelineCoordinator(
@@ -186,7 +184,6 @@ void main() {
         forwardAsCopy: false,
         batchSize: 2,
         throttleMs: 0,
-        proxy: ProxySettings.empty,
         defaultWorkbench: AppDefaultWorkbench.tagging,
       );
       final errors = AppErrorController();
@@ -278,7 +275,6 @@ void main() {
       forwardAsCopy: false,
       batchSize: 2,
       throttleMs: 0,
-      proxy: ProxySettings.empty,
       downloadWorkbenchEnabled: true,
     );
     final errors = AppErrorController();
@@ -334,95 +330,6 @@ void main() {
 
     expect(find.text('下载工作台'), findsOneWidget);
   });
-
-  testWidgets(
-    'mobile settings proxy edit and save does not trigger framework exceptions',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      Get.testMode = true;
-      Get.reset();
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final settingsGateway = _ShellSettingsGateway();
-      final pipelineGateway = _ShellPipelineGateway();
-      final settingsController = SettingsCoordinator(
-        SettingsRepository(prefs),
-        settingsGateway,
-        auth: settingsGateway,
-      );
-      settingsController.onInit();
-      final errors = AppErrorController();
-      final pipeline = PipelineCoordinator(
-        authStateGateway: pipelineGateway,
-        connectionStateGateway: pipelineGateway,
-        messageReadGateway: pipelineGateway,
-        mediaGateway: pipelineGateway,
-        classifyGateway: pipelineGateway,
-        recoveryGateway: pipelineGateway,
-        settingsReader: settingsController,
-        journalRepository: OperationJournalRepository(prefs),
-        errorController: errors,
-      );
-      final tagging = TaggingCoordinator(
-        authStateGateway: pipelineGateway,
-        connectionStateGateway: pipelineGateway,
-        messageReadGateway: pipelineGateway,
-        mediaGateway: pipelineGateway,
-        taggingGateway: pipelineGateway,
-        settingsReader: settingsController,
-        errorController: errors,
-      );
-      final downloads = DownloadWorkbenchController(
-        sessions: settingsGateway,
-        settings: settingsController,
-        sync: const NoopDownloadSyncPort(),
-      )..onInit();
-      final loginAlerts = LoginAlertWorkbenchController(
-        updates: const Stream<Map<String, dynamic>>.empty(),
-        repository: _MemoryLoginAlertRepository(),
-      )..onInit();
-
-      await tester.pumpWidget(
-        GetMaterialApp(
-          theme: AppTheme.dark(),
-          home: MainShellPage(
-            pipeline: pipeline,
-            tagging: tagging,
-            downloads: downloads,
-            loginAlerts: loginAlerts,
-            pipelineSettings: settingsController,
-            errors: errors,
-            settings: settingsController,
-            pipelineLogs: pipeline,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byTooltip('打开导航'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('设置'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('连接与网络'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(
-        find.widgetWithText(TextField, '代理服务器'),
-        '127.0.0.1',
-      );
-      await tester.pump();
-      await tester.enterText(find.widgetWithText(TextField, '代理端口'), '7890');
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-
-      await tester.tap(find.text('保存'));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      expect(find.text('设置已保存'), findsOneWidget);
-    },
-  );
 
   testWidgets('logs page app bar does not inherit settings detail actions', (
     tester,
@@ -494,12 +401,11 @@ void main() {
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('连接与网络'));
+    await tester.tap(find.text('转发'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextField, '代理服务器'),
-      '127.0.0.1',
-    );
+    await tester.tap(find.text('消息拉取方向'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('最旧优先'));
     await tester.pumpAndSettle();
     expect(find.text('保存'), findsOneWidget);
 
@@ -518,7 +424,7 @@ void main() {
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
 
-    expect(find.text('连接与网络'), findsAtLeastNWidgets(1));
+    expect(find.text('消息拉取方向'), findsOneWidget);
     expect(find.byTooltip('返回'), findsOneWidget);
     expect(find.text('保存'), findsOneWidget);
   });
@@ -561,7 +467,6 @@ void main() {
       forwardAsCopy: false,
       batchSize: 2,
       throttleMs: 0,
-      proxy: ProxySettings.empty,
       downloadWorkbenchEnabled: true,
     );
     final errors = AppErrorController();
@@ -593,20 +498,19 @@ void main() {
     )..onInit();
     downloads.selectSourceChat(-1001);
     downloads.updateTargetDirectory('/tmp/downloads');
-    final loginRepository = _MutableLoginAlertRepository(
-      const <TelegramLoginAlert>[
-        TelegramLoginAlert(
-          kind: TelegramLoginAlertKind.code,
-          status: TelegramLoginAlertStatus.active,
-          messageId: 18,
-          chatId: 777000,
-          receivedAtMs: 1700000000000,
-          sourceLabel: 'Telegram 官方账号 777000',
-          text: 'Login code: 404237',
-          code: '404237',
-        ),
-      ],
-    );
+    final loginRepository =
+        _MutableLoginAlertRepository(const <TelegramLoginAlert>[
+          TelegramLoginAlert(
+            kind: TelegramLoginAlertKind.code,
+            status: TelegramLoginAlertStatus.active,
+            messageId: 18,
+            chatId: 777000,
+            receivedAtMs: 1700000000000,
+            sourceLabel: 'Telegram 官方账号 777000',
+            text: 'Login code: 404237',
+            code: '404237',
+          ),
+        ]);
     final loginAlerts = LoginAlertWorkbenchController(
       updates: const Stream<Map<String, dynamic>>.empty(),
       repository: loginRepository,

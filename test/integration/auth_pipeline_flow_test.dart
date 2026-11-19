@@ -7,11 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
-import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
-import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
-import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
-import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
 import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
@@ -77,7 +73,6 @@ void main() {
     );
     Get.put<AppErrorController>(errors);
     Get.put<AuthGateway>(authGateway);
-    Get.put<AuthSettingsPort>(settings);
     Get.put<PipelineCoordinator>(pipeline);
     expect(registerAuthModule, returnsNormally);
     final auth = Get.find<AuthCoordinator>();
@@ -127,93 +122,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('TgSorter'), findsOneWidget);
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-  });
-
-  testWidgets('save proxy and retry persists settings then restarts tdlib', (
-    tester,
-  ) async {
-    tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1280, 2200);
-    Get.reset();
-    Get.testMode = true;
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final authGateway = _IntegrationAuthGateway();
-    final settingsGateway = _IntegrationSettingsGateway();
-    final pipelineGateway = _IntegrationPipelineGateway();
-    final errors = AppErrorController();
-    final settings = SettingsCoordinator(
-      SettingsRepository(prefs),
-      settingsGateway,
-      auth: authGateway,
-    );
-    final pipeline = PipelineCoordinator(
-      authStateGateway: authGateway,
-      connectionStateGateway: pipelineGateway,
-      messageReadGateway: pipelineGateway,
-      mediaGateway: pipelineGateway,
-      classifyGateway: pipelineGateway,
-      recoveryGateway: pipelineGateway,
-      settingsReader: settings,
-      journalRepository: OperationJournalRepository(prefs),
-      errorController: errors,
-    );
-    final auth = AuthCoordinator(
-      authGateway,
-      errors,
-      settings,
-      lifecycle: AuthLifecycleCoordinator(
-        auth: authGateway,
-        errors: errors,
-        errorMapper: const AuthErrorMapper(),
-        navigation: _NoopAuthNavigationPort(),
-      ),
-    );
-
-    Get.put<AppErrorController>(errors);
-    Get.put<AuthSettingsPort>(settings);
-    Get.put<PipelineCoordinator>(pipeline);
-    Get.put<AuthCoordinator>(auth);
-    settings.onInit();
-    pipeline.onInit();
-    auth.onInit();
-
-    await tester.pumpWidget(
-      GetMaterialApp(
-        initialRoute: '/auth',
-        getPages: [
-          GetPage(
-            name: '/auth',
-            page: () => AuthPage(auth: auth, errors: errors),
-          ),
-        ],
-      ),
-    );
-    await tester.pump();
-
-    await tester.tap(find.text('代理配置'));
-    await tester.pump(const Duration(seconds: 1));
-
-    await tester.enterText(
-      find.widgetWithText(TextField, '代理服务器'),
-      '127.0.0.1',
-    );
-    await tester.enterText(find.widgetWithText(TextField, '代理端口'), '7897');
-    final saveProxyButton = find.widgetWithText(FilledButton, '保存代理并重试启动');
-    await tester.ensureVisible(saveProxyButton);
-    await tester.pump();
-    final saveButton = tester.widget<FilledButton>(saveProxyButton);
-    expect(saveButton.onPressed, isNotNull);
-    saveButton.onPressed!.call();
-    await tester.pump();
-
-    expect(prefs.getString('tdlib_proxy_server'), '127.0.0.1');
-    expect(prefs.getInt('tdlib_proxy_port'), 7897);
-    expect(authGateway.restartCalls, 1);
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();

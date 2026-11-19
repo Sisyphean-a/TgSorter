@@ -4,7 +4,6 @@ import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/models/tag_config.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
@@ -304,10 +303,7 @@ void main() {
       expect(prefs.getBool('download_workbench_enabled'), isTrue);
       expect(prefs.getBool('download_skip_existing_files'), isFalse);
       expect(prefs.getBool('download_sync_deleted_files'), isTrue);
-      expect(
-        prefs.getString('download_conflict_strategy'),
-        'overwrite',
-      );
+      expect(prefs.getString('download_conflict_strategy'), 'overwrite');
       expect(prefs.getString('download_media_filter'), 'video_only');
       expect(prefs.getString('download_directory_mode'), 'flat');
       final loaded = repo.load();
@@ -320,43 +316,6 @@ void main() {
       );
       expect(loaded.downloadMediaFilter, DownloadMediaFilter.videoOnly);
       expect(loaded.downloadDirectoryMode, DownloadDirectoryMode.flat);
-    });
-
-    test('save persists proxy settings', () async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final repo = SettingsRepository(prefs);
-      final settings = AppSettings.defaults().updateProxySettings(
-        const ProxySettings(
-          server: '127.0.0.1',
-          port: 7897,
-          username: '',
-          password: '',
-        ),
-      );
-
-      await repo.save(settings);
-
-      expect(prefs.getString('tdlib_proxy_server'), '127.0.0.1');
-      expect(prefs.getInt('tdlib_proxy_port'), 7897);
-    });
-
-    test('load parses proxy settings from storage', () async {
-      SharedPreferences.setMockInitialValues({
-        'tdlib_proxy_server': '127.0.0.1',
-        'tdlib_proxy_port': 7897,
-        'tdlib_proxy_username': 'user',
-        'tdlib_proxy_password': 'pass',
-      });
-      final prefs = await SharedPreferences.getInstance();
-      final repo = SettingsRepository(prefs);
-
-      final settings = repo.load();
-
-      expect(settings.proxy.server, '127.0.0.1');
-      expect(settings.proxy.port, 7897);
-      expect(settings.proxy.username, 'user');
-      expect(settings.proxy.password, 'pass');
     });
 
     test('save persists shortcut bindings', () async {

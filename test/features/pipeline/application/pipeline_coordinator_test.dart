@@ -27,7 +27,6 @@ import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/classify_transaction_entry.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/models/retry_queue_item.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -612,7 +611,6 @@ class _FakeSettingsReader implements PipelineSettingsReader {
     forwardAsCopy: false,
     batchSize: 2,
     throttleMs: 0,
-    proxy: ProxySettings.empty,
   ).obs;
 
   @override

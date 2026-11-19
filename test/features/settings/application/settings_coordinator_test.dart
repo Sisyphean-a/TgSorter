@@ -5,13 +5,11 @@ import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
-import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
 import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_port.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/app_theme_mode.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -24,45 +22,8 @@ void main() {
     coordinator.onInit();
 
     expect(harness.persistence.loadCalls, 1);
-    expect(
-      coordinator.savedSettings.value.proxy.server,
-      harness.persistence.loaded.proxy.server,
-    );
+    expect(coordinator.savedSettings.value, harness.persistence.loaded);
   });
-
-  test(
-    'saveProxySettings lets coordinator evaluate restart policy after persistence',
-    () async {
-      final harness = _SettingsCoordinatorHarness()
-        ..restartPolicy.shouldRestartResult = true;
-      final coordinator = harness.build();
-      coordinator.onInit();
-      await coordinator.saveProxySettings(
-        server: '127.0.0.1',
-        port: '7890',
-        username: '',
-        password: '',
-        restart: true,
-      );
-
-      expect(harness.persistence.saveCalls, 1);
-      expect(harness.restartPolicy.calls, 1);
-      expect(harness.restartPolicy.previous?.proxy, ProxySettings.empty);
-      expect(harness.restartPolicy.next?.proxy.server, '127.0.0.1');
-      expect(harness.restartCalls, 1);
-      await coordinator.saveProxySettings(
-        server: '127.0.0.1',
-        port: '7891',
-        username: '',
-        password: '',
-        restart: false,
-      );
-
-      expect(harness.persistence.saveCalls, 2);
-      expect(harness.restartPolicy.calls, 2);
-      expect(harness.restartCalls, 1);
-    },
-  );
 
   test('loadChats delegates to chat loader and exposes result', () async {
     final harness = _SettingsCoordinatorHarness()
@@ -96,131 +57,6 @@ void main() {
       await secondLoad;
 
       expect(coordinator.chats.single.title, '频道一');
-    },
-  );
-
-  test(
-    'saveProxySettings does not commit or evaluate restart when persistence save fails',
-    () async {
-      final harness = _SettingsCoordinatorHarness()
-        ..persistence.throwOnSave = true
-        ..restartPolicy.shouldRestartResult = true;
-      final coordinator = harness.build();
-      coordinator.onInit();
-
-      await expectLater(
-        coordinator.saveProxySettings(
-          server: '127.0.0.1',
-          port: '7890',
-          username: '',
-          password: '',
-          restart: true,
-        ),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            'save failed',
-          ),
-        ),
-      );
-
-      expect(harness.persistence.saveCalls, 1);
-      expect(coordinator.savedSettings.value.proxy, ProxySettings.empty);
-      expect(harness.restartPolicy.calls, 0);
-      expect(harness.restartCalls, 0);
-    },
-  );
-
-  test(
-    'saveProxySettings still commits saved settings when restart fails after persistence',
-    () async {
-      final harness = _SettingsCoordinatorHarness()
-        ..restartPolicy.shouldRestartResult = true
-        ..sessions.restartError = StateError('restart failed');
-      final coordinator = harness.build();
-      coordinator.onInit();
-      await coordinator.saveProxySettings(
-        server: '127.0.0.1',
-        port: '7890',
-        username: '',
-        password: '',
-        restart: true,
-      );
-      expect(coordinator.savedSettings.value.proxy.server, '127.0.0.1');
-      expect(harness.restartCalls, 1);
-    },
-  );
-
-  test(
-    'saveProxySettings coalesces duplicate requests while a save is already running',
-    () async {
-      final harness = _SettingsCoordinatorHarness()
-        ..restartPolicy.shouldRestartResult = true
-        ..sessions.restartCompleter = Completer<void>();
-      final coordinator = harness.build();
-      coordinator.onInit();
-      final firstSave = coordinator.saveProxySettings(
-        server: '127.0.0.1',
-        port: '7890',
-        username: '',
-        password: '',
-        restart: true,
-      );
-      final secondSave = coordinator.saveProxySettings(
-        server: '127.0.0.1',
-        port: '7891',
-        username: '',
-        password: '',
-        restart: true,
-      );
-
-      await Future<void>.delayed(Duration.zero);
-
-      expect(harness.persistence.saveCalls, 1);
-      expect(harness.restartCalls, 1);
-
-      harness.sessions.restartCompleter!.complete();
-      await firstSave;
-      await secondSave;
-    },
-  );
-
-  test(
-    'saveProxySettings ignores overlapping updates while persistence is still in flight',
-    () async {
-      final harness = _SettingsCoordinatorHarness()
-        ..persistence.saveCompleter = Completer<void>();
-      final coordinator = harness.build();
-      coordinator.onInit();
-
-      final firstSave = coordinator.saveProxySettings(
-        server: '127.0.0.1',
-        port: '7890',
-        username: '',
-        password: '',
-        restart: false,
-      );
-      await Future<void>.delayed(Duration.zero);
-
-      final secondSave = coordinator.saveProxySettings(
-        server: '127.0.0.1',
-        port: '7891',
-        username: '',
-        password: '',
-        restart: false,
-      );
-      await Future<void>.delayed(Duration.zero);
-
-      expect(harness.persistence.saveCalls, 1);
-      expect(harness.persistence.lastSaved, isNull);
-
-      harness.persistence.saveCompleter!.complete();
-      await firstSave;
-      await secondSave;
-
-      expect(harness.persistence.lastSaved?.proxy.port, 7890);
-      expect(coordinator.savedSettings.value.proxy.port, 7890);
     },
   );
 
@@ -428,7 +264,6 @@ class _SettingsCoordinatorHarness {
   final _FakeSettingsPersistenceService persistence =
       _FakeSettingsPersistenceService();
   final _FakeSettingsChatLoader chatLoader = _FakeSettingsChatLoader();
-  final _FakeSettingsRestartPolicy restartPolicy = _FakeSettingsRestartPolicy();
   final _FakeSkippedMessageRepository skippedRepository =
       _FakeSkippedMessageRepository();
   List<SkippedMessageRestorePort> restoreTargets =
@@ -442,7 +277,6 @@ class _SettingsCoordinatorHarness {
       sessions,
       auth: sessions,
       persistence: persistence,
-      restartPolicy: restartPolicy,
       chatLoader: chatLoader,
       skippedMessageRepository: skippedRepository,
       skippedRestoreTargets: restoreTargets,
@@ -458,7 +292,6 @@ class _FakeSettingsRepository implements SettingsRepository {
     forwardAsCopy: false,
     batchSize: 5,
     throttleMs: 1200,
-    proxy: ProxySettings.empty,
   );
   int saveCalls = 0;
 
@@ -524,7 +357,6 @@ class _FakeSettingsPersistenceService extends SettingsPersistenceService {
     forwardAsCopy: false,
     batchSize: 5,
     throttleMs: 1200,
-    proxy: ProxySettings.empty,
   );
   int loadCalls = 0;
   int saveCalls = 0;
@@ -549,21 +381,6 @@ class _FakeSettingsPersistenceService extends SettingsPersistenceService {
       await completer.future;
     }
     lastSaved = next;
-  }
-}
-
-class _FakeSettingsRestartPolicy extends SettingsRestartPolicy {
-  bool shouldRestartResult = false;
-  int calls = 0;
-  AppSettings? previous;
-  AppSettings? next;
-
-  @override
-  bool shouldRestart(AppSettings previous, AppSettings next) {
-    calls++;
-    this.previous = previous;
-    this.next = next;
-    return shouldRestartResult;
   }
 }
 

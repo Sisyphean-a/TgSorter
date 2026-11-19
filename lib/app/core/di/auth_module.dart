@@ -6,7 +6,6 @@ import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_navigation_port.dart';
-import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 
 void registerAuthModule() {
   Get.put<AuthNavigationPort>(
@@ -23,7 +22,6 @@ void registerAuthModule() {
     AuthCoordinator(
       Get.find<AuthGateway>(),
       Get.find<AppErrorController>(),
-      Get.find<AuthSettingsPort>(),
       lifecycle: lifecycle,
     ),
     permanent: true,

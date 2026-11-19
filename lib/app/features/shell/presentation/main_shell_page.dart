@@ -11,7 +11,6 @@ import 'package:tgsorter/app/features/pipeline/presentation/pipeline_page.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
 import 'package:tgsorter/app/features/settings/application/settings_page_draft_session.dart';
-import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/features/settings/presentation/logs_screen.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_app_bar.dart';
@@ -188,7 +187,7 @@ class _MainShellPageState extends State<MainShellPage> {
       return;
     }
     try {
-      final result = await widget.settings.savePageDraft(
+      await widget.settings.savePageDraft(
         _settingsDraftSession.draftSettings.value,
       );
       _settingsDraftSession.markSaved(widget.settings.savedSettings.value);
@@ -196,7 +195,7 @@ class _MainShellPageState extends State<MainShellPage> {
         return;
       }
       messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(SnackBar(content: Text(_saveMessage(result))));
+      messenger.showSnackBar(const SnackBar(content: Text('设置已保存')));
     } catch (error) {
       if (!mounted) {
         return;
@@ -232,16 +231,6 @@ class _MainShellPageState extends State<MainShellPage> {
   void dispose() {
     _settingsWorker?.dispose();
     super.dispose();
-  }
-
-  String _saveMessage(SettingsSaveResult result) {
-    switch (result) {
-      case SettingsSaveResult.saved:
-      case SettingsSaveResult.savedAndRestarted:
-        return '设置已保存';
-      case SettingsSaveResult.savedNeedsRestartAttention:
-        return '设置已保存，但重启失败，请稍后手动重试。';
-    }
   }
 }
 

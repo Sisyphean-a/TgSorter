@@ -10,7 +10,6 @@ import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.da
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 
 void main() {
   test(
@@ -125,7 +124,6 @@ AppSettings _updatedSettings() {
     forwardAsCopy: false,
     batchSize: 2,
     throttleMs: 0,
-    proxy: ProxySettings.empty,
   );
 }
 
@@ -137,7 +135,6 @@ AppSettings _unchangedSettings() {
     forwardAsCopy: true,
     batchSize: 9,
     throttleMs: 10,
-    proxy: ProxySettings.empty,
   );
 }
 
@@ -150,7 +147,6 @@ class _FakeSettingsReader implements PipelineSettingsReader {
     forwardAsCopy: false,
     batchSize: 2,
     throttleMs: 0,
-    proxy: ProxySettings.empty,
   ).obs;
 
   @override

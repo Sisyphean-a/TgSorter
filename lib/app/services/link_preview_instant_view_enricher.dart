@@ -6,10 +6,11 @@ import 'package:tgsorter/app/services/tdlib_failure.dart';
 const _maxBlockSearchDepth = 6;
 
 class LinkPreviewInstantViewEnricher {
-  const LinkPreviewInstantViewEnricher({required TdlibAdapter adapter})
+  LinkPreviewInstantViewEnricher({required TdlibAdapter adapter})
     : _adapter = adapter;
 
   final TdlibAdapter _adapter;
+  bool _legacyPreviewUnsupported = false;
 
   Future<TdMessageDto> enrich(TdMessageDto message) async {
     final resolvedMessage = await _resolveLinkPreview(message);
@@ -44,8 +45,7 @@ class LinkPreviewInstantViewEnricher {
     if (message.content.linkPreview != null) {
       return message;
     }
-    final capabilities = _adapter.capabilities;
-    if (capabilities != null && !capabilities.supportsGetWebPagePreview) {
+    if (_legacyPreviewUnsupported) {
       return message;
     }
     final text = message.content.text;
@@ -74,6 +74,7 @@ class LinkPreviewInstantViewEnricher {
         return null;
       }
       if (_isUnsupportedFunctionError(error, 'getWebPagePreview')) {
+        _legacyPreviewUnsupported = true;
         return null;
       }
       rethrow;

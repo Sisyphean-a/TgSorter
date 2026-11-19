@@ -26,11 +26,9 @@ import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_json_logger.dart';
 import 'package:tgsorter/app/services/td_raw_transport.dart';
-import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
-import 'package:tgsorter/app/services/tdlib_schema_probe.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
 
 Future<void> registerAppBindings() async {
@@ -60,19 +58,7 @@ Future<void> registerAppBindings() async {
     transport: transport,
     rawTransport: rawTransport,
     credentials: credentials,
-    readProxySettings: () => settingsRepo.load().proxy,
     runtimePaths: runtimePaths,
-    detectCapabilities: () {
-      final probe = TdlibSchemaProbe(
-        send: (function) async => TdWireEnvelope.fromJson(
-          await rawTransport.send(
-            function,
-            timeout: const Duration(seconds: 8),
-          ),
-        ),
-      );
-      return probe.detect();
-    },
     initializeTdlib: defaultTdlibInitializer,
   );
   final telegram = TelegramService(

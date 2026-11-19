@@ -5,7 +5,6 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 import 'package:tgsorter/app/features/settings/presentation/settings_dialogs.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 
 class SourceChatDraftEditor extends StatelessWidget {
   const SourceChatDraftEditor({
@@ -37,10 +36,7 @@ class SourceChatDraftEditor extends StatelessWidget {
               label: '收藏夹（Saved Messages）',
             ),
             ...chats.map(
-              (chat) => SettingsChoice<int?>(
-                value: chat.id,
-                label: chat.title,
-              ),
+              (chat) => SettingsChoice<int?>(value: chat.id, label: chat.title),
             ),
           ],
         );
@@ -138,10 +134,7 @@ class DefaultWorkbenchDraftEditor extends StatelessWidget {
               value: AppDefaultWorkbench.forwarding,
               label: '转发工作台',
             ),
-            SettingsChoice(
-              value: AppDefaultWorkbench.tagging,
-              label: '标签工作台',
-            ),
+            SettingsChoice(value: AppDefaultWorkbench.tagging, label: '标签工作台'),
           ],
         );
         if (selected != null) {
@@ -228,10 +221,7 @@ class DownloadDirectoryModeEditor extends StatelessWidget {
               value: DownloadDirectoryMode.byChat,
               label: '按会话分目录',
             ),
-            SettingsChoice(
-              value: DownloadDirectoryMode.flat,
-              label: '平铺到目标目录',
-            ),
+            SettingsChoice(value: DownloadDirectoryMode.flat, label: '平铺到目标目录'),
           ],
         );
         if (selected != null) {
@@ -267,25 +257,26 @@ class DownloadConflictStrategyEditor extends StatelessWidget {
       title: '命名冲突处理',
       value: _label(value),
       onTap: () async {
-        final selected = await showSettingsChoiceSheet<DownloadConflictStrategy>(
-          context,
-          title: '命名冲突处理',
-          selectedValue: value,
-          choices: const [
-            SettingsChoice(
-              value: DownloadConflictStrategy.rename,
-              label: '自动重命名',
-            ),
-            SettingsChoice(
-              value: DownloadConflictStrategy.skip,
-              label: '保留旧文件并跳过',
-            ),
-            SettingsChoice(
-              value: DownloadConflictStrategy.overwrite,
-              label: '覆盖旧文件',
-            ),
-          ],
-        );
+        final selected =
+            await showSettingsChoiceSheet<DownloadConflictStrategy>(
+              context,
+              title: '命名冲突处理',
+              selectedValue: value,
+              choices: const [
+                SettingsChoice(
+                  value: DownloadConflictStrategy.rename,
+                  label: '自动重命名',
+                ),
+                SettingsChoice(
+                  value: DownloadConflictStrategy.skip,
+                  label: '保留旧文件并跳过',
+                ),
+                SettingsChoice(
+                  value: DownloadConflictStrategy.overwrite,
+                  label: '覆盖旧文件',
+                ),
+              ],
+            );
         if (selected != null) {
           onChanged(selected);
         }
@@ -326,22 +317,10 @@ class DownloadMediaFilterEditor extends StatelessWidget {
           title: '下载范围',
           selectedValue: value,
           choices: const [
-            SettingsChoice(
-              value: DownloadMediaFilter.all,
-              label: '全部支持的媒体',
-            ),
-            SettingsChoice(
-              value: DownloadMediaFilter.photoOnly,
-              label: '仅图片',
-            ),
-            SettingsChoice(
-              value: DownloadMediaFilter.videoOnly,
-              label: '仅视频',
-            ),
-            SettingsChoice(
-              value: DownloadMediaFilter.audioOnly,
-              label: '仅音频',
-            ),
+            SettingsChoice(value: DownloadMediaFilter.all, label: '全部支持的媒体'),
+            SettingsChoice(value: DownloadMediaFilter.photoOnly, label: '仅图片'),
+            SettingsChoice(value: DownloadMediaFilter.videoOnly, label: '仅视频'),
+            SettingsChoice(value: DownloadMediaFilter.audioOnly, label: '仅音频'),
           ],
         );
         if (selected != null) {
@@ -547,7 +526,8 @@ class MediaLoadOptionsDraftEditor extends StatelessWidget {
               label: '媒体后台下载并发度',
               initialValue: '$backgroundConcurrency',
               keyboardType: TextInputType.number,
-              validator: validator.validateMediaBackgroundDownloadConcurrencyText,
+              validator:
+                  validator.validateMediaBackgroundDownloadConcurrencyText,
             );
             if (raw == null || !context.mounted) {
               return;
@@ -604,125 +584,6 @@ class MediaLoadOptionsDraftEditor extends StatelessWidget {
               backgroundConcurrency: backgroundConcurrency,
               retryLimit: retryLimit,
               retryDelayMs: int.parse(raw.trim()),
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class ProxySettingsDraftEditor extends StatelessWidget {
-  const ProxySettingsDraftEditor({
-    super.key,
-    required this.value,
-    required this.onChanged,
-    this.onValidationChanged,
-  });
-
-  final ProxySettings value;
-  final void Function({
-    required String server,
-    required String port,
-    required String username,
-    required String password,
-  })
-  onChanged;
-  final ValueChanged<bool>? onValidationChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final validator = SettingsInputValidator();
-    onValidationChanged?.call(false);
-    return Column(
-      children: [
-        SettingsValueTile(
-          title: '代理服务器',
-          value: value.server.isEmpty ? '未设置' : value.server,
-          onTap: () async {
-            final raw = await showSettingsTextEditDialog(
-              context,
-              title: '代理服务器',
-              label: '代理服务器',
-              initialValue: value.server,
-            );
-            if (raw == null || !context.mounted) {
-              return;
-            }
-            onChanged(
-              server: raw,
-              port: value.port?.toString() ?? '',
-              username: value.username,
-              password: value.password,
-            );
-          },
-        ),
-        const SizedBox(height: 1),
-        SettingsValueTile(
-          title: '代理端口',
-          value: value.port?.toString() ?? '未设置',
-          onTap: () async {
-            final raw = await showSettingsTextEditDialog(
-              context,
-              title: '代理端口',
-              label: '代理端口',
-              initialValue: value.port?.toString() ?? '',
-              keyboardType: TextInputType.number,
-              validator: validator.validatePortText,
-            );
-            if (raw == null || !context.mounted) {
-              return;
-            }
-            onChanged(
-              server: value.server,
-              port: raw,
-              username: value.username,
-              password: value.password,
-            );
-          },
-        ),
-        const SizedBox(height: 1),
-        SettingsValueTile(
-          title: '代理用户名',
-          value: value.username.isEmpty ? '未设置' : value.username,
-          onTap: () async {
-            final raw = await showSettingsTextEditDialog(
-              context,
-              title: '代理用户名',
-              label: '代理用户名（可选）',
-              initialValue: value.username,
-            );
-            if (raw == null || !context.mounted) {
-              return;
-            }
-            onChanged(
-              server: value.server,
-              port: value.port?.toString() ?? '',
-              username: raw,
-              password: value.password,
-            );
-          },
-        ),
-        const SizedBox(height: 1),
-        SettingsValueTile(
-          title: '代理密码',
-          value: value.password.isEmpty ? '未设置' : '已设置',
-          onTap: () async {
-            final raw = await showSettingsTextEditDialog(
-              context,
-              title: '代理密码',
-              label: '代理密码（可选）',
-              initialValue: value.password,
-              obscureText: true,
-            );
-            if (raw == null || !context.mounted) {
-              return;
-            }
-            onChanged(
-              server: value.server,
-              port: value.port?.toString() ?? '',
-              username: value.username,
-              password: raw,
             );
           },
         ),

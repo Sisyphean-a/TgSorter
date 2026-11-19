@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tdlib/td_api.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/link_preview_instant_view_enricher.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_message_dto.dart';
@@ -9,7 +8,6 @@ import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
-import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 
 void main() {
   test('enriches link preview with first instant view photo URL', () async {
@@ -73,27 +71,11 @@ class _FakeTdlibAdapter extends TdlibAdapter {
   _FakeTdlibAdapter({required this.wireResponses})
     : super(
         transport: _NoopTransport(),
-        credentials: const TdlibCredentials(
-          apiId: 1,
-          apiHash: 'hash',
-          proxyServer: null,
-          proxyPort: null,
-          proxyUsername: '',
-          proxyPassword: '',
-        ),
-        readProxySettings: () => const ProxySettings(
-          server: '',
-          port: null,
-          username: '',
-          password: '',
-        ),
+        credentials: const TdlibCredentials(apiId: 1, apiHash: 'hash'),
         runtimePaths: const TdlibRuntimePaths(
           libraryPath: 'tdjson.dll',
           databaseDirectory: 'db',
           filesDirectory: 'files',
-        ),
-        detectCapabilities: () async => const TdlibSchemaCapabilities(
-          addProxyMode: TdlibAddProxyMode.flatArgs,
         ),
         initializeTdlib: (_) async {},
       );

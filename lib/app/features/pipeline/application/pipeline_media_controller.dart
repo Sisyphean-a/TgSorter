@@ -7,7 +7,6 @@ import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 
 import 'pipeline_media_refresh_service.dart';
 import 'pipeline_prepared_message_merger.dart';
@@ -459,7 +458,6 @@ class _StaticPipelineSettingsReader implements PipelineSettingsReader {
         forwardAsCopy: false,
         batchSize: 5,
         throttleMs: 1200,
-        proxy: ProxySettings.empty,
         mediaRetryLimit: 0,
         mediaRetryDelayMs: 0,
       ).obs,

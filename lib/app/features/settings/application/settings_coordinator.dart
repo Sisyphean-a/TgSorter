@@ -2,40 +2,31 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
-import 'package:tgsorter/app/features/auth/ports/auth_settings_port.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
-import 'package:tgsorter/app/features/settings/application/connection_settings_service.dart';
 import 'package:tgsorter/app/features/settings/application/skipped_message_summary.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_chat_loader.dart';
 import 'package:tgsorter/app/features/settings/application/settings_persistence_service.dart';
-import 'package:tgsorter/app/features/settings/application/settings_restart_policy.dart';
-import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_port.dart';
 import 'package:tgsorter/app/features/settings/ports/skipped_message_restore_registry.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/skipped_message_repository.dart';
 
 class SettingsCoordinator extends GetxController
-    implements PipelineSettingsReader, AuthSettingsPort {
+    implements PipelineSettingsReader {
   SettingsCoordinator(
     SettingsRepository repository,
     SessionQueryGateway sessions, {
     AuthGateway? auth,
     SettingsPersistenceService? persistence,
-    SettingsRestartPolicy? restartPolicy,
-    ConnectionSettingsService? connection,
     SettingsChatLoader? chatLoader,
     SkippedMessageRepository? skippedMessageRepository,
     SkippedMessageRestoreRegistry? skippedRestoreRegistry,
     List<SkippedMessageRestorePort>? skippedRestoreTargets,
   }) : _auth = auth,
        _persistence = persistence ?? SettingsPersistenceService(repository),
-       _restartPolicy = restartPolicy ?? SettingsRestartPolicy(),
-       _connection = connection ?? ConnectionSettingsService(),
        _chatLoader =
            chatLoader ?? SettingsChatLoader(sessionQueryGateway: sessions),
        _skippedMessageRepository =
@@ -45,15 +36,13 @@ class SettingsCoordinator extends GetxController
 
   final AuthGateway? _auth;
   final SettingsPersistenceService _persistence;
-  final SettingsRestartPolicy _restartPolicy;
-  final ConnectionSettingsService _connection;
   final SettingsChatLoader _chatLoader;
   final SkippedMessageRepository _skippedMessageRepository;
   final SkippedMessageRestoreRegistry? _skippedRestoreRegistry;
   final List<SkippedMessageRestorePort>? _skippedRestoreTargets;
   final _savedState = AppSettings.defaults().obs;
   final _draftState = AppSettings.defaults().obs;
-  Future<SettingsSaveResult>? _pendingSaveDraft;
+  Future<void>? _pendingSaveDraft;
   Future<void>? _pendingChatLoad;
   final _saveState = false.obs;
   final _chatsState = <SelectableChat>[].obs;
@@ -74,9 +63,6 @@ class SettingsCoordinator extends GetxController
   AppSettings get currentSettings => savedSettings.value;
 
   @override
-  ProxySettings get currentProxySettings => savedSettings.value.proxy;
-
-  @override
   void onInit() {
     super.onInit();
     _replaceDraftState(_persistence.load());
@@ -86,31 +72,6 @@ class SettingsCoordinator extends GetxController
   @override
   CategoryConfig getCategory(String key) {
     return savedSettings.value.categories.firstWhere((item) => item.key == key);
-  }
-
-  @override
-  Future<void> saveProxySettings({
-    required String server,
-    required String port,
-    required String username,
-    required String password,
-    bool restart = false,
-  }) async {
-    final pending = _pendingSaveDraft;
-    if (pending != null) {
-      await pending;
-      return;
-    }
-    _updateDraft(
-      _connection.updateProxy(
-        current: savedSettings.value,
-        server: server,
-        port: port,
-        username: username,
-        password: password,
-      ),
-    );
-    await _saveDraft(restartOnProxyChange: restart);
   }
 
   Future<void> logout() async {
@@ -153,68 +114,30 @@ class SettingsCoordinator extends GetxController
     return restored;
   }
 
-  Future<SettingsSaveResult> _saveDraft({
-    bool restartOnProxyChange = true,
-  }) async {
-    final pending = _pendingSaveDraft;
-    if (pending != null) {
-      return pending;
-    }
-    final completer = Completer<SettingsSaveResult>();
-    _pendingSaveDraft = completer.future;
-    _saveState.value = true;
-    unawaited(() async {
-      try {
-        completer.complete(
-          await _saveDraftInternal(restartOnProxyChange: restartOnProxyChange),
-        );
-      } catch (error, stackTrace) {
-        completer.completeError(error, stackTrace);
-      } finally {
-        _saveState.value = false;
-        if (identical(_pendingSaveDraft, completer.future)) {
-          _pendingSaveDraft = null;
-        }
-      }
-    }());
-    return completer.future;
-  }
-
-  Future<SettingsSaveResult> savePageDraft(
-    AppSettings next, {
-    bool restartOnProxyChange = true,
-  }) async {
+  Future<void> savePageDraft(AppSettings next) async {
     final pending = _pendingSaveDraft;
     if (pending != null) {
       return pending;
     }
     final previousDraft = _draftState.value;
     _updateDraft(next);
-    try {
-      return await _saveDraft(restartOnProxyChange: restartOnProxyChange);
-    } catch (_) {
-      _updateDraft(previousDraft);
-      rethrow;
-    }
-  }
-
-  Future<SettingsSaveResult> _saveDraftInternal({
-    required bool restartOnProxyChange,
-  }) async {
-    final previous = savedSettings.value;
-    final next = _draftState.value;
-    await _persistence.save(next);
-    _commitDraft();
-    final shouldRestart = _restartPolicy.shouldRestart(previous, next);
-    if (!shouldRestart || !restartOnProxyChange || _auth == null) {
-      return SettingsSaveResult.saved;
-    }
-    try {
-      await _auth.restart();
-      return SettingsSaveResult.savedAndRestarted;
-    } catch (_) {
-      return SettingsSaveResult.savedNeedsRestartAttention;
-    }
+    final completer = Completer<void>();
+    _pendingSaveDraft = completer.future;
+    _saveState.value = true;
+    unawaited(() async {
+      try {
+        await _persistence.save(next);
+        _commitDraft();
+        completer.complete();
+      } catch (error, stackTrace) {
+        _updateDraft(previousDraft);
+        completer.completeError(error, stackTrace);
+      } finally {
+        _saveState.value = false;
+        _pendingSaveDraft = null;
+      }
+    }());
+    return completer.future;
   }
 
   Future<void> loadChats() async {

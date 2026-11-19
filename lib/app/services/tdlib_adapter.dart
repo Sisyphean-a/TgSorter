@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:tdlib/td_api.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_connection_state.dart';
 import 'package:tgsorter/app/services/td_message_send_result.dart';
@@ -10,52 +9,36 @@ import 'package:tgsorter/app/services/td_auth_state.dart';
 import 'package:tgsorter/app/services/tdlib_auth_manager.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
-import 'package:tgsorter/app/services/tdlib_proxy_manager.dart';
-import 'package:tgsorter/app/services/td_proxy_dto.dart';
 import 'package:tgsorter/app/services/tdlib_request_executor.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
-import 'package:tgsorter/app/services/tdlib_schema_capabilities.dart';
 import 'package:tgsorter/app/services/td_raw_transport.dart';
 import 'package:tgsorter/app/services/td_update_parser.dart';
 import 'package:tgsorter/app/services/td_wire_message.dart';
 
 export 'package:tgsorter/app/services/tdlib_adapter_support.dart';
 
-typedef ProxySettingsReader = ProxySettings Function();
-
 class TdlibAdapter {
   TdlibAdapter({
     required TdTransport transport,
     TdRawTransport? rawTransport,
     required TdlibCredentials credentials,
-    required ProxySettingsReader readProxySettings,
     required TdlibRuntimePaths runtimePaths,
-    required TdlibCapabilitiesDetector detectCapabilities,
     required TdlibInitializer initializeTdlib,
   }) : _transport = transport,
        _rawTransport = rawTransport,
        _credentials = credentials,
-       _readProxySettings = readProxySettings,
        _runtimePaths = runtimePaths,
-       _detectCapabilities = detectCapabilities,
        _initializeTdlib = initializeTdlib;
 
   static const Duration _defaultTimeout = Duration(seconds: 20);
   final TdTransport _transport;
   final TdRawTransport? _rawTransport;
   final TdlibCredentials _credentials;
-  final ProxySettingsReader _readProxySettings;
   final TdlibRuntimePaths _runtimePaths;
-  final TdlibCapabilitiesDetector _detectCapabilities;
   final TdlibInitializer _initializeTdlib;
   late final TdlibRequestExecutor _requestExecutor = TdlibRequestExecutor(
     transport: _transport,
     rawTransport: _rawTransport,
-  );
-  late final TdlibProxyManager _proxyManager = TdlibProxyManager(
-    transport: _transport,
-    readCredentials: _resolveCredentials,
-    requestExecutor: _requestExecutor,
   );
   late final TdlibAuthManager _authManager = TdlibAuthManager(
     requestExecutor: _requestExecutor,
@@ -81,7 +64,6 @@ class TdlibAdapter {
   Completer<void>? _startCompleter;
   Completer<void>? _closeCompleter;
   Completer<void> _authorizationReady = Completer<void>();
-  TdlibSchemaCapabilities? _capabilities;
   TdlibLifecycleState _lifecycleState = TdlibLifecycleState.idle;
 
   Stream<TdAuthState> get authorizationStates => _authStateController.stream;
@@ -93,7 +75,6 @@ class TdlibAdapter {
   Stream<TdlibLifecycleState> get lifecycleStates =>
       _lifecycleController.stream;
 
-  TdlibSchemaCapabilities? get capabilities => _capabilities;
   TdlibLifecycleState get lifecycleState => _lifecycleState;
   bool get isRunning => _lifecycleState == TdlibLifecycleState.running;
 
@@ -120,9 +101,12 @@ class TdlibAdapter {
         _emitStartup(TdlibStartupState.setParams);
         await _setTdlibParameters();
       }
-      _capabilities ??= await _detectCapabilities();
-      _emitStartup(TdlibStartupState.setProxy);
-      await _syncProxy();
+      // 升级后不再使用 TDLib 中残留的内置代理。
+      await _sendExpectOk(
+        const DisableProxy(),
+        request: 'disableProxy',
+        phase: TdlibPhase.startup,
+      );
       _emitStartup(TdlibStartupState.auth);
       if (state.isReady) {
         _recordAuthorizationState(state);
@@ -202,20 +186,6 @@ class TdlibAdapter {
 
   Future<void> submitPassword(String password) =>
       _authManager.submitPassword(password);
-
-  Future<TdProxyList> getProxies() async {
-    return _proxyManager.getProxies();
-  }
-
-  Future<void> addProxy() async {
-    final capabilities = _capabilities ?? await _detectCapabilities();
-    _capabilities = capabilities;
-    await _proxyManager.addProxy(capabilities);
-  }
-
-  Future<void> disableProxy() {
-    return _proxyManager.disableProxy();
-  }
 
   Future<TdObject> send(
     TdFunction function, {
@@ -299,19 +269,6 @@ class TdlibAdapter {
       request: 'setTdlibParameters',
       phase: TdlibPhase.startup,
     );
-  }
-
-  Future<void> _syncProxy() async {
-    final credentials = _resolveCredentials();
-    if (credentials.proxyServer == null || credentials.proxyPort == null) {
-      await disableProxy();
-      return;
-    }
-    await addProxy();
-  }
-
-  TdlibCredentials _resolveCredentials() {
-    return _credentials.withProxySettings(_readProxySettings());
   }
 
   Future<void> _sendExpectOk(

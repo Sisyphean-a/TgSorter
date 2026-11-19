@@ -22,7 +22,6 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/pipeline_message.dart';
-import 'package:tgsorter/app/models/proxy_settings.dart';
 import 'package:tgsorter/app/services/operation_journal_repository.dart';
 import 'package:tgsorter/app/services/settings_repository.dart';
 import 'package:tgsorter/app/services/td_auth_state.dart';
@@ -52,7 +51,6 @@ void main() {
       forwardAsCopy: false,
       batchSize: 2,
       throttleMs: 0,
-      proxy: ProxySettings.empty,
     );
     final controller = PipelineCoordinator(
       authStateGateway: pipelineGateway,
@@ -138,7 +136,6 @@ void main() {
         forwardAsCopy: false,
         batchSize: 2,
         throttleMs: 0,
-        proxy: ProxySettings.empty,
       );
       final controller = PipelineCoordinator(
         authStateGateway: pipelineGateway,
@@ -269,7 +266,6 @@ void main() {
         forwardAsCopy: false,
         batchSize: 2,
         throttleMs: 0,
-        proxy: ProxySettings.empty,
       );
       final controller = PipelineCoordinator(
         authStateGateway: pipelineGateway,

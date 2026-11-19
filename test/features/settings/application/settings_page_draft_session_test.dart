@@ -60,19 +60,6 @@ void main() {
       session.draftSettings.value.mediaRetryDelayMs,
       saved.mediaRetryDelayMs,
     );
-
-    session.open(route: SettingsRoute.connection, savedSettings: saved);
-
-    expect(
-      () => session.updateProxy(
-        server: '127.0.0.1',
-        port: 'abc',
-        username: '',
-        password: '',
-      ),
-      throwsArgumentError,
-    );
-    expect(session.draftSettings.value.proxy, saved.proxy);
   });
 
   test('页面草稿可以单独更新媒体加载参数', () {

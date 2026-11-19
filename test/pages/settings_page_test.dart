@@ -9,7 +9,6 @@ import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
 import 'package:tgsorter/app/features/settings/application/settings_page_draft_session.dart';
-import 'package:tgsorter/app/features/settings/application/settings_save_result.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_app_bar.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_screen.dart';
@@ -65,6 +64,8 @@ void main() {
   });
 
   testWidgets('点击目录行后进入对应二级页并显示返回箭头', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await _pumpSettingsPage(
       tester,
       chats: const [SelectableChat(id: -1001, title: '频道一')],
@@ -76,7 +77,8 @@ void main() {
     expect(find.text('设置'), findsNothing);
     expect(find.text('连接与网络'), findsOneWidget);
     expect(find.byTooltip('返回'), findsOneWidget);
-    expect(find.text('代理服务器'), findsOneWidget);
+    expect(find.text('刷新会话'), findsOneWidget);
+    expect(find.text('代理服务器'), findsNothing);
     expect(find.text('主题模式'), findsNothing);
     expect(find.text('转发'), findsNothing);
   });
@@ -87,17 +89,12 @@ void main() {
       chats: const [SelectableChat(id: -1001, title: '频道一')],
     );
 
-    await tester.tap(find.text('连接与网络'));
+    await tester.tap(find.text('转发'));
     await tester.pumpAndSettle();
 
     expect(find.text('保存'), findsNothing);
 
-    await _setDialogField(
-      tester,
-      tileTitle: '代理服务器',
-      fieldLabel: '代理服务器',
-      value: '127.0.0.1',
-    );
+    await _selectChoice(tester, tileTitle: '消息拉取方向', optionLabel: '最旧优先');
 
     expect(find.text('保存'), findsOneWidget);
     expect(find.byType(StatusBadge), findsNothing);
@@ -111,11 +108,7 @@ void main() {
 
     await tester.tap(find.text('转发'));
     await tester.pumpAndSettle();
-    await _selectChoice(
-      tester,
-      tileTitle: '消息拉取方向',
-      optionLabel: '最旧优先',
-    );
+    await _selectChoice(tester, tileTitle: '消息拉取方向', optionLabel: '最旧优先');
 
     expect(
       controller.savedSettings.value.fetchDirection,
@@ -135,14 +128,36 @@ void main() {
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('保存'), findsNothing);
 
-    await tester.tap(find.text('连接与网络'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('未设置'), findsAtLeastNWidgets(1));
     expect(
       controller.savedSettings.value.fetchDirection,
       MessageFetchDirection.latestFirst,
     );
+  });
+
+  testWidgets('新增分类展示会话名而不是内部 ID', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = await _pumpSettingsPage(
+      tester,
+      chats: const [SelectableChat(id: -1001, title: '星空')],
+    );
+
+    await tester.tap(find.text('转发'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('新增分类'));
+    await tester.tap(find.text('新增分类'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('星空'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('星空'), findsOneWidget);
+    expect(find.textContaining('cat_'), findsNothing);
+
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    final category = controller.savedSettings.value.categories.single;
+    expect(category.key, startsWith('cat_'));
+    expect(category.targetChatId, -1001);
   });
 
   testWidgets('转发页展示完整设置项并在保存后提交草稿', (tester) async {
@@ -167,11 +182,7 @@ void main() {
     expect(find.text('预加载后续预览'), findsOneWidget);
     expect(find.text('新增分类'), findsOneWidget);
 
-    await _selectChoice(
-      tester,
-      tileTitle: '消息拉取方向',
-      optionLabel: '最旧优先',
-    );
+    await _selectChoice(tester, tileTitle: '消息拉取方向', optionLabel: '最旧优先');
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
@@ -211,53 +222,17 @@ void main() {
     expect(find.text('设置'), findsOneWidget);
   });
 
-  testWidgets('非法代理端口会显示错误并阻止保存', (tester) async {
-    await _pumpSettingsPage(
-      tester,
-      chats: const [SelectableChat(id: -1001, title: '频道一')],
-    );
-
-    await tester.tap(find.text('连接与网络'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('代理端口'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, '代理端口'), 'abc');
-    await tester.pumpAndSettle();
-
-    expect(find.text('请输入大于 0 的端口'), findsOneWidget);
-
-    final saveButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, '保存'),
-    );
-    expect(saveButton.onPressed, isNull);
-  });
-
   testWidgets('保存进行中会禁用二次保存和返回', (tester) async {
-    final gateway = _SettingsPageFakeGateway(const [
-      SelectableChat(id: -1001, title: '频道一'),
-    ])..restartCompleter = Completer<void>();
+    final release = Completer<void>();
     await _pumpSettingsPage(
       tester,
       chats: const [SelectableChat(id: -1001, title: '频道一')],
-      gateway: gateway,
+      saveGate: release.future,
     );
 
-    await tester.tap(find.text('连接与网络'));
+    await tester.tap(find.text('转发'));
     await tester.pumpAndSettle();
-
-    await _setDialogField(
-      tester,
-      tileTitle: '代理服务器',
-      fieldLabel: '代理服务器',
-      value: '127.0.0.1',
-    );
-    await _setDialogField(
-      tester,
-      tileTitle: '代理端口',
-      fieldLabel: '代理端口',
-      value: '7890',
-    );
+    await _selectChoice(tester, tileTitle: '消息拉取方向', optionLabel: '最旧优先');
 
     await tester.tap(find.text('保存'));
     await tester.pump();
@@ -276,7 +251,7 @@ void main() {
     expect(backButton.onPressed, isNull);
     expect(detailGuards.any((guard) => guard.ignoring), isTrue);
 
-    gateway.restartCompleter!.complete();
+    release.complete();
     await tester.pumpAndSettle();
 
     expect(find.text('设置已保存'), findsOneWidget);
@@ -295,11 +270,7 @@ void main() {
     expect(find.text('首页默认工作台'), findsOneWidget);
     expect(find.text('主题模式'), findsAtLeastNWidgets(1));
 
-    await _selectChoice(
-      tester,
-      tileTitle: '首页默认工作台',
-      optionLabel: '标签工作台',
-    );
+    await _selectChoice(tester, tileTitle: '首页默认工作台', optionLabel: '标签工作台');
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
@@ -327,11 +298,7 @@ void main() {
 
     await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
-    await _selectChoice(
-      tester,
-      tileTitle: '目录映射规则',
-      optionLabel: '平铺到目标目录',
-    );
+    await _selectChoice(tester, tileTitle: '目录映射规则', optionLabel: '平铺到目标目录');
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
@@ -423,6 +390,8 @@ void main() {
   });
 
   testWidgets('其余详情页都在两层结构内展示各自字段', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await _pumpSettingsPage(
       tester,
       chats: const [SelectableChat(id: -1001, title: '频道一')],
@@ -439,9 +408,8 @@ void main() {
 
     await tester.tap(find.text('连接与网络'));
     await tester.pumpAndSettle();
-    expect(find.text('代理设置'), findsOneWidget);
     expect(find.text('会话列表'), findsOneWidget);
-    expect(find.text('代理服务器'), findsOneWidget);
+    expect(find.text('代理服务器'), findsNothing);
     expect(find.text('刷新会话'), findsOneWidget);
 
     await tester.tap(find.byTooltip('返回'));
@@ -468,23 +436,6 @@ void main() {
     expect(find.widgetWithText(TextField, '节流毫秒'), findsNothing);
   });
 
-  testWidgets('连接页点击摘要行后才弹出代理服务器编辑器', (tester) async {
-    await _pumpSettingsPage(
-      tester,
-      chats: const [SelectableChat(id: -1001, title: '频道一')],
-    );
-
-    await tester.tap(find.text('连接与网络'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(TextField), findsNothing);
-
-    await tester.tap(find.text('代理服务器'));
-    await tester.pumpAndSettle();
-
-    expect(find.widgetWithText(TextField, '代理服务器'), findsOneWidget);
-  });
-
   testWidgets('桌面端设置页使用窄列容器而不是铺满内容区', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1024));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -494,7 +445,10 @@ void main() {
       chats: const [SelectableChat(id: -1001, title: '频道一')],
     );
 
-    expect(find.byKey(const ValueKey('settings-desktop-column')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('settings-desktop-column')),
+      findsOneWidget,
+    );
   });
 }
 
@@ -502,6 +456,7 @@ Future<SettingsCoordinator> _pumpSettingsPage(
   WidgetTester tester, {
   required List<SelectableChat> chats,
   AppSettings? initialSettings,
+  Future<void>? saveGate,
   _SettingsPageFakeGateway? gateway,
   List<SkippedMessageRecord> skippedRecords = const <SkippedMessageRecord>[],
 }) async {
@@ -512,7 +467,9 @@ Future<SettingsCoordinator> _pumpSettingsPage(
       ),
   });
   final prefs = await SharedPreferences.getInstance();
-  final repository = SettingsRepository(prefs);
+  final repository = saveGate == null
+      ? SettingsRepository(prefs)
+      : _GatedSettingsRepository(prefs, saveGate);
   if (initialSettings != null) {
     await repository.save(initialSettings);
   }
@@ -541,6 +498,18 @@ Future<SettingsCoordinator> _pumpSettingsPage(
   );
   await tester.pumpAndSettle();
   return controller;
+}
+
+class _GatedSettingsRepository extends SettingsRepository {
+  _GatedSettingsRepository(super.prefs, this.gate);
+
+  final Future<void> gate;
+
+  @override
+  Future<void> save(AppSettings settings) async {
+    await gate;
+    await super.save(settings);
+  }
 }
 
 class _SettingsTestShell extends StatelessWidget {
@@ -583,15 +552,13 @@ class _SettingsTestShell extends StatelessWidget {
       return;
     }
     try {
-      final result = await controller.savePageDraft(
-        draftSession.draftSettings.value,
-      );
+      await controller.savePageDraft(draftSession.draftSettings.value);
       draftSession.markSaved(controller.savedSettings.value);
       if (!context.mounted) {
         return;
       }
       messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(SnackBar(content: Text(_saveMessage(result))));
+      messenger.showSnackBar(const SnackBar(content: Text('设置已保存')));
     } catch (error) {
       if (!context.mounted) {
         return;
@@ -599,16 +566,6 @@ class _SettingsTestShell extends StatelessWidget {
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text('保存失败：$error')));
-    }
-  }
-
-  String _saveMessage(SettingsSaveResult result) {
-    switch (result) {
-      case SettingsSaveResult.saved:
-      case SettingsSaveResult.savedAndRestarted:
-        return '设置已保存';
-      case SettingsSaveResult.savedNeedsRestartAttention:
-        return '设置已保存，但重启失败，请稍后手动重试。';
     }
   }
 }
@@ -664,19 +621,5 @@ Future<void> _selectChoice(
   await tester.tap(find.text(tileTitle).first);
   await tester.pumpAndSettle();
   await tester.tap(find.text(optionLabel).last);
-  await tester.pumpAndSettle();
-}
-
-Future<void> _setDialogField(
-  WidgetTester tester, {
-  required String tileTitle,
-  required String fieldLabel,
-  required String value,
-}) async {
-  await tester.tap(find.text(tileTitle).first);
-  await tester.pumpAndSettle();
-  await tester.enterText(find.widgetWithText(TextField, fieldLabel), value);
-  await tester.pumpAndSettle();
-  await tester.tap(find.widgetWithText(FilledButton, '保存'));
   await tester.pumpAndSettle();
 }

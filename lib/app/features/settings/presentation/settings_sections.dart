@@ -302,38 +302,6 @@ class SettingsWorkflowContent extends StatelessWidget {
   }
 }
 
-class SettingsConnectionContent extends StatelessWidget {
-  const SettingsConnectionContent({
-    super.key,
-    required this.draft,
-    required this.onChanged,
-    required this.onValidationChanged,
-  });
-
-  final AppSettings draft;
-  final void Function({
-    required String server,
-    required String port,
-    required String username,
-    required String password,
-  })
-  onChanged;
-  final ValueChanged<bool> onValidationChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SettingsSectionBlock(
-      children: [
-        ProxySettingsDraftEditor(
-          value: draft.proxy,
-          onChanged: onChanged,
-          onValidationChanged: onValidationChanged,
-        ),
-      ],
-    );
-  }
-}
-
 class SettingsShortcutsContent extends StatelessWidget {
   const SettingsShortcutsContent({
     super.key,

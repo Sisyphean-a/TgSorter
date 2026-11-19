@@ -7,6 +7,22 @@ class AuthErrorMapper {
   const AuthErrorMapper();
 
   AppErrorEvent mapTdlibFailure(TdlibFailure error, {required String title}) {
+    final message = switch (error.message.trim().toUpperCase()) {
+      'PASSWORD_HASH_INVALID' => 'Telegram 两步验证密码不正确。它不是短信验证码，也不是手机解锁密码。',
+      'PHONE_CODE_INVALID' => '验证码不正确，请核对 Telegram 发来的最新验证码。',
+      'PHONE_CODE_EXPIRED' => '验证码已过期，请重新获取验证码。',
+      'PHONE_NUMBER_INVALID' => '手机号无效。请确认号码包含国际区号，例如 +86。',
+      _ => null,
+    };
+    if (error.kind == TdlibFailureKind.tdlib && message != null) {
+      return _authError(title: title, message: message);
+    }
+    if (error.kind == TdlibFailureKind.timeout) {
+      return _authError(
+        title: title,
+        message: '等待 Telegram 响应超时。请检查网络和系统 VPN，再重试。',
+      );
+    }
     final kind = classifyTdlibError(error);
     if (kind == TdErrorKind.rateLimit) {
       final waitSeconds = parseFloodWaitSeconds(error.message);

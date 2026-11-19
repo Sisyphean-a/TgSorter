@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/settings/application/category_settings_service.dart';
-import 'package:tgsorter/app/features/settings/application/connection_settings_service.dart';
 import 'package:tgsorter/app/features/settings/application/settings_input_validator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
 import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
@@ -14,18 +13,15 @@ import 'package:tgsorter/app/models/shortcut_binding.dart';
 class SettingsPageDraftSession {
   SettingsPageDraftSession({
     CategorySettingsService? categories,
-    ConnectionSettingsService? connection,
     ShortcutSettingsService? shortcuts,
     SettingsInputValidator? validator,
     TagSettingsService? tags,
   }) : _categories = categories ?? CategorySettingsService(),
-       _connection = connection ?? ConnectionSettingsService(),
        _shortcuts = shortcuts ?? ShortcutSettingsService(),
        _validator = validator ?? SettingsInputValidator(),
        _tags = tags ?? TagSettingsService();
 
   final CategorySettingsService _categories;
-  final ConnectionSettingsService _connection;
   final ShortcutSettingsService _shortcuts;
   final SettingsInputValidator _validator;
   final TagSettingsService _tags;
@@ -109,23 +105,6 @@ class SettingsPageDraftSession {
             .requireMediaBackgroundDownloadConcurrency(backgroundConcurrency),
         retryLimit: _validator.requireMediaRetryLimit(retryLimit),
         retryDelayMs: _validator.requireMediaRetryDelayMs(retryDelayMs),
-      ),
-    );
-  }
-
-  void updateProxy({
-    required String server,
-    required String port,
-    required String username,
-    required String password,
-  }) {
-    _update(
-      _connection.updateProxy(
-        current: draftSettings.value,
-        server: server,
-        port: port,
-        username: username,
-        password: password,
       ),
     );
   }
