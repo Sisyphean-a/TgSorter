@@ -1,0 +1,35 @@
+name: TDLib Android Preview Native
+
+on:
+  push:
+    branches: [feat/tdlib-16k-preview]
+    paths:
+      - '.github/workflows/tdlib-preview-native.yml'
+      - 'tool/build_tdlib_preview.sh'
+      - 'tool/check_android_16k.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  arm64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: 安装原生构建工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build gperf
+          sdkmanager --install 'ndk;28.2.13676358'
+      - name: 编译并校验 arm64 原生库
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/28.2.13676358"
+          export TDLIB_BUILD_JOBS=2
+          bash tool/build_tdlib_preview.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tdlib-preview-arm64
+          path: build/tdlib-preview/
+          if-no-files-found: error

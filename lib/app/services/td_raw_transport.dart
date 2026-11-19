@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:tdlib/td_api.dart';
 import 'package:tdlib/td_client.dart';
 
+import 'td_json_ffi.dart';
 import 'td_json_logger.dart';
+import 'tdlib_preview_wire.dart';
 
 typedef TdPluginProvider = TdPlugin Function();
 typedef TdNowMicros = int Function();
@@ -13,10 +15,17 @@ class TdRawTransport {
   TdRawTransport({
     TdPlugin? plugin,
     TdPluginProvider? pluginProvider,
+    TdJsonClient Function()? nativeClientProvider,
+    bool usePreviewSchema = false,
     TdJsonLogger? logger,
     Duration pollInterval = _defaultPollInterval,
     TdNowMicros? nowMicros,
-  }) : _pluginProvider = pluginProvider ?? (() => plugin ?? TdPlugin.instance),
+  }) : _clientProvider =
+           nativeClientProvider ??
+           (() => _LegacyJsonClient(
+             pluginProvider?.call() ?? plugin ?? TdPlugin.instance,
+           )),
+       _usePreviewSchema = usePreviewSchema,
        _logger = logger ?? TdJsonLogger(),
        _pollInterval = pollInterval,
        _nowMicros = nowMicros ?? _defaultNowMicros;
@@ -28,7 +37,8 @@ class TdRawTransport {
   static const double _nonBlockingReceiveTimeoutSeconds = 0;
   static const int _minimalTdlibLogLevel = 0;
 
-  final TdPluginProvider _pluginProvider;
+  final TdJsonClient Function() _clientProvider;
+  final bool _usePreviewSchema;
   final TdJsonLogger _logger;
   final Duration _pollInterval;
   final TdNowMicros _nowMicros;
@@ -126,7 +136,8 @@ class TdRawTransport {
   }
 
   Map<String, dynamic> _buildPayload(TdFunction function, String? extra) {
-    return Map<String, dynamic>.from(function.toJson(extra));
+    final payload = Map<String, dynamic>.from(function.toJson(extra));
+    return _usePreviewSchema ? adaptPreviewRequest(payload) : payload;
   }
 
   String _nextExtra() {
@@ -134,10 +145,14 @@ class TdRawTransport {
     return '${_nowMicros()}-$_requestSequence';
   }
 
-  TdPlugin get _plugin => _pluginProvider();
+  TdJsonClient get _plugin => _clientProvider();
 
   Future<void> _closeStaleClients({required int currentClientId}) async {
-    for (var staleClientId = 1; staleClientId < currentClientId; staleClientId++) {
+    for (
+      var staleClientId = 1;
+      staleClientId < currentClientId;
+      staleClientId++
+    ) {
       await _closeClient(staleClientId);
     }
   }
@@ -255,4 +270,19 @@ class TdRawTransport {
     );
     _plugin.tdSend(clientId, jsonEncode(request.toJson()));
   }
+}
+
+class _LegacyJsonClient implements TdJsonClient {
+  const _LegacyJsonClient(this.plugin);
+
+  final TdPlugin plugin;
+
+  @override
+  int tdCreate() => plugin.tdCreate();
+
+  @override
+  void tdSend(int clientId, String request) => plugin.tdSend(clientId, request);
+
+  @override
+  String? tdReceive(num timeout) => plugin.tdReceive(timeout.toDouble());
 }

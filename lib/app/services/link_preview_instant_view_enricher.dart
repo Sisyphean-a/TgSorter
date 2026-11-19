@@ -68,7 +68,9 @@ class LinkPreviewInstantViewEnricher {
         request: 'getWebPagePreview',
         phase: TdlibPhase.business,
       );
-      return TdMessageDto.parseLegacyWebPagePreview(envelope.payload);
+      return envelope.type == 'linkPreview'
+          ? TdMessageDto.parseModernLinkPreview(envelope.payload)
+          : TdMessageDto.parseLegacyWebPagePreview(envelope.payload);
     } on TdlibFailure catch (error) {
       if (error.code == 404) {
         return null;

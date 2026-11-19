@@ -25,6 +25,25 @@ android {
         versionName = flutter.versionName
     }
 
+    buildFeatures.resValues = true
+    flavorDimensions += "tdlib"
+    productFlavors {
+        create("stable") {
+            dimension = "tdlib"
+            resValue("string", "app_name", "tgsorter")
+        }
+        create("tdlibPreview") {
+            dimension = "tdlib"
+            applicationIdSuffix = ".tdlibpreview"
+            ndk.abiFilters += "arm64-v8a"
+            resValue("string", "app_name", "TgSorter TDLib Preview")
+        }
+    }
+
+    sourceSets.getByName("tdlibPreview").assets.directories.add(
+        rootProject.file("../build/tdlib-preview/notices").absolutePath,
+    )
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

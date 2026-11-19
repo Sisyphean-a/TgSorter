@@ -1,5 +1,10 @@
+import 'dart:convert';
+
+import 'package:flutter/services.dart' show appFlavor;
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tgsorter/app/services/td_json_ffi.dart';
+import 'package:tgsorter/app/services/tdlib_preview_wire.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
 import 'package:tgsorter/app/core/di/download_module.dart';
@@ -48,7 +53,13 @@ Future<void> registerAppBindings() async {
   final tdLogger = TdJsonLogger(
     detailLevel: parseTdJsonLogDetailLevel(tdLogDetailRaw),
   );
-  final rawTransport = TdRawTransport(logger: tdLogger);
+  final isTdlibPreview = appFlavor == 'tdlibPreview';
+  TdJsonFfi? previewClient;
+  final rawTransport = TdRawTransport(
+    logger: tdLogger,
+    usePreviewSchema: isTdlibPreview,
+    nativeClientProvider: isTdlibPreview ? () => previewClient! : null,
+  );
   final transport = TdClientTransport(
     rawTransport: rawTransport,
     logger: tdLogger,
@@ -59,7 +70,20 @@ Future<void> registerAppBindings() async {
     rawTransport: rawTransport,
     credentials: credentials,
     runtimePaths: runtimePaths,
-    initializeTdlib: defaultTdlibInitializer,
+    initializeTdlib: isTdlibPreview
+        ? (path) async {
+            final client = TdJsonFfi(path);
+            final revision = client.execute(
+              '{"@type":"getOption","name":"commit_hash"}',
+            );
+            if (revision == null ||
+                (jsonDecode(revision) as Map)['value'] !=
+                    tdlibPreviewRevision) {
+              throw StateError('预览包没有加载到指定版本的 TDLib。');
+            }
+            previewClient = client;
+          }
+        : defaultTdlibInitializer,
   );
   final telegram = TelegramService(
     adapter: adapter,
