@@ -50,6 +50,58 @@ void main() {
     expect(fileActions.copiedPaths, ['C:/demo/a.jpg']);
   });
 
+  testWidgets('mosaic opens the tapped photo and pages only through photos', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MessagePreviewMedia(
+            items: const [
+              MediaItemPreview(
+                messageId: 1,
+                kind: MediaItemKind.photo,
+                fullPath: 'C:/demo/a.jpg',
+              ),
+              MediaItemPreview(messageId: 2, kind: MediaItemKind.video),
+              MediaItemPreview(
+                messageId: 3,
+                kind: MediaItemKind.photo,
+                previewPath: 'C:/demo/b-preview.jpg',
+                fullPath: 'C:/demo/b.jpg',
+              ),
+            ],
+            preparing: false,
+            onRequestPlayback: ([messageId]) async {},
+            controllerInitializer: null,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('message-preview-media-tile-3')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('2 / 2'), findsOneWidget);
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Image &&
+            widget.image is FileImage &&
+            (widget.image as FileImage).file.path == 'C:/demo/b.jpg',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byIcon(Icons.chevron_left_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('1 / 2'), findsOneWidget);
+  });
+
   testWidgets('missing image preview keeps fallback copy short', (
     tester,
   ) async {

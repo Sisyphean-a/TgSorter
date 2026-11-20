@@ -36,18 +36,25 @@ class MessagePreviewImageGallery extends StatelessWidget {
     final safeIndex = _safeInitialIndex;
     final current = items[safeIndex];
     final previewPath = current.previewPath ?? current.fullPath;
+    Future<void> openGallery() => show(
+      context,
+      items: items,
+      initialIndex: safeIndex,
+      fileActions: fileActions,
+    );
+
     return MessageMediaShell(
       actions: [
         MessageMediaAction(
           icon: Icons.zoom_out_map_rounded,
           label: '查看大图',
-          onPressed: (_) => _openGallery(context),
+          onPressed: (_) => openGallery(),
         ),
       ],
       moreActions: _buildMoreActions(current),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => _openGallery(context),
+        onTap: openGallery,
         child: PreviewImage(imagePath: previewPath, fallbackText: fallbackText),
       ),
     );
@@ -77,8 +84,13 @@ class MessagePreviewImageGallery extends StatelessWidget {
     ];
   }
 
-  Future<void> _openGallery(BuildContext context) async {
-    await showGeneralDialog<void>(
+  static Future<void> show(
+    BuildContext context, {
+    required List<MediaItemPreview> items,
+    required int initialIndex,
+    PlatformFileActions fileActions = const PlatformFileActions(),
+  }) {
+    return showGeneralDialog<void>(
       context: context,
       barrierLabel: 'image-gallery',
       barrierDismissible: true,
@@ -86,7 +98,7 @@ class MessagePreviewImageGallery extends StatelessWidget {
       pageBuilder: (context, _, _) {
         return _ImageGalleryDialog(
           items: items,
-          initialIndex: _safeInitialIndex,
+          initialIndex: initialIndex,
           fileActions: fileActions,
         );
       },

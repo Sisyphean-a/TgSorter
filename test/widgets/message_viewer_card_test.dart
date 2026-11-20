@@ -874,7 +874,11 @@ void main() {
         title: 'album',
         mediaItems: [
           for (final id in ids)
-            MediaItemPreview(messageId: id, kind: MediaItemKind.photo),
+            MediaItemPreview(
+              messageId: id,
+              kind: MediaItemKind.photo,
+              previewPath: 'C:/demo/$id.jpg',
+            ),
         ],
       ),
     );
@@ -914,6 +918,13 @@ void main() {
           ?.messageIds,
       ids,
     );
+
+    await tester.tap(find.byKey(const ValueKey('media-action-查看大图')));
+    await tester.pumpAndSettle();
+    expect(find.text('5 / 5'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.chevron_left_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('4 / 5'), findsOneWidget);
   });
 
   testWidgets('grouped video preparing spinner is scoped to selected item', (

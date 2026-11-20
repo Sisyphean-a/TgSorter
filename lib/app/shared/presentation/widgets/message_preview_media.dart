@@ -21,6 +21,7 @@ class MessagePreviewMedia extends StatelessWidget {
   const MessagePreviewMedia({
     super.key,
     required this.items,
+    this.mediaGroup,
     required this.preparing,
     required this.onRequestPlayback,
     required this.controllerInitializer,
@@ -33,6 +34,7 @@ class MessagePreviewMedia extends StatelessWidget {
   });
 
   final List<MediaItemPreview> items;
+  final List<MediaItemPreview>? mediaGroup;
   final bool preparing;
   final Future<void> Function([int? messageId]) onRequestPlayback;
   final VideoControllerInitializer? controllerInitializer;
@@ -45,16 +47,16 @@ class MessagePreviewMedia extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final photoItems = items
-        .where((entry) => entry.kind == MediaItemKind.photo)
-        .toList(growable: false);
     if (items.isEmpty) {
       return _buildFallback();
     }
+    final photoItems = (mediaGroup ?? items)
+        .where((item) => item.kind == MediaItemKind.photo)
+        .toList(growable: false);
     if (items.length == 1) {
       return _buildSingle(items.single, photoItems);
     }
-    return _buildMosaic(items);
+    return _buildMosaic(photoItems);
   }
 
   Widget _buildFallback() {
@@ -103,9 +105,6 @@ class MessagePreviewMedia extends StatelessWidget {
         ],
       );
     }
-    final initialIndex = photoItems.indexWhere(
-      (entry) => entry.messageId == item.messageId,
-    );
     final errorText = errorForMedia?.call(item.messageId);
     if (errorText != null) {
       return _PhotoStatusTile(
@@ -117,16 +116,16 @@ class MessagePreviewMedia extends StatelessWidget {
     }
     return MessagePreviewImageGallery(
       items: photoItems,
-      initialIndex: initialIndex < 0 ? 0 : initialIndex,
+      initialIndex: photoItems.indexOf(item),
       fallbackText: _imageFallbackText,
     );
   }
 
-  Widget _buildMosaic(List<MediaItemPreview> mediaItems) {
+  Widget _buildMosaic(List<MediaItemPreview> photoItems) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final layout = computeTelegramMediaGroupLayout(
-          aspectRatios: mediaItems
+          aspectRatios: items
               .map((item) => item.aspectRatio)
               .toList(growable: false),
           maxWidth: constraints.maxWidth,
@@ -137,18 +136,20 @@ class MessagePreviewMedia extends StatelessWidget {
           height: layout.height,
           child: Stack(
             children: [
-              for (var index = 0; index < mediaItems.length; index++)
+              for (var index = 0; index < items.length; index++)
                 Positioned(
                   key: ValueKey(
-                    'message-preview-media-tile-${mediaItems[index].messageId}',
+                    'message-preview-media-tile-${items[index].messageId}',
                   ),
                   left: layout.items[index].geometry.left,
                   top: layout.items[index].geometry.top,
                   width: layout.items[index].geometry.width,
                   height: layout.items[index].geometry.height,
                   child: _buildMosaicTile(
-                    mediaItems[index],
+                    context,
+                    items[index],
                     layout.items[index],
+                    photoItems,
                   ),
                 ),
             ],
@@ -159,8 +160,10 @@ class MessagePreviewMedia extends StatelessWidget {
   }
 
   Widget _buildMosaicTile(
+    BuildContext context,
     MediaItemPreview item,
     TelegramMediaGroupLayoutItem layoutItem,
+    List<MediaItemPreview> photoItems,
   ) {
     return ClipRRect(
       borderRadius: _borderRadiusFor(layoutItem),
@@ -173,11 +176,37 @@ class MessagePreviewMedia extends StatelessWidget {
               height: layoutItem.geometry.height,
               errorText: errorForMedia?.call(item.messageId),
             )
-          : PreviewImage(
-              imagePath: item.previewPath ?? item.fullPath,
-              fallbackText: _imageFallbackText,
-              height: layoutItem.geometry.height,
+          : _buildMosaicPhoto(
+              context,
+              item,
+              layoutItem.geometry.height,
+              photoItems,
             ),
+    );
+  }
+
+  Widget _buildMosaicPhoto(
+    BuildContext context,
+    MediaItemPreview item,
+    double height,
+    List<MediaItemPreview> photoItems,
+  ) {
+    final path = item.previewPath ?? item.fullPath;
+    final preview = PreviewImage(
+      imagePath: path,
+      fallbackText: _imageFallbackText,
+      height: height,
+    );
+    if (path == null || path.isEmpty) {
+      return preview;
+    }
+    return InkWell(
+      onTap: () => MessagePreviewImageGallery.show(
+        context,
+        items: photoItems,
+        initialIndex: photoItems.indexOf(item),
+      ),
+      child: preview,
     );
   }
 

@@ -111,6 +111,7 @@ class MessagePreviewContent extends StatelessWidget {
       itemCount: preview.mediaItems.length,
       builder: (start, end) => MessagePreviewMedia(
         items: preview.mediaItems.sublist(start, end),
+        mediaGroup: preview.mediaItems,
         preparing: _isPreparing,
         onRequestPlayback: ([messageId]) => _openMedia(data, messageId),
         controllerInitializer: videoControllerInitializer,
