@@ -86,6 +86,7 @@ class MessagePreviewMedia extends StatelessWidget {
         children: [
           MessagePreviewVideo(
             videoPath: item.fullPath,
+            videoFileId: item.fullFileId,
             thumbnailPath: item.previewPath,
             preparing: _preparing(item.messageId),
             onRequestPlayback: ([messageId]) =>
@@ -226,6 +227,7 @@ class _VideoMosaicTile extends StatelessWidget {
       children: [
         MessagePreviewVideo(
           videoPath: item.fullPath,
+          videoFileId: item.fullFileId,
           thumbnailPath: item.previewPath,
           preparing: preparing,
           onRequestPlayback: ([messageId]) => onRequestPlayback(item.messageId),

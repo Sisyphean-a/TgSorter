@@ -41,7 +41,7 @@ void main() {
 
       expect(audioCall?.windows, isFalse);
       expect(audioCall?.linux, isFalse);
-      expect(videoCall?.android, isTrue);
+      expect(videoCall?.android, isFalse);
       expect(videoCall?.windows, isFalse);
     },
   );

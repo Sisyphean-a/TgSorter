@@ -31,8 +31,8 @@ TgSorter 是一个基于 Flutter + TDLib 的 Telegram 消息分流工具。当�
 - TDLib Dart 插件 `tdlib`
 - `shared_preferences`
 - `url_launcher`
-- `video_player`
-- `video_player_media_kit`
+- `video_player`（Android 使用 Media3 ExoPlayer，未缓存视频通过 TDLib 按段读取）
+- `video_player_media_kit`（Windows）
 - `just_audio`
 
 ## 目录概览

@@ -50,7 +50,7 @@ Future<void> initializeVideoPlayback({
         isWindows: Platform.isWindows,
       );
   await initializer(
-    android: platform.isAndroid,
+    android: false,
     iOS: false,
     macOS: false,
     windows: platform.isWindows,

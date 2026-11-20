@@ -31,6 +31,7 @@ import 'package:tgsorter/app/services/skipped_message_repository.dart';
 import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_json_logger.dart';
 import 'package:tgsorter/app/services/td_raw_transport.dart';
+import 'package:tgsorter/app/services/td_video_stream.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
@@ -110,6 +111,9 @@ Future<void> registerAppBindings() async {
   Get.put(transport, permanent: true);
   Get.put(credentials, permanent: true);
   Get.put(adapter, permanent: true);
+  if (Platform.isAndroid) {
+    Get.put(TdVideoStream(adapter), permanent: true);
+  }
   Get.put<AuthGateway>(telegram, permanent: true);
   Get.put<SessionQueryGateway>(telegram, permanent: true);
   Get.put<AuthStateGateway>(telegram, permanent: true);

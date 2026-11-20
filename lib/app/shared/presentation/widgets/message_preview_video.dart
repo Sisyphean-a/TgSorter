@@ -3,6 +3,8 @@ import 'dart:developer' as developer;
 import 'dart:io' as io;
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:tgsorter/app/services/td_video_stream.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_media_actions.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_media_shell.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
@@ -35,6 +37,7 @@ class MessagePreviewVideo extends StatefulWidget {
     required this.preparing,
     required this.onRequestPlayback,
     required this.controllerInitializer,
+    this.videoFileId,
     this.loadErrorText,
     this.compact = false,
     this.height = previewMediaHeight,
@@ -42,6 +45,7 @@ class MessagePreviewVideo extends StatefulWidget {
   });
 
   final String? videoPath;
+  final int? videoFileId;
   final String? thumbnailPath;
   final bool preparing;
   final Future<void> Function([int? messageId]) onRequestPlayback;
@@ -59,7 +63,8 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   static const Duration initializeTimeout = Duration(seconds: 5);
 
   VideoPlayerController? _controller;
-  String? _currentPath;
+  TdVideoStreamSession? _streamSession;
+  int _playbackGeneration = 0;
   bool _loading = false;
   Timer? _retryTimer;
   bool _playbackRequested = false;
@@ -70,128 +75,136 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
   bool _looping = true;
 
   @override
-  void initState() {
-    super.initState();
-    _syncController(allowInitialize: false);
-  }
-
-  @override
   void didUpdateWidget(covariant MessagePreviewVideo oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.videoPath != widget.videoPath) {
-      _syncController(allowInitialize: _playbackRequested);
+    if (oldWidget.videoFileId != widget.videoFileId) {
+      _resetPlayback();
+    } else if (_playbackRequested &&
+        oldWidget.videoPath != widget.videoPath &&
+        _streamSession == null &&
+        !_loading) {
+      _releasePlayback();
+      unawaited(_playLocalWhenReady());
     }
   }
 
   @override
   void dispose() {
-    _retryTimer?.cancel();
-    final current = _controller;
-    _controller = null;
-    current?.removeListener(_handleControllerTick);
-    current?.dispose();
+    _resetPlayback();
     super.dispose();
   }
 
-  Future<void> _syncController({required bool allowInitialize}) async {
+  void _resetPlayback() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _playbackRequested = false;
+    _loading = false;
+    _errorText = null;
+    _scrubbing = false;
+    _scrubMilliseconds = null;
+    _releasePlayback();
+  }
+
+  void _releasePlayback() {
+    _playbackGeneration++;
+    final stream = _streamSession;
+    _streamSession = null;
+    if (stream != null) unawaited(stream.close());
+    final current = _controller;
+    _controller = null;
+    current?.removeListener(_handleControllerTick);
+    if (current != null) unawaited(current.dispose());
+  }
+
+  io.File? _localFile() {
     final path = widget.videoPath;
-    if (path == null || path.isEmpty || !io.File(path).existsSync()) {
-      await _disposeController();
-      _ensureRetryTimer(path);
-      if (mounted) {
-        setState(() {
-          _currentPath = path;
-          _loading = false;
-          _errorText = null;
-        });
-      }
-      return;
-    }
-    if (_currentPath == path && _controller?.value.isInitialized == true) {
-      _retryTimer?.cancel();
-      return;
-    }
-    if (!allowInitialize) {
-      _retryTimer?.cancel();
-      if (mounted) {
-        setState(() {
-          _currentPath = path;
-          _loading = false;
-          _errorText = null;
-        });
-      }
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _currentPath = path;
-      _errorText = null;
-    });
-    await _disposeController();
-    final next = VideoPlayerController.file(io.File(path));
-    try {
-      developer.log('initialize start path=$path', name: 'VideoPreview');
-      final initialize =
-          widget.controllerInitializer ??
-          (VideoPlayerController c) => c.initialize();
-      await initialize(next).timeout(initializeTimeout);
-      await next.setLooping(_looping);
-      await next.setPlaybackSpeed(_speed);
-      next.addListener(_handleControllerTick);
-      if (!mounted) {
-        next.removeListener(_handleControllerTick);
-        await next.dispose();
-        return;
-      }
-      setState(() {
-        _controller = next;
-        _loading = false;
-        _errorText = null;
-      });
-      developer.log('initialize success path=$path', name: 'VideoPreview');
-      unawaited(next.play());
-      _retryTimer?.cancel();
-    } on TimeoutException catch (error, stackTrace) {
-      developer.log(
-        'initialize timeout path=$path',
-        name: 'VideoPreview',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      await next.dispose();
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _controller = null;
-        _loading = false;
-        _errorText = '视频播放器初始化超时';
-      });
-    } catch (error, stackTrace) {
-      developer.log(
-        'initialize failure path=$path',
-        name: 'VideoPreview',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      await next.dispose();
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _controller = null;
-        _loading = false;
-        _errorText = '视频播放失败：$error';
-      });
+    if (path == null || path.isEmpty) return null;
+    final file = io.File(path);
+    return file.existsSync() ? file : null;
+  }
+
+  Future<void> _requestPlayback() async {
+    _playbackRequested = true;
+    final local = _localFile();
+    if (local != null) {
+      await _startPlayback(file: local);
+    } else if (widget.videoFileId case final id?
+        when Get.isRegistered<TdVideoStream>()) {
+      await _startPlayback(stream: Get.find<TdVideoStream>(), fileId: id);
+    } else {
+      setState(() => _errorText = null);
+      _ensureRetryTimer(widget.videoPath);
+      await widget.onRequestPlayback();
     }
   }
 
-  Future<void> _disposeController() async {
-    final current = _controller;
-    _controller = null;
-    if (current != null) {
-      current.removeListener(_handleControllerTick);
-      await current.dispose();
+  Future<void> _playLocalWhenReady() async {
+    if (_loading || _controller != null || _streamSession != null) return;
+    final file = _localFile();
+    if (file == null) {
+      _ensureRetryTimer(widget.videoPath);
+      return;
+    }
+    await _startPlayback(file: file);
+  }
+
+  Future<void> _startPlayback({
+    io.File? file,
+    TdVideoStream? stream,
+    int? fileId,
+  }) async {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _releasePlayback();
+    final generation = _playbackGeneration;
+    bool active() => mounted && generation == _playbackGeneration;
+    setState(() {
+      _loading = true;
+      _errorText = null;
+    });
+    try {
+      if (stream != null) {
+        final session = await stream.open(fileId!);
+        if (!active()) {
+          await session.close();
+          return;
+        }
+        _streamSession = session;
+      }
+      final uri = _streamSession?.uri;
+      final next = uri != null && uri.scheme != 'file'
+          ? VideoPlayerController.networkUrl(uri)
+          : VideoPlayerController.file(file ?? io.File.fromUri(uri!));
+      _controller = next;
+      final initialize =
+          widget.controllerInitializer ??
+          (VideoPlayerController c) => c.initialize();
+      await initialize(next).timeout(
+        uri != null && uri.scheme != 'file'
+            ? const Duration(seconds: 25)
+            : initializeTimeout,
+      );
+      if (!active()) return;
+      await next.setLooping(_looping);
+      if (!active()) return;
+      await next.setPlaybackSpeed(_speed);
+      if (!active()) return;
+      next.addListener(_handleControllerTick);
+      await next.play();
+      if (active()) setState(() => _loading = false);
+    } catch (error, stackTrace) {
+      if (!active()) return;
+      developer.log(
+        '视频播放初始化失败',
+        name: 'VideoPreview',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _releasePlayback();
+      setState(() {
+        _loading = false;
+        _errorText = error is TimeoutException ? '视频加载超时，请重试' : '视频播放失败，请重试';
+      });
     }
   }
 
@@ -262,7 +275,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
       if (!mounted) {
         return;
       }
-      unawaited(_syncController(allowInitialize: _playbackRequested));
+      unawaited(_playLocalWhenReady());
     });
   }
 
@@ -390,6 +403,9 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
       return _buildErrorState(text);
     }
     final controller = _controller;
+    if (controller?.value.hasError == true) {
+      return _buildErrorState('视频播放中断，请重试');
+    }
     if (controller == null || !controller.value.isInitialized) {
       final thumb = widget.thumbnailPath;
       if (thumb != null && thumb.isNotEmpty) {
@@ -412,6 +428,15 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
             ),
           ),
         ),
+        if (controller.value.isBuffering)
+          const Positioned(
+            right: 12,
+            bottom: 12,
+            child: SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
         IconButton(
           key: const Key('message-preview-video-play-toggle'),
           onPressed: _togglePlayback,
@@ -584,21 +609,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
           if (widget.preparing) const CircularProgressIndicator(),
           IconButton(
             key: const Key('message-video-play'),
-            onPressed: widget.preparing
-                ? null
-                : () async {
-                    _playbackRequested = true;
-                    final path = widget.videoPath;
-                    final hasLocalFile =
-                        path != null &&
-                        path.isNotEmpty &&
-                        io.File(path).existsSync();
-                    if (hasLocalFile) {
-                      await _syncController(allowInitialize: true);
-                      return;
-                    }
-                    await widget.onRequestPlayback();
-                  },
+            onPressed: widget.preparing ? null : _requestPlayback,
             style: _overlayIconButtonStyle,
             icon: const Icon(Icons.play_arrow_rounded),
           ),
@@ -618,9 +629,7 @@ class _MessagePreviewVideoState extends State<MessagePreviewVideo> {
           Positioned(
             bottom: 16,
             child: IconButton(
-              onPressed: () async {
-                await _syncController(allowInitialize: true);
-              },
+              onPressed: _requestPlayback,
               style: _overlayIconButtonStyle,
               icon: const Icon(Icons.refresh_rounded),
             ),
