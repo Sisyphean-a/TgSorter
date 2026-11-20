@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -471,7 +471,7 @@ Future<SettingsCoordinator> _pumpSettingsPage(
   Get.put<SettingsCoordinator>(controller);
 
   await tester.pumpWidget(
-    GetMaterialApp(
+    MaterialApp(
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       home: _SettingsTestShell(

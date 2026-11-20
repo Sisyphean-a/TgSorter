@@ -1,11 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
+import 'package:tgsorter/app/core/routing/app_routes.dart';
+import 'package:tgsorter/app/core/routing/navigator_auth_navigation_adapter.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
@@ -76,6 +78,7 @@ void main() {
     Get.put<PipelineCoordinator>(pipeline);
     expect(registerAuthModule, returnsNormally);
     final auth = Get.find<AuthCoordinator>();
+    final navigation = Get.find<NavigatorAuthNavigationAdapter>();
     final downloads = DownloadWorkbenchController(
       sessions: settingsGateway,
       settings: settings,
@@ -90,26 +93,22 @@ void main() {
     pipelineGateway.emitConnectionReady();
 
     await tester.pumpWidget(
-      GetMaterialApp(
-        initialRoute: '/auth',
-        getPages: [
-          GetPage(
-            name: '/auth',
-            page: () => AuthPage(auth: auth, errors: errors),
+      MaterialApp(
+        navigatorKey: navigation.key,
+        navigatorObservers: [navigation],
+        initialRoute: navigation.initialRoute,
+        routes: {
+          AppRoutes.auth: (_) => AuthPage(auth: auth, errors: errors),
+          AppRoutes.app: (_) => MainShellPage(
+            pipeline: pipeline,
+            tagging: tagging,
+            downloads: downloads,
+            loginAlerts: loginAlerts,
+            pipelineSettings: settings,
+            errors: errors,
+            settings: settings,
           ),
-          GetPage(
-            name: '/app',
-            page: () => MainShellPage(
-              pipeline: pipeline,
-              tagging: tagging,
-              downloads: downloads,
-              loginAlerts: loginAlerts,
-              pipelineSettings: settings,
-              errors: errors,
-              settings: settings,
-            ),
-          ),
-        ],
+        },
       ),
     );
     await tester.pump();

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io' as io;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/services/td_video_stream.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_media_actions.dart';

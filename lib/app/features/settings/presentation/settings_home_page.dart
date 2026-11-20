@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_surface.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';

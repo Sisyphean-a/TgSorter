@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/bootstrap_app.dart';
 import 'package:tgsorter/app/core/di/app_bindings.dart';
 import 'package:tgsorter/app/services/default_playback_capability_service.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/features/settings/application/skipped_message_summary.dart';
 import 'package:tgsorter/app/features/settings/domain/download_settings.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';

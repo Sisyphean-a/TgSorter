@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 enum MainShellDestination {
   forwardingWorkbench(label: '转发工作台', icon: Icons.dashboard_customize_rounded),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 
 class AddCategoryDialog extends StatelessWidget {

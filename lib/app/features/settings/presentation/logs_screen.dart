@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/features/settings/ports/pipeline_logs_port.dart';
 import 'package:tgsorter/app/shared/presentation/formatters/pipeline_log_formatter.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';

@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/pipeline/presentation/pipeline_undo_feedback.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_viewer_card.dart';
 import 'package:tgsorter/app/widgets/mobile_action_tray.dart';
@@ -68,7 +69,7 @@ class PipelineMobileView extends StatelessWidget {
         onMediaAction: pipeline!.performMediaAction,
         onClassify: pipeline!.classify,
         onSkip: () => pipeline!.skipCurrent('mobile_button'),
-        onUndo: pipeline!.undoLastStep,
+        onUndo: () => undoWithFeedback(context, pipeline!),
       );
     });
   }

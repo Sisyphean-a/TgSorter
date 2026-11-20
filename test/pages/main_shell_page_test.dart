@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -105,7 +105,7 @@ void main() {
     )..onInit();
 
     await tester.pumpWidget(
-      GetMaterialApp(
+      MaterialApp(
         theme: AppTheme.light(),
         home: MainShellPage(
           pipeline: pipeline,
@@ -228,7 +228,7 @@ void main() {
       )..onInit();
 
       await tester.pumpWidget(
-        GetMaterialApp(
+        MaterialApp(
           theme: AppTheme.light(),
           home: MainShellPage(
             pipeline: pipeline,
@@ -309,7 +309,7 @@ void main() {
     )..onInit();
 
     await tester.pumpWidget(
-      GetMaterialApp(
+      MaterialApp(
         theme: AppTheme.light(),
         home: MainShellPage(
           pipeline: pipeline,
@@ -380,7 +380,7 @@ void main() {
     )..onInit();
 
     await tester.pumpWidget(
-      GetMaterialApp(
+      MaterialApp(
         theme: AppTheme.dark(),
         home: MainShellPage(
           pipeline: pipeline,
@@ -517,27 +517,21 @@ void main() {
     )..onInit();
 
     await tester.pumpWidget(
-      GetMaterialApp(
+      MaterialApp(
         initialRoute: AppRoutes.app,
-        getPages: [
-          GetPage(
-            name: AppRoutes.app,
-            page: () => MainShellPage(
-              pipeline: pipeline,
-              tagging: tagging,
-              downloads: downloads,
-              loginAlerts: loginAlerts,
-              pipelineSettings: settingsController,
-              errors: errors,
-              settings: settingsController,
-              pipelineLogs: pipeline,
-            ),
+        routes: {
+          AppRoutes.app: (_) => MainShellPage(
+            pipeline: pipeline,
+            tagging: tagging,
+            downloads: downloads,
+            loginAlerts: loginAlerts,
+            pipelineSettings: settingsController,
+            errors: errors,
+            settings: settingsController,
+            pipelineLogs: pipeline,
           ),
-          GetPage(
-            name: AppRoutes.auth,
-            page: () => const Scaffold(body: Text('AUTH PAGE')),
-          ),
-        ],
+          AppRoutes.auth: (_) => const Scaffold(body: Text('AUTH PAGE')),
+        },
       ),
     );
     await tester.pumpAndSettle();

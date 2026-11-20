@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
@@ -39,7 +39,7 @@ void main() {
     expect(sessions.loadCalls, 0);
 
     await tester.pumpWidget(
-      GetMaterialApp(
+      MaterialApp(
         theme: AppTheme.light(),
         home: Scaffold(body: DownloadWorkbenchScreen(controller: controller)),
       ),
@@ -56,12 +56,12 @@ void main() {
     sessions.availableChats = const [SelectableChat(id: 2, title: '会话二')];
 
     await tester.pumpWidget(
-      const GetMaterialApp(home: SizedBox.shrink()),
+      const MaterialApp(home: SizedBox.shrink()),
     );
     await tester.pumpAndSettle();
 
     await tester.pumpWidget(
-      GetMaterialApp(
+      MaterialApp(
         theme: AppTheme.light(),
         home: Scaffold(body: DownloadWorkbenchScreen(controller: controller)),
       ),

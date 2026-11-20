@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_audio.dart';

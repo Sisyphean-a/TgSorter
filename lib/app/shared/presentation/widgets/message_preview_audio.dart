@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io' as io;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_media_actions.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -134,7 +134,7 @@ void main() {
     ) async {
       await tester.binding.setSurfaceSize(const Size(1280, 900));
       await tester.pumpWidget(
-        GetMaterialApp(
+        MaterialApp(
           theme: AppTheme.light(),
           home: AppShell(
             appBar: PipelineCompactAppBar(pipeline: pipelineController),
@@ -192,7 +192,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1280, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
-        GetMaterialApp(
+        MaterialApp(
           theme: AppTheme.dark(),
           home: AppShell(
             appBar: PipelineCompactAppBar(pipeline: pipelineController),
@@ -270,7 +270,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        GetMaterialApp(
+        MaterialApp(
           theme: AppTheme.dark(),
           home: AppShell(
             appBar: PipelineCompactAppBar(pipeline: pipelineController),

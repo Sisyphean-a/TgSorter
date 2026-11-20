@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/application/settings_navigation_controller.dart';

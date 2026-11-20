@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';

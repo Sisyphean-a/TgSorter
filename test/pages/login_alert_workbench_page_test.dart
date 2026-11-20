@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
 import 'package:tgsorter/app/features/login_alerts/presentation/login_alert_workbench_page.dart';
@@ -47,7 +48,7 @@ void main() {
     await tester.pump();
 
     await tester.pumpWidget(
-      GetMaterialApp(
+      MaterialApp(
         theme: AppTheme.light(),
         home: LoginAlertWorkbenchPage(controller: controller),
       ),

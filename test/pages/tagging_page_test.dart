@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
@@ -31,7 +31,7 @@ void main() {
     await controller.fetchNext();
 
     await tester.pumpWidget(
-      GetMaterialApp(
+      MaterialApp(
         theme: AppTheme.light(),
         home: Scaffold(
           body: TaggingScreen(
@@ -69,7 +69,7 @@ void main() {
     await controller.fetchNext();
 
     await tester.pumpWidget(
-      GetMaterialApp(
+      MaterialApp(
         theme: AppTheme.dark(),
         home: Scaffold(
           body: TaggingScreen(

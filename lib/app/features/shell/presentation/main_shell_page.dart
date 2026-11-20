@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/core/routing/app_routes.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
@@ -224,7 +224,10 @@ class _MainShellPageState extends State<MainShellPage> {
     if (!mounted) {
       return;
     }
-    Get.offAllNamed(AppRoutes.auth);
+    Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil<void>(
+      AppRoutes.auth,
+      (_) => false,
+    );
   }
 
   @override

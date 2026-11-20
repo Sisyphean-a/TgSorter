@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_preview_helpers.dart';
 import 'package:video_player/video_player.dart';

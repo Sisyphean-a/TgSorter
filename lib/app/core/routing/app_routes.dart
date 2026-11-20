@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
@@ -16,29 +17,23 @@ abstract final class AppRoutes {
   static const app = '/app';
 }
 
-List<GetPage<dynamic>> buildAppPages() {
-  return [
-    GetPage(
-      name: AppRoutes.auth,
-      page: () => AuthPage(
-        auth: Get.find<AuthCoordinator>(),
-        errors: Get.find<AppErrorController>(),
-      ),
+Map<String, WidgetBuilder> buildAppRoutes() {
+  return {
+    AppRoutes.auth: (_) => AuthPage(
+      auth: Get.find<AuthCoordinator>(),
+      errors: Get.find<AppErrorController>(),
     ),
-    GetPage(
-      name: AppRoutes.app,
-      page: () => MainShellPage(
-        pipeline: Get.find<PipelineCoordinator>(),
-        tagging: Get.find<TaggingCoordinator>(),
-        downloads: Get.find<DownloadWorkbenchController>(),
-        loginAlerts: Get.find<LoginAlertWorkbenchController>(),
-        pipelineSettings: Get.find<PipelineSettingsReader>(),
-        errors: Get.find<AppErrorController>(),
-        settings: Get.find<SettingsCoordinator>(),
-        pipelineLogs: Get.isRegistered<PipelineLogsPort>()
-            ? Get.find<PipelineLogsPort>()
-            : null,
-      ),
+    AppRoutes.app: (_) => MainShellPage(
+      pipeline: Get.find<PipelineCoordinator>(),
+      tagging: Get.find<TaggingCoordinator>(),
+      downloads: Get.find<DownloadWorkbenchController>(),
+      loginAlerts: Get.find<LoginAlertWorkbenchController>(),
+      pipelineSettings: Get.find<PipelineSettingsReader>(),
+      errors: Get.find<AppErrorController>(),
+      settings: Get.find<SettingsCoordinator>(),
+      pipelineLogs: Get.isRegistered<PipelineLogsPort>()
+          ? Get.find<PipelineLogsPort>()
+          : null,
     ),
-  ];
+  };
 }

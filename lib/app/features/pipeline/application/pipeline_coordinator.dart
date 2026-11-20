@@ -407,13 +407,13 @@ class PipelineCoordinator extends GetxController
     }
   }
 
-  Future<void> undoLastStep() async {
+  Future<void> undoLastStep({void Function()? onUnavailable}) async {
     if (processing.value || !isOnline.value) {
       return;
     }
     final receipt = _lastSuccessReceipt;
     if (receipt == null) {
-      Get.snackbar('无法撤销', '当前没有可撤销的成功操作');
+      onUnavailable?.call();
       return;
     }
     try {

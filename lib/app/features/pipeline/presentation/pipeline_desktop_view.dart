@@ -1,11 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.dart';
+import 'package:tgsorter/app/features/pipeline/presentation/pipeline_undo_feedback.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_desktop_panels.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/widgets/classification_action_group.dart';
@@ -29,15 +30,18 @@ class PipelineDesktopView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final vm = pipeline.screenVm;
-      final shortcuts = _buildShortcutsMap();
+      Future<void> onUndo() => undoWithFeedback(context, pipeline);
       return Shortcuts(
-        shortcuts: shortcuts,
-        child: Actions(actions: _buildActionMap(vm), child: _buildBody(vm)),
+        shortcuts: _buildShortcutsMap(),
+        child: Actions(
+          actions: _buildActionMap(vm, onUndo),
+          child: _buildBody(vm, onUndo),
+        ),
       );
     });
   }
 
-  Widget _buildBody(PipelineScreenVm vm) {
+  Widget _buildBody(PipelineScreenVm vm, Future<void> Function() onUndo) {
     return Padding(
       key: const Key('pipeline-desktop-workspace'),
       padding: const EdgeInsets.all(16),
@@ -45,7 +49,7 @@ class PipelineDesktopView extends StatelessWidget {
         children: [
           Expanded(flex: _desktopContentFlex, child: _buildLeftPane(vm)),
           const SizedBox(width: 16),
-          Expanded(flex: _desktopSideFlex, child: _buildRightPane(vm)),
+          Expanded(flex: _desktopSideFlex, child: _buildRightPane(vm, onUndo)),
         ],
       ),
     );
@@ -87,7 +91,7 @@ class PipelineDesktopView extends StatelessWidget {
     );
   }
 
-  Widget _buildRightPane(PipelineScreenVm vm) {
+  Widget _buildRightPane(PipelineScreenVm vm, Future<void> Function() onUndo) {
     return WorkspacePanel(
       key: const Key('desktop-action-panel'),
       dense: true,
@@ -109,7 +113,7 @@ class PipelineDesktopView extends StatelessWidget {
             onNavigatePrevious: pipeline.showPreviousMessage,
             onNavigateNext: pipeline.showNextMessage,
             onSkip: () => pipeline.skipCurrent('desktop_button'),
-            onUndo: pipeline.undoLastStep,
+            onUndo: onUndo,
           ),
         ],
       ),
@@ -133,7 +137,10 @@ class PipelineDesktopView extends StatelessWidget {
     return result;
   }
 
-  Map<Type, Action<Intent>> _buildActionMap(PipelineScreenVm vm) {
+  Map<Type, Action<Intent>> _buildActionMap(
+    PipelineScreenVm vm,
+    Future<void> Function() onUndo,
+  ) {
     final canBrowse = !vm.workflow.processingOverlay;
     final canClick = vm.workflow.online && !vm.workflow.processingOverlay;
     return {
@@ -153,7 +160,7 @@ class PipelineDesktopView extends StatelessWidget {
             : null,
       ),
       _UndoIntent: CallbackAction<_UndoIntent>(
-        onInvoke: (_) => canClick ? _fire(pipeline.undoLastStep) : null,
+        onInvoke: (_) => canClick ? _fire(onUndo) : null,
       ),
       _RetryIntent: CallbackAction<_RetryIntent>(
         onInvoke: (_) => canClick ? _fire(pipeline.retryNextFailed) : null,

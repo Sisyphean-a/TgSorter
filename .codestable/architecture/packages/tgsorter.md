@@ -6,6 +6,8 @@ Flutter 应用通过 TDLib 操作 Telegram，不使用 Bot API。`lib/main.dart`
 
 `lib/app/services/` 承担 TDLib 适配、Telegram 业务与本地持久化；`TdlibAdapter` 管理 TDLib 生命周期和传输，`TelegramService` 组合业务能力。`lib/app/domain/` 包含消息预览等领域转换，`lib/app/models/` 为共享模型，`lib/app/shared/`、`theme/`、`widgets/` 提供共享展示能力。
 
+界面组件使用官方独立包 `material_ui`。`lib/app/app.dart` 的 `MaterialApp` 与 `lib/app/core/routing/` 负责主题和认证路由；GetX 保留用于依赖注入与响应式状态，不再负责应用路由或提示条。旧版 GetX 的 `GetMaterialApp` 与独立 Material 包的主题类型不兼容。
+
 ## 修改定位
 
 - 分类与恢复：`features/pipeline/application/pipeline_action_service.dart` → `services/telegram_classify_workflow.dart`、`classify_transaction_coordinator.dart`；远端删除安全约束见 [消息分类](../../requirements/contexts/message-classification.md)。

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/domain/message_preview_mapper.dart';
 import 'package:tgsorter/app/features/pipeline/application/media_session_state.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';

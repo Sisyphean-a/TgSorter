@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_screen_view_model.dart';
 import 'package:tgsorter/app/features/pipeline/presentation/pipeline_desktop_panels.dart';
 import 'package:tgsorter/app/shared/presentation/widgets/message_viewer_card.dart';

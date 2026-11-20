@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_telegram_tiles.dart';

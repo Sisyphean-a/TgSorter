@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class SettingsGroupSection extends StatelessWidget {

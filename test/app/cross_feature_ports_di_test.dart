@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:get/get.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/app.dart';
@@ -87,7 +87,7 @@ void main() {
     },
   );
 
-  test('app routes resolve pages through registered ports', () async {
+  testWidgets('app routes resolve pages through registered ports', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final authGateway = _ModuleAuthGateway();
@@ -137,13 +137,11 @@ void main() {
     Get.replace<PipelineSettingsReader>(fakeRouteSettingsReader);
     Get.replace<PipelineLogsPort>(fakeRouteLogsPort);
 
-    final pages = buildAppPages();
-    final authPage = pages
-        .firstWhere((page) => page.name == AppRoutes.auth)
-        .page();
-    final appPage =
-        pages.firstWhere((page) => page.name == AppRoutes.app).page()
-            as MainShellPage;
+    final routes = buildAppRoutes();
+    await tester.pumpWidget(const SizedBox.shrink());
+    final context = tester.element(find.byType(SizedBox));
+    final authPage = routes[AppRoutes.auth]!(context);
+    final appPage = routes[AppRoutes.app]!(context) as MainShellPage;
 
     expect(authPage, isA<AuthPage>());
     expect(appPage.pipelineSettings, same(fakeRouteSettingsReader));
@@ -198,7 +196,7 @@ void main() {
     await tester.pumpWidget(const TgSorterApp());
     await tester.pump();
 
-    final app = tester.widget<GetMaterialApp>(find.byType(GetMaterialApp));
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.dark);
     expect(app.theme, isNotNull);
     expect(app.darkTheme, isNotNull);

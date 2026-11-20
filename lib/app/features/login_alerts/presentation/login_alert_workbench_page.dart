@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
 import 'package:tgsorter/app/services/telegram_login_alert.dart';

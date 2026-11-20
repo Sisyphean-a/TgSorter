@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/core/di/auth_module.dart';
-import 'package:tgsorter/app/core/routing/getx_auth_navigation_adapter.dart';
+import 'package:tgsorter/app/core/routing/navigator_auth_navigation_adapter.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/auth/application/auth_error_mapper.dart';
 import 'package:tgsorter/app/features/auth/application/auth_lifecycle_coordinator.dart';
@@ -124,7 +124,7 @@ void main() {
 
     expect(registerAuthModule, returnsNormally);
     final coordinator = Get.find<AuthCoordinator>();
-    expect(Get.find<AuthNavigationPort>(), isA<GetxAuthNavigationAdapter>());
+    expect(Get.find<AuthNavigationPort>(), isA<NavigatorAuthNavigationAdapter>());
     expect(coordinator.auth, same(authGateway));
   });
 }
@@ -161,7 +161,7 @@ Future<void> _pumpAuthPage(
   auth.onInit();
 
   await tester.pumpWidget(
-    GetMaterialApp(
+    MaterialApp(
       theme: theme ?? AppTheme.dark(),
       home: AuthPage(auth: auth, errors: errors),
     ),

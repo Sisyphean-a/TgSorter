@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/shortcut_binding.dart';
 import 'package:tgsorter/app/features/settings/presentation/settings_dialogs.dart';
