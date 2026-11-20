@@ -11,8 +11,8 @@ class AuthCoordinator extends GetxController {
   AuthCoordinator(
     this._service,
     this._errors, {
-    required AuthLifecycleCoordinator lifecycle,
-  }) : _lifecycle = lifecycle;
+    required this._lifecycle,
+  });
 
   final AuthGateway _service;
   final AppErrorController _errors;

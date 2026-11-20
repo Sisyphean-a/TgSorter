@@ -62,16 +62,12 @@ class DownloadSyncResult {
 
 class DownloadSyncService implements DownloadSyncPort, DownloadSyncSessionPort {
   DownloadSyncService({
-    required MessageReadGateway messages,
-    required MediaGateway media,
-    required DownloadSyncRepository repository,
-    int pageSize = 50,
+    required this._messages,
+    required this._media,
+    required this._repository,
+    this._pageSize = 50,
     int Function()? nowMs,
-  }) : _messages = messages,
-       _media = media,
-       _repository = repository,
-       _pageSize = pageSize,
-       _nowMs = nowMs ?? (() => DateTime.now().millisecondsSinceEpoch);
+  }) : _nowMs = nowMs ?? (() => DateTime.now().millisecondsSinceEpoch);
 
   final MessageReadGateway _messages;
   final MediaGateway _media;

@@ -3,8 +3,7 @@ import 'package:tgsorter/app/services/tdlib_failure.dart';
 import 'package:tgsorter/app/services/tdlib_request_executor.dart';
 
 class TdlibAuthManager {
-  const TdlibAuthManager({required TdlibRequestExecutor requestExecutor})
-    : _requestExecutor = requestExecutor;
+  const TdlibAuthManager({required this._requestExecutor});
 
   static const Duration authRequestTimeout = Duration(minutes: 2);
 

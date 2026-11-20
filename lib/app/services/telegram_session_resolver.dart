@@ -14,18 +14,13 @@ class TelegramSessionResolver {
   static const Duration _defaultTimeoutValue = Duration(seconds: 20);
 
   TelegramSessionResolver({
-    required TdlibAdapter adapter,
-    int chatListLimit = _defaultChatListLimit,
-    int maxSelectableChats = _defaultMaxSelectableChats,
-    Duration getMeTimeout = _defaultGetMeTimeout,
-    Duration getChatTimeout = _defaultGetChatTimeout,
-    Duration defaultTimeout = _defaultTimeoutValue,
-  }) : _adapter = adapter,
-       _chatListLimit = chatListLimit,
-       _maxSelectableChats = maxSelectableChats,
-       _getMeTimeout = getMeTimeout,
-       _getChatTimeout = getChatTimeout,
-       _defaultTimeout = defaultTimeout;
+    required this._adapter,
+    this._chatListLimit = _defaultChatListLimit,
+    this._maxSelectableChats = _defaultMaxSelectableChats,
+    this._getMeTimeout = _defaultGetMeTimeout,
+    this._getChatTimeout = _defaultGetChatTimeout,
+    this._defaultTimeout = _defaultTimeoutValue,
+  });
 
   final TdlibAdapter _adapter;
   final int _chatListLimit;

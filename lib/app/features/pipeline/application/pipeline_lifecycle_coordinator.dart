@@ -8,15 +8,12 @@ import 'package:tgsorter/app/features/pipeline/ports/pipeline_settings_reader.da
 
 class PipelineLifecycleCoordinator {
   PipelineLifecycleCoordinator({
-    required PipelineRuntimeState state,
+    required this._state,
     required PipelineSettingsReader settings,
-    required PipelineRecoveryService recovery,
-    required Future<void> Function() onFetchNext,
-    required void Function() onResetPipeline,
-  }) : _state = state,
-       _recovery = recovery,
-       _onFetchNext = onFetchNext,
-       _onResetPipeline = onResetPipeline {
+    required this._recovery,
+    required this._onFetchNext,
+    required this._onResetPipeline,
+  }) {
     _lastFetchDirection = settings.currentSettings.fetchDirection;
     _lastSourceChatId = settings.currentSettings.sourceChatId;
   }

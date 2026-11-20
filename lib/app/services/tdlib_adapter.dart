@@ -19,16 +19,12 @@ export 'package:tgsorter/app/services/tdlib_adapter_support.dart';
 
 class TdlibAdapter {
   TdlibAdapter({
-    required TdTransport transport,
-    TdRawTransport? rawTransport,
-    required TdlibCredentials credentials,
-    required TdlibRuntimePaths runtimePaths,
-    required TdlibInitializer initializeTdlib,
-  }) : _transport = transport,
-       _rawTransport = rawTransport,
-       _credentials = credentials,
-       _runtimePaths = runtimePaths,
-       _initializeTdlib = initializeTdlib;
+    required this._transport,
+    this._rawTransport,
+    required this._credentials,
+    required this._runtimePaths,
+    required this._initializeTdlib,
+  });
 
   static const Duration _defaultTimeout = Duration(seconds: 20);
   final TdTransport _transport;

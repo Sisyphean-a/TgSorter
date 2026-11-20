@@ -145,10 +145,9 @@ TdlibAdapter _buildAdapter(_InspectableFakeTransport transport) {
 
 class _InspectableFakeTransport implements TdTransport {
   _InspectableFakeTransport({
-    required Map<String, List<TdObject>> responses,
-    Future<void> Function()? onStart,
-  }) : _responses = responses,
-       _onStart = onStart;
+    required this._responses,
+    this._onStart,
+  });
 
   final Map<String, List<TdObject>> _responses;
   final Future<void> Function()? _onStart;
@@ -196,9 +195,8 @@ class _InspectableFakeTransport implements TdTransport {
 
 class _InspectableRawTransport extends TdRawTransport {
   _InspectableRawTransport({
-    List<Map<String, dynamic>> updatesOnStart = const <Map<String, dynamic>>[],
-  }) : _updatesOnStart = updatesOnStart,
-       _updatesController = StreamController<Map<String, dynamic>>.broadcast(),
+    this._updatesOnStart = const <Map<String, dynamic>>[],
+  }) : _updatesController = StreamController<Map<String, dynamic>>.broadcast(),
        _responses = <String, List<Map<String, dynamic>>>{
          'disableProxy': <Map<String, dynamic>>[
            <String, dynamic>{'@type': 'ok'},

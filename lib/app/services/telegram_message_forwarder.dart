@@ -12,11 +12,10 @@ class TelegramMessageForwarder {
   static const Duration _pollIntervalDefault = Duration(milliseconds: 350);
 
   TelegramMessageForwarder({
-    required TdlibAdapter adapter,
-    Duration confirmTimeout = _confirmTimeoutDefault,
+    required this._adapter,
+    this._confirmTimeout = _confirmTimeoutDefault,
     Duration pollInterval = _pollIntervalDefault,
-  }) : _adapter = adapter,
-       _confirmTimeout = confirmTimeout;
+  });
 
   final TdlibAdapter _adapter;
   final Duration _confirmTimeout;

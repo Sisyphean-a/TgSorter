@@ -2,8 +2,8 @@ import 'package:tgsorter/app/services/media_preparation_service.dart';
 
 class PipelineMediaPreparationService {
   const PipelineMediaPreparationService({
-    required MediaPreparationService mediaPreparation,
-  }) : _mediaPreparation = mediaPreparation;
+    required this._mediaPreparation,
+  });
 
   final MediaPreparationService _mediaPreparation;
 

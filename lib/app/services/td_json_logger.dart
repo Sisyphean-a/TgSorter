@@ -27,15 +27,13 @@ class TdJsonLogger {
   TdJsonLogger({
     bool? isEnabled,
     TdLogSink? sink,
-    TdJsonLogDetailLevel detailLevel = TdJsonLogDetailLevel.summary,
+    this._detailLevel = TdJsonLogDetailLevel.summary,
     DateTime Function()? now,
-    Duration dedupeWindow = const Duration(seconds: 2),
+    this._dedupeWindow = const Duration(seconds: 2),
   })
     : _isEnabled = isEnabled ?? kDebugMode,
       _sink = sink ?? _defaultSink,
-      _detailLevel = detailLevel,
-      _now = now ?? DateTime.now,
-      _dedupeWindow = dedupeWindow;
+      _now = now ?? DateTime.now;
 
   static const String loggerName = 'TdJsonLogger';
   static const Set<String> _suppressedUpdateTypes = <String>{'updateOption'};

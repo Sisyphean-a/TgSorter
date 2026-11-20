@@ -22,19 +22,16 @@ import 'package:tgsorter/app/shared/errors/app_error_event.dart';
 class TaggingCoordinator extends GetxController
     implements SkippedMessageRestorePort {
   TaggingCoordinator({
-    required AuthStateGateway authStateGateway,
-    required ConnectionStateGateway connectionStateGateway,
+    required this._authStateGateway,
+    required this._connectionStateGateway,
     required MessageReadGateway messageReadGateway,
     required MediaGateway mediaGateway,
-    required TaggingGateway taggingGateway,
+    required this._taggingGateway,
     required PipelineSettingsReader settingsReader,
     required AppErrorController errorController,
     SkippedMessageRepository? skippedMessageRepository,
     MessageWorkbenchController? workbench,
-  }) : _authStateGateway = authStateGateway,
-       _connectionStateGateway = connectionStateGateway,
-       _taggingGateway = taggingGateway,
-       _settingsReader = settingsReader,
+  }) : _settingsReader = settingsReader,
        _errorController = errorController,
        workbench =
            workbench ??

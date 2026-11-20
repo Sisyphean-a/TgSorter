@@ -17,27 +17,18 @@ class PipelineFeedController {
   static const int messagePageSize = 20;
 
   PipelineFeedController({
-    required PipelineRuntimeState state,
-    required PipelineNavigationService navigation,
-    required MessageReadGateway messages,
-    required MediaGateway media,
-    required PipelineSettingsReader settings,
-    required RemainingCountService remainingCount,
-    required void Function(Object error) reportGeneralError,
+    required this._state,
+    required this._navigation,
+    required this._messages,
+    required this._media,
+    required this._settings,
+    required this._remainingCount,
+    required this._reportGeneralError,
     SkippedMessageRepository? skippedMessageRepository,
-    SkippedMessageWorkflow workflow = SkippedMessageWorkflow.forwarding,
-    Future<void> Function()? refreshCurrentMediaIfNeeded,
-  }) : _state = state,
-       _navigation = navigation,
-       _messages = messages,
-       _media = media,
-       _settings = settings,
-       _remainingCount = remainingCount,
-       _reportGeneralError = reportGeneralError,
-       _skippedMessageRepository =
-           skippedMessageRepository ?? NoopSkippedMessageRepository.instance,
-       _workflow = workflow,
-       _refreshCurrentMediaIfNeeded = refreshCurrentMediaIfNeeded;
+    this._workflow = SkippedMessageWorkflow.forwarding,
+    this._refreshCurrentMediaIfNeeded,
+  }) : _skippedMessageRepository =
+           skippedMessageRepository ?? NoopSkippedMessageRepository.instance;
 
   final PipelineRuntimeState _state;
   final PipelineNavigationService _navigation;

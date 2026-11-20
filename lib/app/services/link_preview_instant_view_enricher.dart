@@ -6,8 +6,7 @@ import 'package:tgsorter/app/services/tdlib_failure.dart';
 const _maxBlockSearchDepth = 6;
 
 class LinkPreviewInstantViewEnricher {
-  LinkPreviewInstantViewEnricher({required TdlibAdapter adapter})
-    : _adapter = adapter;
+  LinkPreviewInstantViewEnricher({required this._adapter});
 
   final TdlibAdapter _adapter;
   bool _legacyPreviewUnsupported = false;

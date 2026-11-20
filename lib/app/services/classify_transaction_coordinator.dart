@@ -7,12 +7,12 @@ class ClassifyTransactionCoordinator {
       '应用在转发确认前中断，无法自动判断是否已转发，请人工核查目标会话后再处理';
 
   ClassifyTransactionCoordinator({
-    required OperationJournalRepository? repository,
+    required this._repository,
     required this.anySourceMessageExists,
     required this.deleteSourceMessages,
     required this.nowMs,
     required this.buildTransactionId,
-  }) : _repository = repository;
+  });
 
   final OperationJournalRepository? _repository;
   final Future<bool> Function(ClassifyTransactionEntry transaction)

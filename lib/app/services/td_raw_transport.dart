@@ -16,18 +16,16 @@ class TdRawTransport {
     TdPlugin? plugin,
     TdPluginProvider? pluginProvider,
     TdJsonClient Function()? nativeClientProvider,
-    bool useModernSchema = false,
+    this._useModernSchema = false,
     TdJsonLogger? logger,
-    Duration pollInterval = _defaultPollInterval,
+    this._pollInterval = _defaultPollInterval,
     TdNowMicros? nowMicros,
   }) : _clientProvider =
            nativeClientProvider ??
            (() => _LegacyJsonClient(
              pluginProvider?.call() ?? plugin ?? TdPlugin.instance,
            )),
-       _useModernSchema = useModernSchema,
        _logger = logger ?? TdJsonLogger(),
-       _pollInterval = pollInterval,
        _nowMicros = nowMicros ?? _defaultNowMicros;
 
   static const Duration _defaultPollInterval = Duration(milliseconds: 16);

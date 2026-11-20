@@ -8,10 +8,9 @@ import 'package:tgsorter/app/services/td_wire_message.dart';
 
 class TdlibRequestExecutor {
   const TdlibRequestExecutor({
-    required TdTransport transport,
-    TdRawTransport? rawTransport,
-  }) : _transport = transport,
-       _rawTransport = rawTransport;
+    required this._transport,
+    this._rawTransport,
+  });
 
   final TdTransport _transport;
   final TdRawTransport? _rawTransport;

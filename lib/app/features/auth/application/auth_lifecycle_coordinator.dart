@@ -18,14 +18,11 @@ enum AuthStage {
 
 class AuthLifecycleCoordinator {
   AuthLifecycleCoordinator({
-    required AuthGateway auth,
-    required AppErrorController errors,
-    required AuthErrorMapper errorMapper,
-    required AuthNavigationPort navigation,
-  }) : _auth = auth,
-       _errors = errors,
-       _errorMapper = errorMapper,
-       _navigation = navigation;
+    required this._auth,
+    required this._errors,
+    required this._errorMapper,
+    required this._navigation,
+  });
 
   final AuthGateway _auth;
   final AppErrorController _errors;

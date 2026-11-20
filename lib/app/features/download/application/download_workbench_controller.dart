@@ -8,12 +8,10 @@ import 'package:tgsorter/app/services/download_sync_service.dart';
 
 class DownloadWorkbenchController extends GetxController {
   DownloadWorkbenchController({
-    required SessionQueryGateway sessions,
-    required PipelineSettingsReader settings,
-    required DownloadSyncPort sync,
-  }) : _sessions = sessions,
-       _settings = settings,
-       _sync = sync;
+    required this._sessions,
+    required this._settings,
+    required this._sync,
+  });
 
   final SessionQueryGateway _sessions;
   final PipelineSettingsReader _settings;

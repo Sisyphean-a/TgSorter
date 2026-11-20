@@ -8,12 +8,10 @@ import 'package:tgsorter/app/services/telegram_login_alert_parser.dart';
 
 class LoginAlertWorkbenchController extends GetxController {
   LoginAlertWorkbenchController({
-    required Stream<Map<String, dynamic>> updates,
-    required LoginAlertRepositoryPort repository,
+    required this._updates,
+    required this._repository,
     LoginAlertNowMs? nowMs,
-  }) : _updates = updates,
-       _repository = repository,
-       _nowMs = nowMs ?? _defaultNowMs;
+  }) : _nowMs = nowMs ?? _defaultNowMs;
 
   static const int _maxEntries = 60;
   static const int _consumeWindowMs = 30 * 60 * 1000;

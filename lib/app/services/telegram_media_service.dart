@@ -9,10 +9,9 @@ import 'package:tgsorter/app/services/telegram_message_reader.dart';
 class TelegramMediaService implements MediaPreparationService {
   TelegramMediaService({
     required TdlibAdapter adapter,
-    required TelegramMessageReader reader,
+    required this._reader,
     MediaDownloadCoordinator? mediaDownloadCoordinator,
-  }) : _reader = reader,
-       _mediaDownloadCoordinator =
+  }) : _mediaDownloadCoordinator =
            mediaDownloadCoordinator ??
            MediaDownloadCoordinator(adapter: adapter);
 

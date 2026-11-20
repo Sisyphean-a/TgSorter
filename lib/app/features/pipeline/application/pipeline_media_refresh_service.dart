@@ -5,10 +5,9 @@ import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 
 class PipelineMediaRefreshService {
   PipelineMediaRefreshService.legacy({
-    required MediaGateway mediaGateway,
-    required MessageReadGateway messageGateway,
-  }) : _mediaGateway = mediaGateway,
-       _messageGateway = messageGateway;
+    required this._mediaGateway,
+    required this._messageGateway,
+  });
 
   final MediaGateway _mediaGateway;
   final MessageReadGateway _messageGateway;

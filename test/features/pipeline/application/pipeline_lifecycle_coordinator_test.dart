@@ -159,9 +159,8 @@ class _FakeSettingsReader implements PipelineSettingsReader {
 }
 
 class _FakeRecoveryService extends PipelineRecoveryService {
-  _FakeRecoveryService({required bool completed})
-    : _completed = completed,
-      super(
+  _FakeRecoveryService({required this._completed})
+    : super(
         recoveryGateway: _NoopRecoveryGateway(),
         errors: AppErrorController(),
       );

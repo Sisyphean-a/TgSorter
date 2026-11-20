@@ -16,23 +16,18 @@ import 'pipeline_runtime_state.dart';
 
 class PipelineMediaController implements PipelineLegacyMediaController {
   PipelineMediaController({
-    required PipelineRuntimeState state,
-    required PipelineMediaRefreshService mediaRefresh,
+    required this._state,
+    required this._mediaRefresh,
     PipelineSettingsReader? settingsReader,
-    Future<void> Function(ClassifyOperationLog log)? appendLog,
+    this._appendLog,
     String Function(String prefix, int messageId)? logIdBuilder,
     int Function()? nowMs,
-    void Function(Object error)? reportGeneralError,
-    Duration videoRefreshInterval = const Duration(seconds: 1),
-  }) : _state = state,
-       _mediaRefresh = mediaRefresh,
-       _settingsReader =
+    this._reportGeneralError,
+    this._videoRefreshInterval = const Duration(seconds: 1),
+  }) : _settingsReader =
            settingsReader ?? _StaticPipelineSettingsReader.forMediaRetries(),
-       _appendLog = appendLog,
        _logIdBuilder = logIdBuilder ?? _defaultLogIdBuilder,
-       _nowMs = nowMs ?? _defaultNowMs,
-       _reportGeneralError = reportGeneralError,
-       _videoRefreshInterval = videoRefreshInterval;
+       _nowMs = nowMs ?? _defaultNowMs;
 
   final PipelineRuntimeState _state;
   final PipelineMediaRefreshService _mediaRefresh;

@@ -1,8 +1,7 @@
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 
 class SettingsChatLoader {
-  SettingsChatLoader({required SessionQueryGateway sessionQueryGateway})
-    : _sessionQueryGateway = sessionQueryGateway;
+  SettingsChatLoader({required this._sessionQueryGateway});
 
   final SessionQueryGateway _sessionQueryGateway;
 

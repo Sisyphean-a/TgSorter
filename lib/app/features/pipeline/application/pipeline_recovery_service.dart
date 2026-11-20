@@ -4,10 +4,9 @@ import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 
 class PipelineRecoveryService {
   PipelineRecoveryService({
-    required RecoveryGateway? recoveryGateway,
-    required AppErrorController errors,
-  }) : _recoveryGateway = recoveryGateway,
-       _errors = errors;
+    required this._recoveryGateway,
+    required this._errors,
+  });
 
   final RecoveryGateway? _recoveryGateway;
   final AppErrorController _errors;

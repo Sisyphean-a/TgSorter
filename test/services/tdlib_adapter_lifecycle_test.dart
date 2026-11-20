@@ -199,10 +199,9 @@ typedef _OnSend =
 
 class _LifecycleFakeTransport implements TdTransport {
   _LifecycleFakeTransport({
-    required Map<String, List<TdObject>> responses,
-    _OnSend? onSend,
-  }) : _responses = responses,
-       _onSend = onSend;
+    required this._responses,
+    this._onSend,
+  });
 
   final Map<String, List<TdObject>> _responses;
   final _OnSend? _onSend;

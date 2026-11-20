@@ -10,14 +10,11 @@ import 'package:tgsorter/app/services/tdlib_failure.dart';
 
 class TelegramTaggingService {
   TelegramTaggingService({
-    required TdlibAdapter adapter,
-    TagAppendService appendService = const TagAppendService(),
-    TagTargetSelector targetSelector = const TagTargetSelector(),
-    MessagePreviewBuilder previewBuilder = const MessagePreviewBuilder(),
-  }) : _adapter = adapter,
-       _appendService = appendService,
-       _targetSelector = targetSelector,
-       _previewBuilder = previewBuilder;
+    required this._adapter,
+    this._appendService = const TagAppendService(),
+    this._targetSelector = const TagTargetSelector(),
+    this._previewBuilder = const MessagePreviewBuilder(),
+  });
 
   final TdlibAdapter _adapter;
   final TagAppendService _appendService;

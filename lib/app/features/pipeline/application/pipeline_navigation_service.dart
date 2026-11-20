@@ -3,8 +3,7 @@ import 'package:tgsorter/app/features/pipeline/application/pipeline_runtime_stat
 import 'package:tgsorter/app/models/pipeline_message.dart';
 
 class PipelineNavigationService {
-  PipelineNavigationService({required PipelineRuntimeState state})
-    : _state = state;
+  PipelineNavigationService({required this._state});
 
   final PipelineRuntimeState _state;
 

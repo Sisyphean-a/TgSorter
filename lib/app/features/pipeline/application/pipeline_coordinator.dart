@@ -42,12 +42,12 @@ class PipelineCoordinator extends GetxController
   static const Duration _videoRefreshInterval = Duration(seconds: 1);
 
   PipelineCoordinator({
-    required AuthStateGateway authStateGateway,
-    required ConnectionStateGateway connectionStateGateway,
-    required MessageReadGateway messageReadGateway,
-    required MediaGateway mediaGateway,
-    required ClassifyGateway classifyGateway,
-    RecoveryGateway? recoveryGateway,
+    required this._authStateGateway,
+    required this._connectionStateGateway,
+    required this._messageReadGateway,
+    required this._mediaGateway,
+    required this._classifyGateway,
+    this._recoveryGateway,
     required PipelineSettingsReader settingsReader,
     required OperationJournalRepository journalRepository,
     SkippedMessageRepository? skippedMessageRepository,
@@ -61,16 +61,10 @@ class PipelineCoordinator extends GetxController
     PipelineFeedController? feedController,
     PipelineLifecycleCoordinator? lifecycle,
     RemainingCountService? remainingCountService,
-  }) : _authStateGateway = authStateGateway,
-       _connectionStateGateway = connectionStateGateway,
-       _settingsReader = settingsReader,
+  }) : _settingsReader = settingsReader,
        _journalRepository = journalRepository,
        _errorController = errorController,
        _errorMapper = const PipelineErrorMapper(),
-       _messageReadGateway = messageReadGateway,
-       _mediaGateway = mediaGateway,
-       _classifyGateway = classifyGateway,
-       _recoveryGateway = recoveryGateway,
        runtimeState = runtimeState ?? PipelineRuntimeState() {
     final resolvedNavigation =
         navigation ?? PipelineNavigationService(state: this.runtimeState);

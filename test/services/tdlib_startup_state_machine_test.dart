@@ -79,8 +79,7 @@ void main() {
 }
 
 class _FakeTransport implements TdTransport {
-  _FakeTransport({required Map<String, List<TdObject>> responses})
-    : _responses = responses;
+  _FakeTransport({required this._responses});
 
   final Map<String, List<TdObject>> _responses;
   final StreamController<TdObject> _updates =

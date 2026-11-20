@@ -18,12 +18,10 @@ class PlaybackCapabilityPlatform {
 
 class DefaultPlaybackCapabilityService implements PlaybackCapabilityService {
   DefaultPlaybackCapabilityService({
-    required PlaybackCapabilityPlatform platform,
-    AudioBackendInitializer audioInitializer = _defaultAudioInitializer,
-    VideoBackendInitializer videoInitializer = _defaultVideoInitializer,
-  }) : _platform = platform,
-       _audioInitializer = audioInitializer,
-       _videoInitializer = videoInitializer;
+    required this._platform,
+    this._audioInitializer = _defaultAudioInitializer,
+    this._videoInitializer = _defaultVideoInitializer,
+  });
 
   factory DefaultPlaybackCapabilityService.detect() {
     return DefaultPlaybackCapabilityService(

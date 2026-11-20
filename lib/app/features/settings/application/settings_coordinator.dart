@@ -19,20 +19,17 @@ class SettingsCoordinator extends GetxController
   SettingsCoordinator(
     SettingsRepository repository,
     SessionQueryGateway sessions, {
-    AuthGateway? auth,
+    this._auth,
     SettingsPersistenceService? persistence,
     SettingsChatLoader? chatLoader,
     SkippedMessageRepository? skippedMessageRepository,
-    SkippedMessageRestoreRegistry? skippedRestoreRegistry,
-    List<SkippedMessageRestorePort>? skippedRestoreTargets,
-  }) : _auth = auth,
-       _persistence = persistence ?? SettingsPersistenceService(repository),
+    this._skippedRestoreRegistry,
+    this._skippedRestoreTargets,
+  }) : _persistence = persistence ?? SettingsPersistenceService(repository),
        _chatLoader =
            chatLoader ?? SettingsChatLoader(sessionQueryGateway: sessions),
        _skippedMessageRepository =
-           skippedMessageRepository ?? NoopSkippedMessageRepository.instance,
-       _skippedRestoreRegistry = skippedRestoreRegistry,
-       _skippedRestoreTargets = skippedRestoreTargets;
+           skippedMessageRepository ?? NoopSkippedMessageRepository.instance;
 
   final AuthGateway? _auth;
   final SettingsPersistenceService _persistence;

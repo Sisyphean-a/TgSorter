@@ -14,12 +14,10 @@ abstract interface class PipelineLegacyMediaController {
 
 class PipelineMediaSessionController {
   PipelineMediaSessionController({
-    required PipelineRuntimeState state,
-    required PipelineLegacyMediaController legacyController,
-    required MediaSessionProjector projector,
-  }) : _state = state,
-       _legacyController = legacyController,
-       _projector = projector {
+    required this._state,
+    required this._legacyController,
+    required this._projector,
+  }) {
     _currentMessageWorker = ever(
       _state.currentMessage,
       (_) => _syncFromRuntime(),

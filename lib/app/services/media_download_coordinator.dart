@@ -12,8 +12,7 @@ class MediaDownloadCoordinator {
   static const int _downloadOffsetStart = 0;
   static const int _downloadLimitUnlimited = 0;
 
-  const MediaDownloadCoordinator({required TdlibAdapter adapter})
-    : _adapter = adapter;
+  const MediaDownloadCoordinator({required this._adapter});
 
   final TdlibAdapter _adapter;
 

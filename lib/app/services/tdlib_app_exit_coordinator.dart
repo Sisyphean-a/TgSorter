@@ -3,7 +3,7 @@ import 'dart:ui';
 typedef TdlibClose = Future<void> Function();
 
 class TdlibAppExitCoordinator {
-  TdlibAppExitCoordinator({required TdlibClose close}) : _close = close;
+  TdlibAppExitCoordinator({required this._close});
 
   final TdlibClose _close;
   Future<AppExitResponse>? _exitTask;

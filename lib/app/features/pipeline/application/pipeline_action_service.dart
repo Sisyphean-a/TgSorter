@@ -14,25 +14,17 @@ typedef PipelineActionNowMs = int Function();
 
 class PipelineActionService {
   PipelineActionService({
-    required PipelineRuntimeState state,
-    required PipelineNavigationService navigation,
-    required ClassifyGateway classifyGateway,
-    required PipelineSettingsReader settings,
-    required OperationJournalRepository journalRepository,
+    required this._state,
+    required this._navigation,
+    required this._classifyGateway,
+    required this._settings,
+    required this._journalRepository,
     SkippedMessageRepository? skippedMessageRepository,
-    SkippedMessageWorkflow workflow = SkippedMessageWorkflow.forwarding,
-    List<ClassifyOperationLog>? logs,
-    List<RetryQueueItem>? retryQueue,
-  }) : _state = state,
-       _navigation = navigation,
-       _classifyGateway = classifyGateway,
-       _settings = settings,
-       _journalRepository = journalRepository,
-       _skippedMessageRepository =
-           skippedMessageRepository ?? NoopSkippedMessageRepository.instance,
-       _workflow = workflow,
-       _logs = logs,
-       _retryQueue = retryQueue;
+    this._workflow = SkippedMessageWorkflow.forwarding,
+    this._logs,
+    this._retryQueue,
+  }) : _skippedMessageRepository =
+           skippedMessageRepository ?? NoopSkippedMessageRepository.instance;
 
   final PipelineRuntimeState _state;
   final PipelineNavigationService _navigation;

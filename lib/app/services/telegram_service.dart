@@ -48,15 +48,12 @@ class TelegramService
   );
 
   TelegramService({
-    required TdlibAdapter adapter,
-    OperationJournalRepository? journalRepository,
-    Duration forwardDeliveryConfirmTimeout =
+    required this._adapter,
+    this._journalRepository,
+    this._forwardDeliveryConfirmTimeout =
         _forwardDeliveryConfirmTimeoutDefault,
-    Duration forwardDeliveryPollInterval = _forwardDeliveryPollIntervalDefault,
-  }) : _adapter = adapter,
-       _journalRepository = journalRepository,
-       _forwardDeliveryConfirmTimeout = forwardDeliveryConfirmTimeout,
-       _forwardDeliveryPollInterval = forwardDeliveryPollInterval;
+    this._forwardDeliveryPollInterval = _forwardDeliveryPollIntervalDefault,
+  });
 
   final TdlibAdapter _adapter;
   final OperationJournalRepository? _journalRepository;

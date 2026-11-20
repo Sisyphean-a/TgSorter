@@ -19,11 +19,10 @@ class TelegramMessageReader {
     MessageHistoryPaginator? historyPaginator,
     MediaDownloadCoordinator? mediaDownloadCoordinator,
     LinkPreviewInstantViewEnricher? linkPreviewEnricher,
-    MessagePreviewBuilder previewBuilder = const MessagePreviewBuilder(),
+    this._previewBuilder = const MessagePreviewBuilder(),
     Duration defaultTimeout = _defaultTimeoutValue,
     int historyBatchSize = _historyBatchSizeDefault,
   }) : _adapter = adapter,
-       _previewBuilder = previewBuilder,
        _historyPaginator =
            historyPaginator ??
            MessageHistoryPaginator(

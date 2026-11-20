@@ -6,12 +6,10 @@ import 'package:tgsorter/app/services/tdlib_failure.dart';
 
 class MessageHistoryPaginator {
   MessageHistoryPaginator({
-    required TdlibAdapter adapter,
-    Duration defaultTimeout = const Duration(seconds: 20),
-    int historyBatchSize = 100,
-  }) : _adapter = adapter,
-       _defaultTimeout = defaultTimeout,
-       _historyBatchSize = historyBatchSize;
+    required this._adapter,
+    this._defaultTimeout = const Duration(seconds: 20),
+    this._historyBatchSize = 100,
+  });
 
   final TdlibAdapter _adapter;
   final Duration _defaultTimeout;
