@@ -6,8 +6,11 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 class FakeDedupMediaGateway implements DedupMediaGateway {
   final chats = <SelectableChat>[];
   final history = <DedupMedia>[];
+  final historyRequests = <(int chatId, int beforeMessageId)>[];
   final verified = <(int, bool)>[];
   final deleted = <(int, List<int>)>[];
+  final photoRequests = <int>[];
+  Future<String> Function(int)? photoLoader;
   int? staleId;
   Object? deletionError;
   Stream<DedupMedia>? historyStream;
@@ -19,17 +22,24 @@ class FakeDedupMediaGateway implements DedupMediaGateway {
   Stream<({int messageId, DedupMedia? media})> readHistory(
     int chatId, {
     int beforeMessageId = 0,
-  }) =>
-      (historyStream ??
-              Stream.fromIterable(
-                history.where(
-                  (item) =>
-                      item.chatId == chatId &&
-                      (beforeMessageId == 0 ||
-                          item.messageId < beforeMessageId),
-                ),
-              ))
-          .map((item) => (messageId: item.messageId, media: item));
+  }) {
+    historyRequests.add((chatId, beforeMessageId));
+    return (historyStream ??
+            Stream.fromIterable(
+              history.where(
+                (item) =>
+                    item.chatId == chatId &&
+                    (beforeMessageId == 0 || item.messageId < beforeMessageId),
+              ),
+            ))
+        .map((item) => (messageId: item.messageId, media: item));
+  }
+
+  @override
+  Future<String> loadPhotoFile(int fileId) async {
+    photoRequests.add(fileId);
+    return await photoLoader!(fileId);
+  }
 
   @override
   Future<void> verifyMessage(
@@ -57,6 +67,7 @@ DedupMedia dedupMedia(
   String? identity,
   bool unidentified = false,
   int? durationSeconds,
+  int? photoPreviewFileId,
 }) => DedupMedia(
   chatId: chatId,
   messageId: messageId,
@@ -68,4 +79,5 @@ DedupMedia dedupMedia(
   caption: caption,
   fileUniqueId: unidentified ? null : identity ?? 'id-$fileId',
   durationSeconds: durationSeconds,
+  photoPreviewFileId: photoPreviewFileId,
 );

@@ -222,6 +222,8 @@ void main() {
       (10, 12, 100),
     ]);
     expect(history.first.caption, '第一份');
+    expect(history.first.fileUniqueId, 'file-10');
+    expect(history.first.photoPreviewFileId, 97);
     expect(history[1].fileUniqueId, 'file-11');
     expect(history[1].durationSeconds, 601);
     expect(history[1].inlineThumbnail, 'AA==');
@@ -281,6 +283,24 @@ void main() {
     },
   );
 
+  test('只按请求加载指定照片文件，且要求完整文件', () async {
+    final adapter = _Adapter();
+    var complete = false;
+    adapter.reply = (request) {
+      expect(request, containsPair('@type', 'downloadFile'));
+      expect(request, containsPair('file_id', 97));
+      expect(request, containsPair('synchronous', true));
+      return {
+        '@type': 'file',
+        'local': {'is_downloading_completed': complete, 'path': 'photo.jpg'},
+      };
+    };
+    final gateway = TelegramDedupMediaGateway(adapter);
+    await expectLater(gateway.loadPhotoFile(97), throwsStateError);
+    complete = true;
+    expect(await gateway.loadPhotoFile(97), 'photo.jpg');
+  });
+
   test('sends revocable deletion only for the specified message ids', () async {
     final adapter = _Adapter()..reply = (_) => {'@type': 'ok'};
     await TelegramDedupMediaGateway(adapter).deleteMessages(-1001, [30, 20]);
@@ -312,8 +332,10 @@ Map<String, dynamic> _photo(int id, int fileId) => _message(id, {
   'caption': {'text': '第一份'},
   'photo': {
     'sizes': [
-      {'width': 100, 'height': 100, 'photo': _file(fileId, 100)},
-      {'width': 10, 'height': 10, 'photo': _file(98, 1)},
+      {'width': 1500, 'height': 1500, 'photo': _file(fileId, 100)},
+      {'width': 900, 'height': 900, 'photo': _file(96, 40)},
+      {'width': 640, 'height': 640, 'photo': _file(97, 20)},
+      {'width': 100, 'height': 100, 'photo': _file(98, 1)},
     ],
   },
 });

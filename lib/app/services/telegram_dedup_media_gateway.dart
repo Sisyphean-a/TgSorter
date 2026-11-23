@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:tdlib/td_api.dart' show DeleteMessages, GetMessage, TdFunction;
+import 'package:tdlib/td_api.dart'
+    show DeleteMessages, DownloadFile, GetMessage, TdFunction;
 import 'package:tgsorter/app/features/dedup/application/media_dedup_workbench.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/services/message_history_paginator.dart';
@@ -48,6 +49,26 @@ class TelegramDedupMediaGateway implements DedupMediaGateway {
       if (error.kind != TdlibFailureKind.timeout) rethrow;
       throw TimeoutException('读取会话历史超时');
     }
+  }
+
+  @override
+  Future<String> loadPhotoFile(int fileId) async {
+    final response = await _adapter.sendWire(
+      DownloadFile(
+        fileId: fileId,
+        priority: 16,
+        offset: 0,
+        limit: 0,
+        synchronous: true,
+      ),
+      request: 'downloadFile(dedupPhoto)',
+      phase: TdlibPhase.business,
+    );
+    final local = TdResponseReader.readMap(response.payload, 'local');
+    if (TdResponseReader.readBool(local, 'is_downloading_completed') != true) {
+      throw StateError('照片未下载完成');
+    }
+    return TdResponseReader.readString(local, 'path');
   }
 
   @override
@@ -107,11 +128,14 @@ class TelegramDedupMediaGateway implements DedupMediaGateway {
     final DedupMediaKind kind;
     final Map<String, dynamic> file;
     final Map<String, dynamic> metadata;
+    int? photoPreviewFileId;
     switch (content['@type']) {
       case 'messagePhoto':
         kind = DedupMediaKind.photo;
         metadata = TdResponseReader.readMap(content, 'photo');
-        file = _largestPhotoFile(metadata);
+        final photo = _photoFiles(metadata);
+        file = photo.full;
+        photoPreviewFileId = photo.previewId;
       case 'messageVideo':
         kind = DedupMediaKind.video;
         metadata = TdResponseReader.readMap(content, 'video');
@@ -143,7 +167,10 @@ class TelegramDedupMediaGateway implements DedupMediaGateway {
       kind: kind,
       size: size > 0 ? size : null,
       fileUniqueId: remote is Map ? remote['unique_id'] as String? : null,
-      inlineThumbnail: thumbnail is Map ? thumbnail['data'] as String? : null,
+      inlineThumbnail: kind != DedupMediaKind.photo && thumbnail is Map
+          ? thumbnail['data'] as String?
+          : null,
+      photoPreviewFileId: photoPreviewFileId,
       durationSeconds: metadata['duration'] as int?,
       audioTitle: kind == DedupMediaKind.audio
           ? (audioTitle?.isNotEmpty == true
@@ -161,22 +188,39 @@ class TelegramDedupMediaGateway implements DedupMediaGateway {
     );
   }
 
-  Map<String, dynamic> _largestPhotoFile(Map<String, dynamic> photo) {
-    final sizes = TdResponseReader.readList(photo, 'sizes');
-    Map<String, dynamic>? largest;
-    var maxPixels = 0;
-    for (final entry in sizes) {
+  ({Map<String, dynamic> full, int? previewId}) _photoFiles(
+    Map<String, dynamic> photo,
+  ) {
+    final variants = <({Map<String, dynamic> file, int area, int edge})>[];
+    for (final entry in TdResponseReader.readList(photo, 'sizes')) {
       final size = TdResponseReader.readMap({'size': entry}, 'size');
-      final pixels =
-          TdResponseReader.readInt(size, 'width') *
-          TdResponseReader.readInt(size, 'height');
-      if (pixels >= maxPixels) {
-        maxPixels = pixels;
-        largest = size;
+      final width = TdResponseReader.readInt(size, 'width');
+      final height = TdResponseReader.readInt(size, 'height');
+      variants.add((
+        file: TdResponseReader.readMap(size, 'photo'),
+        area: width * height,
+        edge: width >= height ? width : height,
+      ));
+    }
+    if (variants.isEmpty) throw const TdResponseReadError('照片没有可比较的文件');
+    // 保持最大尺寸的选取规则：面积相同取最后一个版本。
+    final full = variants.reduce((a, b) => a.area > b.area ? a : b).file;
+    final fullId = TdResponseReader.readInt(full, 'id');
+    int? previewId;
+    var edge = 0;
+    for (final variant in variants) {
+      final id = TdResponseReader.readInt(variant.file, 'id');
+      if (id == fullId || variant.edge <= 0) continue;
+      // 优先最接近 640px 且不小于它的缩略图；没有时取最大的较小版本。
+      final better = edge < 640
+          ? variant.edge > edge
+          : variant.edge >= 640 && variant.edge < edge;
+      if (better) {
+        previewId = id;
+        edge = variant.edge;
       }
     }
-    if (largest == null) throw const TdResponseReadError('照片没有可比较的文件');
-    return TdResponseReader.readMap(largest, 'photo');
+    return (full: full, previewId: previewId);
   }
 }
 

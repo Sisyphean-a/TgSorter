@@ -22,6 +22,7 @@ class SettingsScreen extends StatefulWidget {
     required this.draftSession,
     this.pipeline,
     this.onLogoutSuccess,
+    this.handleSystemBack = true,
     super.key,
   });
 
@@ -30,12 +31,14 @@ class SettingsScreen extends StatefulWidget {
   final SettingsPageDraftSession draftSession;
   final PipelineLogsPort? pipeline;
   final Future<void> Function()? onLogoutSuccess;
+  final bool handleSystemBack;
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  SettingsScreenState createState() => SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class SettingsScreenState extends State<SettingsScreen> {
+  bool _confirmingDiscard = false;
   SettingsCoordinator get controller => widget.controller;
 
   @override
@@ -50,10 +53,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final route = widget.navigation.currentRoute.value;
       final draft = widget.draftSession.draftSettings.value;
       final saved = controller.savedSettings.value;
+      final body = _buildBody(route: route, draft: draft, saved: saved);
+      if (!widget.handleSystemBack) return body;
       return PopScope<void>(
         canPop: route == SettingsRoute.home,
-        onPopInvokedWithResult: _handlePopAttempt,
-        child: _buildBody(route: route, draft: draft, saved: saved),
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) backToSettingsHome();
+        },
+        child: body,
       );
     });
   }
@@ -240,11 +247,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     widget.draftSession.removeCategory(key);
   }
 
-  Future<void> _handlePopAttempt(bool didPop, void _) async {
-    if (didPop || widget.navigation.currentRoute.value == SettingsRoute.home) {
-      return;
-    }
-    if (controller.isSaving.value) {
+  Future<void> backToSettingsHome() async {
+    if (widget.navigation.currentRoute.value == SettingsRoute.home ||
+        controller.isSaving.value ||
+        _confirmingDiscard) {
       return;
     }
     if (!widget.draftSession.hasPendingChanges) {
@@ -252,12 +258,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.navigation.backToHome();
       return;
     }
-    final confirmed = await _confirmDiscard();
-    if (!confirmed) {
-      return;
+    _confirmingDiscard = true;
+    try {
+      if (!await _confirmDiscard() || !mounted) return;
+      widget.draftSession.clear();
+      widget.navigation.backToHome();
+    } finally {
+      _confirmingDiscard = false;
     }
-    widget.draftSession.clear();
-    widget.navigation.backToHome();
   }
 
   Future<bool> _confirmDiscard() async {

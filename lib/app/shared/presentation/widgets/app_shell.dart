@@ -25,10 +25,8 @@ class AppShell extends StatelessWidget {
       appBar: appBar,
       drawer: drawer,
       bottomNavigationBar: bottomBar,
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.pageBackground,
-        ),
+      body: Material(
+        color: colors.pageBackground,
         child: SafeArea(
           top: false,
           child: Center(

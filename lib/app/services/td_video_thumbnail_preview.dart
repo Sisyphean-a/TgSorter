@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:tgsorter/app/features/dedup/application/video_thumbnail_preview.dart';
@@ -12,16 +15,26 @@ class TdVideoThumbnailPreview implements VideoThumbnailPreview {
   final TdVideoStream _source;
   static const _channel = MethodChannel('tgsorter/video_thumbnail');
   static const _frameTimeout = Duration(seconds: 12);
+  static int _nextAndroidSession = 0;
 
   @override
   Stream<VideoThumbnail> generate(int fileId, int durationSeconds) {
     final positions = videoThumbnailPositions(durationSeconds);
     TdVideoStreamSession? session;
+    int? androidSession;
     var cancelled = false;
+
+    Future<void> closeSession() async {
+      final id = androidSession;
+      androidSession = null;
+      if (id != null) unawaited(_closeAndroidSession(id));
+      await session?.close();
+    }
+
     final controller = StreamController<VideoThumbnail>(
       onCancel: () async {
         cancelled = true;
-        await session?.close();
+        await closeSession();
       },
     );
     controller.onListen = () async {
@@ -31,12 +44,17 @@ class TdVideoThumbnailPreview implements VideoThumbnailPreview {
           maxDownloadBytes:
               VideoThumbnailPreview.downloadBudgetMiB * 1024 * 1024,
         );
+        if (cancelled) return;
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          androidSession = ++_nextAndroidSession;
+        }
         for (final position in positions) {
           if (cancelled) return;
           if (source.budgetExceeded) throw StateError('已达本次分段读取上限');
           final bytes = await _extract(
             source.uri,
             position,
+            androidSession,
           ).timeout(_frameTimeout);
           if (cancelled) return;
           if (bytes == null || bytes.isEmpty) throw StateError('无法读取该时间点的画面');
@@ -52,16 +70,37 @@ class TdVideoThumbnailPreview implements VideoThumbnailPreview {
           );
         }
       } finally {
-        await session?.close();
-        unawaited(controller.close());
+        try {
+          await closeSession();
+        } finally {
+          unawaited(controller.close());
+        }
       }
     };
     return controller.stream;
   }
 
-  Future<Uint8List?> _extract(Uri source, Duration position) {
-    if (Platform.isAndroid) {
+  Future<void> _closeAndroidSession(int id) async {
+    try {
+      await _channel.invokeMethod<void>('close', id);
+    } catch (error, stackTrace) {
+      developer.log(
+        '释放 Android 抽帧会话失败',
+        name: 'TdVideoThumbnailPreview',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<Uint8List?> _extract(
+    Uri source,
+    Duration position,
+    int? androidSession,
+  ) {
+    if (androidSession != null) {
       return _channel.invokeMethod<Uint8List>('extract', {
+        'sessionId': androidSession,
         'source': source.isScheme('file')
             ? source.toFilePath()
             : source.toString(),

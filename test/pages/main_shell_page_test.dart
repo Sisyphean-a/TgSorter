@@ -41,7 +41,7 @@ void main() {
   testWidgets('main shell exposes workspace settings and logs destinations', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     Get.testMode = true;
     Get.reset();
@@ -107,6 +107,12 @@ void main() {
       repository: _MemoryLoginAlertRepository(),
     )..onInit();
 
+    final dedupGateway = FakeDedupMediaGateway()
+      ..chats.add(const SelectableChat(id: -1001, title: '测试会话'))
+      ..history.addAll([
+        dedupMedia(10, 11, kind: DedupMediaKind.video),
+        dedupMedia(9, 11, kind: DedupMediaKind.video),
+      ]);
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),
@@ -114,7 +120,7 @@ void main() {
           pipeline: pipeline,
           tagging: tagging,
           downloads: downloads,
-          dedup: MediaDedupWorkbench(FakeDedupMediaGateway()),
+          dedup: MediaDedupWorkbench(dedupGateway),
           loginAlerts: loginAlerts,
           pipelineSettings: settingsController,
           errors: errors,
@@ -160,12 +166,56 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('会话去重'), findsOneWidget);
     expect(find.text('未选择会话'), findsOneWidget);
+    await tester.tap(find.text('选择会话'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('测试会话'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('视频 · 2 份'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('预览视频'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
 
+    Future<void> back() async {
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tester.pumpAndSettle();
+    }
+
+    await back();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('消息 10'), findsOneWidget);
+    await back();
+    expect(find.text('视频 · 2 份'), findsOneWidget);
+    expect(find.text('消息 10'), findsNothing);
     await tester.tap(find.byTooltip('打开导航'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('转发工作台'));
+    await back();
+    expect(find.text('主工作区导航'), findsNothing);
+    expect(find.text('会话去重'), findsOneWidget);
+    await back();
+    expect(find.text('操作日志'), findsAtLeastNWidgets(1));
+    await back();
+    await tester.tap(find.text('通用'));
     await tester.pumpAndSettle();
-
+    expect(find.byTooltip('返回'), findsOneWidget);
+    await back();
+    expect(find.text('转发'), findsOneWidget);
+    await tester.tap(find.text('转发'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('消息拉取方向'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('最旧优先'));
+    await tester.pumpAndSettle();
+    await back();
+    expect(find.text('继续编辑'), findsOneWidget);
+    await back();
+    expect(find.text('保存'), findsOneWidget);
+    await tester.tap(find.byTooltip('返回'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '放弃更改'));
+    await tester.pumpAndSettle();
+    expect(find.text('转发'), findsOneWidget);
+    await back();
     expect(find.text('剩余 7'), findsOneWidget);
   });
 

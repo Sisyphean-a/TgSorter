@@ -28,6 +28,7 @@ class DedupMedia {
     this.audioTitle,
     this.audioPerformer,
     this.inlineThumbnail,
+    this.photoPreviewFileId,
   });
 
   final int chatId;
@@ -43,6 +44,7 @@ class DedupMedia {
   final String? audioTitle;
   final String? audioPerformer;
   final String? inlineThumbnail;
+  final int? photoPreviewFileId;
 }
 
 abstract interface class DedupMediaGateway {
@@ -51,6 +53,7 @@ abstract interface class DedupMediaGateway {
     int chatId, {
     int beforeMessageId = 0,
   });
+  Future<String> loadPhotoFile(int fileId);
   Future<void> verifyMessage(DedupMedia original, {required bool forDeletion});
   Future<void> deleteMessages(int chatId, List<int> messageIds);
 }
@@ -140,6 +143,8 @@ class MediaDedupWorkbench {
   final VideoThumbnailPreview? videoThumbnails;
 
   Future<List<SelectableChat>> listChats() => _gateway.listChats();
+
+  Future<String> loadPhotoFile(int fileId) => _gateway.loadPhotoFile(fileId);
 
   Future<DedupScanResult> scan(
     int chatId, {

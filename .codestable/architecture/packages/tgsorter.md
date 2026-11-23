@@ -10,6 +10,7 @@ Flutter 应用通过 TDLib 操作 Telegram，不使用 Bot API。`lib/main.dart`
 
 ## 修改定位
 
+- 返回导航：`features/shell/presentation/main_shell_page.dart` 统一处理主壳层的返回。弹层由 Navigator 优先关闭；主壳层先关导航抽屉，再处理当前工作台内部返回（设置子页保留草稿保护、去重详情返回结果列表），再返回上一个工作台。隐藏工作台不拦截返回；没有可返回层级时交回系统。
 - 分类与恢复：`features/pipeline/application/pipeline_action_service.dart` → `services/telegram_classify_workflow.dart`、`classify_transaction_coordinator.dart`；远端删除安全约束见 [消息分类](../../requirements/contexts/message-classification.md)。
 - 预览和下载：`domain/message_preview_builder.dart`、`services/media_download_coordinator.dart`、`features/pipeline/application/`；不同媒体的准备与播放路径不可混同。去重抽帧由 `services/td_video_thumbnail_preview.dart` 使用带总量约束的 `TdVideoStream`：Android 走系统取帧，Windows 走既有 libmpv。识别与流量契约见 [媒体去重](../../requirements/contexts/media-dedup.md)。
 - 设置：`features/settings/application/` 与 `services/settings_repository.dart`；身份认证由 `services/tdlib_adapter.dart` 及相关服务承接。连接使用宿主网络（包括系统 VPN），启动时禁用旧版本留在 TDLib 中的内置代理；链接预览兼容性只在实际需要预览时检查，不作为启动前提。

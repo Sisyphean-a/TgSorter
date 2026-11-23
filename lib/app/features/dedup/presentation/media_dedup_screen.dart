@@ -1,7 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/features/dedup/application/media_dedup_workbench.dart';
-import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/dedup/presentation/dedup_media_preview_dialog.dart';
+import 'package:tgsorter/app/features/dedup/presentation/dedup_photo_comparison_dialog.dart';
+import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
 class MediaDedupScreen extends StatefulWidget {
@@ -10,39 +11,53 @@ class MediaDedupScreen extends StatefulWidget {
   final MediaDedupWorkbench workbench;
 
   @override
-  State<MediaDedupScreen> createState() => _MediaDedupScreenState();
+  MediaDedupScreenState createState() => MediaDedupScreenState();
 }
 
-class _MediaDedupScreenState extends State<MediaDedupScreen> {
+class _ChatScanState {
+  final groups = <DuplicateMediaGroup>[];
+  final keepChoices = <DuplicateMediaGroup, int>{};
+  DuplicateMediaGroup? focused;
+  DedupScanCheckpoint? checkpoint;
+  bool scanned = false;
+  int unidentified = 0;
+
+  bool get hasProgress => scanned || checkpoint != null;
+
+  void reset() {
+    groups.clear();
+    keepChoices.clear();
+    focused = null;
+    scanned = false;
+    unidentified = 0;
+    checkpoint = null;
+  }
+}
+
+class MediaDedupScreenState extends State<MediaDedupScreen> {
+  static const _cachedChatLimit = 3;
+  final _recentChats = <int, _ChatScanState>{};
+  var _view = _ChatScanState();
   SelectableChat? _chat;
-  final _groups = <DuplicateMediaGroup>[];
-  final _keepChoices = <DuplicateMediaGroup, int>{};
-  DuplicateMediaGroup? _focused;
   DedupScanStop? _scanStop;
-  DedupScanCheckpoint? _checkpoint;
   String? _progress;
   String? _notice;
   String? _error;
   bool _loadingChats = false;
   bool _deleting = false;
-  bool _scanned = false;
-  int _unidentified = 0;
 
   bool get _busy => _deleting || _loadingChats || _scanStop != null;
+
+  bool backToResults() {
+    if (_view.focused == null) return false;
+    setState(() => _view.focused = null);
+    return true;
+  }
 
   @override
   void dispose() {
     _scanStop?.cancel();
     super.dispose();
-  }
-
-  void _resetResults() {
-    _groups.clear();
-    _keepChoices.clear();
-    _focused = null;
-    _scanned = false;
-    _unidentified = 0;
-    _checkpoint = null;
   }
 
   Future<void> _pickChat() async {
@@ -61,10 +76,15 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
       if (!mounted || selected == null || selected.id == _chat?.id) return;
       setState(() {
         _chat = selected;
-        _resetResults();
-        _notice = null;
+        // Dart Map 按插入顺序迭代；命中后移到末尾，淘汰最久未打开的会话。
+        _view = _recentChats.remove(selected.id) ?? _ChatScanState();
+        _recentChats[selected.id] = _view;
+        if (_recentChats.length > _cachedChatLimit) {
+          _recentChats.remove(_recentChats.keys.first);
+        }
+        _notice = _view.scanned ? '已恢复上次扫描结果' : null;
       });
-      await _scan();
+      if (!_view.hasProgress) await _scan();
     } catch (error) {
       if (mounted) setState(() => _error = '读取会话失败，请重试：$error');
     } finally {
@@ -84,7 +104,7 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
       final result = await widget.workbench.scan(
         chat.id,
         stop: stop,
-        resumeFrom: _checkpoint,
+        resumeFrom: _view.checkpoint,
         onProgress: (inspected) {
           if (mounted) {
             setState(() => _progress = '正在读取会话历史 · 已检查 $inspected 个媒体');
@@ -93,27 +113,27 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _resetResults();
-        _groups.addAll(result.groups);
-        _scanned = true;
-        _unidentified = result.unidentified;
+        _view.reset();
+        _view.groups.addAll(result.groups);
+        _view.scanned = true;
+        _view.unidentified = result.unidentified;
       });
     } on DedupScanInterrupted catch (error) {
       if (!mounted) return;
       setState(() {
-        _resetResults();
-        _checkpoint = error.checkpoint;
+        _view.reset();
+        _view.checkpoint = error.checkpoint;
       });
     } on DedupScanCancelled {
       if (!mounted) return;
       setState(() {
-        _resetResults();
+        _view.reset();
         _notice = '扫描已停止';
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _resetResults();
+        _view.reset();
         _error = '扫描未完成，请重试：$error';
       });
     } finally {
@@ -172,15 +192,15 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
       final removed = await widget.workbench.removeDuplicates(group, keepId);
       if (!mounted) return;
       setState(() {
-        _groups.remove(group);
-        _keepChoices.remove(group);
-        _focused = null;
+        _view.groups.remove(group);
+        _view.keepChoices.remove(group);
+        _view.focused = null;
         _notice = '已删除 $removed 条重复消息';
       });
     } on DedupDeletionUncertain catch (failure) {
       if (!mounted) return;
       setState(() {
-        _resetResults();
+        _view.reset();
         _error = '未能确认删除结果，请重新扫描后再处理：${failure.error}';
       });
     } catch (error) {
@@ -247,9 +267,9 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
                   style: _primaryActionStyle(context),
                   onPressed: chat == null || _busy ? null : _scan,
                   child: Text(
-                    _checkpoint != null
+                    _view.checkpoint != null
                         ? '继续扫描'
-                        : _scanned
+                        : _view.scanned
                         ? '重新扫描'
                         : '扫描会话',
                   ),
@@ -261,14 +281,14 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              if (_groups.isEmpty) {
+              if (_view.groups.isEmpty) {
                 final title = chat == null
                     ? '未选择会话'
                     : scanning
                     ? '扫描进行中'
-                    : _checkpoint != null
+                    : _view.checkpoint != null
                     ? '读取会话历史超时'
-                    : !_scanned
+                    : !_view.scanned
                     ? '等待扫描'
                     : '没有待处理的同标识副本';
                 return Center(
@@ -285,10 +305,10 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        if (!_scanned && !scanning)
+                        if (!_view.scanned && !scanning)
                           Text(
-                            _checkpoint != null
-                                ? '已检查 ${_checkpoint!.inspected} 个媒体，可从当前位置继续。'
+                            _view.checkpoint != null
+                                ? '已检查 ${_view.checkpoint!.inspected} 个媒体，可从当前位置继续。'
                                 : chat == null
                                 ? '选择要整理的会话'
                                 : '仅检查 Telegram 文件标识，不下载媒体',
@@ -300,7 +320,7 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
                 );
               }
               final wide = constraints.maxWidth >= 900;
-              final focused = _focused;
+              final focused = _view.focused;
               if (!wide) {
                 return focused == null
                     ? _results()
@@ -337,12 +357,12 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (activity != null || _scanned || _notice != null)
+                if (activity != null || _view.scanned || _notice != null)
                   Text(
                     activity ??
                         [
-                          if (_scanned)
-                            '${_groups.length} 组待处理${_unidentified == 0 ? '' : ' · $_unidentified 个缺少文件标识'}',
+                          if (_view.scanned)
+                            '${_view.groups.length} 组待处理${_view.unidentified == 0 ? '' : ' · $_view.unidentified 个缺少文件标识'}',
                           ?_notice,
                         ].join(' · '),
                   ),
@@ -365,11 +385,11 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
   }
 
   Widget _results() => ListView.separated(
-    key: const PageStorageKey('dedup-results'),
-    itemCount: _groups.length,
+    key: ValueKey(_chat?.id),
+    itemCount: _view.groups.length,
     separatorBuilder: (_, _) => const Divider(height: 1),
     itemBuilder: (context, index) {
-      final group = _groups[index];
+      final group = _view.groups[index];
       return ListTile(
         leading: Icon(switch (group.kind) {
           DedupMediaKind.photo => Icons.photo_outlined,
@@ -382,17 +402,17 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
           '${group.size == null ? '大小未知' : _formatSize(group.size!)} · ${_formatDate(group.copies.first.sentAt)}',
         ),
         iconColor: Theme.of(context).colorScheme.onSurface,
-        selected: _focused == group,
+        selected: _view.focused == group,
         selectedColor: Theme.of(context).colorScheme.onSurface,
         selectedTileColor: AppTokens.colorsOf(context).brandAccentSoft,
         enabled: !_busy,
-        onTap: () => setState(() => _focused = group),
+        onTap: () => setState(() => _view.focused = group),
       );
     },
   );
 
   Widget _details(DuplicateMediaGroup group, {required bool canGoBack}) {
-    final keep = _keepChoices[group];
+    final keep = _view.keepChoices[group];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -403,7 +423,7 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
               if (canGoBack)
                 IconButton(
                   tooltip: '返回重复列表',
-                  onPressed: () => setState(() => _focused = null),
+                  onPressed: backToResults,
                   icon: const Icon(Icons.arrow_back),
                 ),
               Expanded(
@@ -418,7 +438,11 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
               TextButton(
                 style: _secondaryActionStyle(context),
                 onPressed: _busy ? null : () => _showPreview(group),
-                child: Text('预览${group.kind.label}'),
+                child: Text(
+                  group.kind == DedupMediaKind.photo
+                      ? '对比照片'
+                      : '预览${group.kind.label}',
+                ),
               ),
             ],
           ),
@@ -429,7 +453,7 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
             groupValue: keep,
             onChanged: (id) {
               if (id != null && !_busy) {
-                setState(() => _keepChoices[group] = id);
+                setState(() => _view.keepChoices[group] = id);
               }
             },
             child: ListView.separated(
@@ -482,10 +506,18 @@ class _MediaDedupScreenState extends State<MediaDedupScreen> {
 
   Future<void> _showPreview(DuplicateMediaGroup group) => showDialog<void>(
     context: context,
-    builder: (_) => DedupMediaPreviewDialog(
-      group: group,
-      thumbnails: widget.workbench.videoThumbnails,
-    ),
+    builder: (_) => group.kind == DedupMediaKind.photo
+        ? DedupPhotoComparisonDialog(
+            group: group,
+            keepId: _view.keepChoices[group],
+            loadPhotoFile: widget.workbench.loadPhotoFile,
+            onKeepChanged: (id) =>
+                setState(() => _view.keepChoices[group] = id),
+          )
+        : DedupMediaPreviewDialog(
+            group: group,
+            thumbnails: widget.workbench.videoThumbnails,
+          ),
   );
 }
 

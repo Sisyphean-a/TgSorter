@@ -55,6 +55,9 @@ class MainShellPage extends StatefulWidget {
 
 class _MainShellPageState extends State<MainShellPage> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _dedupKey = GlobalKey<MediaDedupScreenState>();
+  final _settingsKey = GlobalKey<SettingsScreenState>();
+  final _backHistory = <MainShellDestination>[];
   final _settingsNavigation = SettingsNavigationController();
   final _settingsDraftSession = SettingsPageDraftSession();
   late MainShellDestination _current;
@@ -67,49 +70,62 @@ class _MainShellPageState extends State<MainShellPage> {
     _settingsWorker = ever<AppSettings>(widget.settings.savedSettings, (
       settings,
     ) {
-      if (_current == MainShellDestination.downloads &&
-          !settings.downloadWorkbenchEnabled) {
-        setState(() {
-          _current = _resolveInitialDestination();
-        });
-      }
+      if (settings.downloadWorkbenchEnabled) return;
+      setState(() {
+        _backHistory.removeWhere(
+          (item) => item == MainShellDestination.downloads,
+        );
+        if (_current == MainShellDestination.downloads) {
+          _current = _backHistory.isEmpty
+              ? _resolveInitialDestination()
+              : _backHistory.removeLast();
+        }
+      });
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      scaffoldKey: _scaffoldKey,
-      drawer: Obx(
-        () => _MainShellDrawer(
-          current: _current,
-          downloadWorkbenchEnabled:
-              widget.settings.savedSettings.value.downloadWorkbenchEnabled,
-          onSelected: _selectDestination,
+    return PopScope<void>(
+      canPop: _backHistory.isEmpty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back();
+      },
+      child: AppShell(
+        scaffoldKey: _scaffoldKey,
+        drawer: Obx(
+          () => _MainShellDrawer(
+            current: _current,
+            downloadWorkbenchEnabled:
+                widget.settings.savedSettings.value.downloadWorkbenchEnabled,
+            onSelected: _selectDestination,
+          ),
         ),
-      ),
-      appBar: _buildAppBar(),
-      body: IndexedStack(
-        index: _current.index,
-        children: [
-          PipelineScreen(
-            pipeline: widget.pipeline,
-            settings: widget.pipelineSettings,
-            errors: widget.errors,
-          ),
-          TaggingScreen(controller: widget.tagging, errors: widget.errors),
-          LoginAlertWorkbenchPage(controller: widget.loginAlerts),
-          DownloadWorkbenchScreen(controller: widget.downloads),
-          MediaDedupScreen(workbench: widget.dedup),
-          SettingsScreen(
-            controller: widget.settings,
-            navigation: _settingsNavigation,
-            draftSession: _settingsDraftSession,
-            pipeline: widget.pipelineLogs,
-            onLogoutSuccess: _handleLogoutSuccess,
-          ),
-          LogsScreen(pipeline: widget.pipelineLogs),
-        ],
+        appBar: _buildAppBar(),
+        body: IndexedStack(
+          index: _current.index,
+          children: [
+            PipelineScreen(
+              pipeline: widget.pipeline,
+              settings: widget.pipelineSettings,
+              errors: widget.errors,
+            ),
+            TaggingScreen(controller: widget.tagging, errors: widget.errors),
+            LoginAlertWorkbenchPage(controller: widget.loginAlerts),
+            DownloadWorkbenchScreen(controller: widget.downloads),
+            MediaDedupScreen(key: _dedupKey, workbench: widget.dedup),
+            SettingsScreen(
+              key: _settingsKey,
+              handleSystemBack: false,
+              controller: widget.settings,
+              navigation: _settingsNavigation,
+              draftSession: _settingsDraftSession,
+              pipeline: widget.pipelineLogs,
+              onLogoutSuccess: _handleLogoutSuccess,
+            ),
+            LogsScreen(pipeline: widget.pipelineLogs),
+          ],
+        ),
       ),
     );
   }
@@ -184,15 +200,36 @@ class _MainShellPageState extends State<MainShellPage> {
   void _selectDestination(MainShellDestination destination) {
     if (destination == MainShellDestination.downloads &&
         !widget.settings.savedSettings.value.downloadWorkbenchEnabled) {
-      Navigator.of(context).pop();
+      _scaffoldKey.currentState?.closeDrawer();
       return;
     }
     if (_current != destination) {
       setState(() {
+        _backHistory.add(_current);
         _current = destination;
       });
     }
-    Navigator.of(context).pop();
+    _scaffoldKey.currentState?.closeDrawer();
+  }
+
+  void _back() {
+    final scaffold = _scaffoldKey.currentState;
+    if (scaffold?.isDrawerOpen == true) {
+      scaffold!.closeDrawer();
+      return;
+    }
+    if (_current == MainShellDestination.settings &&
+        _settingsNavigation.canPop.value) {
+      _settingsKey.currentState?.backToSettingsHome();
+      return;
+    }
+    if (_current == MainShellDestination.dedup &&
+        _dedupKey.currentState?.backToResults() == true) {
+      return;
+    }
+    if (_backHistory.isNotEmpty) {
+      setState(() => _current = _backHistory.removeLast());
+    }
   }
 
   Future<void> _saveSettings() async {

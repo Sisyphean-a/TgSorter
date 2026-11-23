@@ -12,6 +12,124 @@ import 'package:tgsorter/app/theme/app_theme.dart';
 import '../support/fake_dedup_media_gateway.dart';
 
 void main() {
+  testWidgets('切回会话恢复选择，访问第四个会话只淘汰最久未打开的结果', (tester) async {
+    final gateway = _gateway()
+      ..chats.addAll([
+        const SelectableChat(id: -3, title: '会话 C'),
+        const SelectableChat(id: -4, title: '会话 D'),
+      ]);
+    await _open(tester, gateway);
+    await _selectChat(tester);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('照片 · 2 份'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('消息 10'));
+    await tester.pumpAndSettle();
+    for (final (from, to) in [
+      ('个人资料群', '资料频道'),
+      ('资料频道', '会话 C'),
+      ('会话 C', '个人资料群'),
+    ]) {
+      await _selectChat(tester, current: from, title: to);
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('保留消息 10'), findsOneWidget);
+    expect(find.textContaining('已恢复上次扫描结果'), findsOneWidget);
+    expect(gateway.historyRequests.map((item) => item.$1), [-1001, -2000, -3]);
+
+    for (final (from, to) in [
+      ('个人资料群', '会话 D'),
+      ('会话 D', '会话 C'),
+      ('会话 C', '资料频道'),
+    ]) {
+      await _selectChat(tester, current: from, title: to);
+      await tester.pumpAndSettle();
+    }
+    expect(gateway.historyRequests.map((item) => item.$1), [
+      -1001,
+      -2000,
+      -3,
+      -4,
+      -2000,
+    ]);
+    expect(gateway.deleted, isEmpty);
+  });
+
+  for (final wide in [false, true]) {
+    testWidgets('照片对比按消息加载，可选择保留；宽屏=$wide', (tester) async {
+      await tester.binding.setSurfaceSize(Size(wide ? 1280 : 390, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final gateway = _gateway()
+        ..history.insertAll(0, [
+          dedupMedia(
+            30,
+            90,
+            identity: 'photo',
+            photoPreviewFileId: 91,
+            caption: '第一份说明',
+          ),
+          dedupMedia(
+            29,
+            80,
+            identity: 'photo',
+            photoPreviewFileId: 81,
+            caption: '第二份说明',
+          ),
+        ])
+        ..photoLoader = (_) async => throw StateError('模拟图片请求失败');
+      await _open(tester, gateway);
+      await _selectChat(tester);
+      await tester.pumpAndSettle();
+      expect(gateway.photoRequests, isEmpty);
+      await tester.tap(find.widgetWithText(ListTile, '照片 · 2 份').first);
+      await tester.pumpAndSettle();
+      expect(gateway.photoRequests, isEmpty);
+      await tester.tap(find.text('对比照片'));
+      await tester.pumpAndSettle();
+      final first = find.text('保留消息 30');
+      final second = find.text('保留消息 29');
+      if (!wide) {
+        await tester.scrollUntilVisible(
+          second,
+          150,
+          scrollable: find
+              .descendant(
+                of: find.byType(AlertDialog),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+      }
+      final a = tester.getCenter(first);
+      final b = tester.getCenter(second);
+      expect(wide ? a.dy : a.dx, closeTo(wide ? b.dy : b.dx, 12));
+      expect(gateway.photoRequests, unorderedEquals([91, 81]));
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('第二份说明'),
+        ),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(second);
+      await tester.pumpAndSettle();
+      await tester.tap(second);
+      await tester.pumpAndSettle();
+      final large = find.text('查看大图').last;
+      await tester.ensureVisible(large);
+      await tester.tap(large);
+      await tester.pumpAndSettle();
+      expect(find.text('大图 · 消息 29'), findsOneWidget);
+      expect(gateway.photoRequests, unorderedEquals([91, 81, 80]));
+      await tester.tap(find.text('关闭大图'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('关闭对比'));
+      await tester.pumpAndSettle();
+      expect(find.text('保留消息 29'), findsOneWidget);
+      expect(gateway.deleted, isEmpty);
+    });
+  }
+
   testWidgets('音频去重预览只展示信息，不播放或请求缩略图', (tester) async {
     final gateway = _gateway()
       ..history.insertAll(0, [
@@ -156,10 +274,17 @@ void main() {
     expect(find.text('照片 · 2 份'), findsNothing);
 
     gateway.historyStream = null;
+    await _selectChat(tester, current: '个人资料群', title: '资料频道');
+    await tester.pumpAndSettle();
+    await _selectChat(tester, current: '资料频道');
+    await tester.pumpAndSettle();
+    expect(gateway.historyRequests, [(-1001, 0), (-2000, 0)]);
+    expect(find.textContaining('已检查 1 个媒体'), findsOneWidget);
     await tester.tap(find.text('继续扫描'));
     await tester.pumpAndSettle();
     expect(find.text('照片 · 2 份'), findsOneWidget);
     expect(find.text('视频 · 2 份'), findsOneWidget);
+    expect(gateway.historyRequests.last, (-1001, 10));
     expect(gateway.deleted, isEmpty);
   });
 
@@ -230,8 +355,12 @@ Future<void> _open(
   );
 }
 
-Future<void> _selectChat(WidgetTester tester, {String title = '个人资料群'}) async {
-  await tester.tap(find.text('选择会话'));
+Future<void> _selectChat(
+  WidgetTester tester, {
+  String title = '个人资料群',
+  String current = '选择会话',
+}) async {
+  await tester.tap(find.text(current));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 300));
   await tester.tap(find.text(title));
