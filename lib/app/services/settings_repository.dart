@@ -56,7 +56,7 @@ class SettingsRepository {
       ),
     );
     settings = settings.updateForwardAsCopy(
-      _prefs.getBool(_forwardAsCopyKey) ?? false,
+      _prefs.getBool(_forwardAsCopyKey) ?? settings.forwardAsCopy,
     );
     settings = settings.updateDownloadSettings(
       workbenchEnabled: _prefs.getBool(_downloadWorkbenchEnabledKey) ?? false,

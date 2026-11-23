@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | workspace / package:tgsorter | [应用架构](packages/tgsorter.md)：`lib/main.dart`、`lib/app/`；平台 `android/`、`windows/`；测试 `test/` | [领域地图](../requirements/CONTEXT.md) |
 | 消息分类、恢复 | `lib/app/features/pipeline/`、`lib/app/services/telegram_classify_workflow.dart` | [消息分类](../requirements/contexts/message-classification.md) |
+| 会话去重 | `lib/app/features/dedup/`、`lib/app/services/telegram_dedup_media_gateway.dart` | [媒体去重](../requirements/contexts/media-dedup.md) |
 | 标签工作台 | `lib/app/features/tagging/`、`lib/app/services/telegram_tagging_service.dart` | [领域地图](../requirements/CONTEXT.md) |
 | 设置与连接 | `lib/app/features/settings/`、`lib/app/services/settings_repository.dart`、`lib/app/services/tdlib_adapter.dart` | 工作区 |
 

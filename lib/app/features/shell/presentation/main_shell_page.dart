@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 import 'package:tgsorter/app/core/routing/app_routes.dart';
+import 'package:tgsorter/app/features/dedup/application/media_dedup_workbench.dart';
+import 'package:tgsorter/app/features/dedup/presentation/media_dedup_screen.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
 import 'package:tgsorter/app/features/download/presentation/download_workbench_page.dart';
 import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
@@ -28,6 +30,7 @@ class MainShellPage extends StatefulWidget {
     required this.pipeline,
     required this.tagging,
     required this.downloads,
+    required this.dedup,
     required this.loginAlerts,
     required this.pipelineSettings,
     required this.errors,
@@ -39,6 +42,7 @@ class MainShellPage extends StatefulWidget {
   final PipelineCoordinator pipeline;
   final TaggingCoordinator tagging;
   final DownloadWorkbenchController downloads;
+  final MediaDedupWorkbench dedup;
   final LoginAlertWorkbenchController loginAlerts;
   final PipelineSettingsReader pipelineSettings;
   final AppErrorController errors;
@@ -96,6 +100,7 @@ class _MainShellPageState extends State<MainShellPage> {
           TaggingScreen(controller: widget.tagging, errors: widget.errors),
           LoginAlertWorkbenchPage(controller: widget.loginAlerts),
           DownloadWorkbenchScreen(controller: widget.downloads),
+          MediaDedupScreen(workbench: widget.dedup),
           SettingsScreen(
             controller: widget.settings,
             navigation: _settingsNavigation,
@@ -112,6 +117,15 @@ class _MainShellPageState extends State<MainShellPage> {
   PreferredSizeWidget _buildAppBar() {
     final leading = _DrawerMenuButton(onPressed: _openDrawer);
     switch (_current) {
+      case MainShellDestination.dedup:
+        final colors = Theme.of(context).colorScheme;
+        return AppBar(
+          title: Text(_current.label),
+          leading: leading,
+          foregroundColor: colors.brightness == Brightness.light
+              ? colors.onSurface
+              : colors.onPrimary,
+        );
       case MainShellDestination.forwardingWorkbench:
         return PipelineCompactAppBar(
           pipeline: widget.pipeline,
@@ -224,10 +238,10 @@ class _MainShellPageState extends State<MainShellPage> {
     if (!mounted) {
       return;
     }
-    Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil<void>(
-      AppRoutes.auth,
-      (_) => false,
-    );
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).pushNamedAndRemoveUntil<void>(AppRoutes.auth, (_) => false);
   }
 
   @override
@@ -257,42 +271,37 @@ class _MainShellDrawer extends StatelessWidget {
       backgroundColor: colors.panelBackground,
       surfaceTintColor: Colors.transparent,
       child: SafeArea(
-        child: Padding(
+        child: ListView(
           padding: const EdgeInsets.all(AppTokens.spaceLg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'TgSorter',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+          children: [
+            Text(
+              'TgSorter',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
               ),
-              const SizedBox(height: 4),
-              Text(
-                '主工作区导航',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.textMuted,
-                ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '主工作区导航',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colors.textMuted,
               ),
-              const SizedBox(height: AppTokens.spaceLg),
-              for (final item in destinations)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-                  child: ListTile(
-                    leading: Icon(item.icon),
-                    title: Text(item.label),
-                    selected: item == current,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppTokens.radiusSmall,
-                      ),
-                    ),
-                    onTap: () => onSelected(item),
+            ),
+            const SizedBox(height: AppTokens.spaceLg),
+            for (final item in destinations)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+                child: ListTile(
+                  leading: Icon(item.icon),
+                  title: Text(item.label),
+                  selected: item == current,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTokens.radiusSmall),
                   ),
+                  onTap: () => onSelected(item),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );

@@ -32,6 +32,9 @@ import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart'
 import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_page.dart';
+import 'package:tgsorter/app/features/dedup/application/media_dedup_workbench.dart';
+
+import '../support/fake_dedup_media_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/models/category_config.dart';
 import 'package:tgsorter/app/models/classify_operation_log.dart';
@@ -87,7 +90,9 @@ void main() {
     },
   );
 
-  testWidgets('app routes resolve pages through registered ports', (tester) async {
+  testWidgets('app routes resolve pages through registered ports', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final authGateway = _ModuleAuthGateway();
@@ -131,6 +136,7 @@ void main() {
     );
     registerPipelineModule();
     registerTaggingModule();
+    Get.put(MediaDedupWorkbench(FakeDedupMediaGateway()));
 
     final fakeRouteSettingsReader = _RoutePipelineSettingsReader();
     final fakeRouteLogsPort = _RoutePipelineLogsPort();
@@ -192,6 +198,7 @@ void main() {
     );
     registerPipelineModule();
     registerTaggingModule();
+    Get.put(MediaDedupWorkbench(FakeDedupMediaGateway()));
 
     await tester.pumpWidget(const TgSorterApp());
     await tester.pump();

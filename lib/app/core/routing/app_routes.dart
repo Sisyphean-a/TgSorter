@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:tgsorter/app/shared/errors/app_error_controller.dart';
 import 'package:tgsorter/app/features/auth/application/auth_coordinator.dart';
 import 'package:tgsorter/app/features/auth/presentation/auth_page.dart';
+import 'package:tgsorter/app/features/dedup/application/media_dedup_workbench.dart';
 import 'package:tgsorter/app/features/download/application/download_workbench_controller.dart';
 import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
 import 'package:tgsorter/app/features/pipeline/application/pipeline_coordinator.dart';
@@ -27,6 +28,7 @@ Map<String, WidgetBuilder> buildAppRoutes() {
       pipeline: Get.find<PipelineCoordinator>(),
       tagging: Get.find<TaggingCoordinator>(),
       downloads: Get.find<DownloadWorkbenchController>(),
+      dedup: Get.find<MediaDedupWorkbench>(),
       loginAlerts: Get.find<LoginAlertWorkbenchController>(),
       pipelineSettings: Get.find<PipelineSettingsReader>(),
       errors: Get.find<AppErrorController>(),

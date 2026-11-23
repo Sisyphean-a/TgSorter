@@ -3,6 +3,7 @@
 | 范围 | 领域所有权 | 实现包与入口 |
 | --- | --- | --- |
 | context:message-classification | 消息分类、转发确认、删除及恢复 | `tgsorter`；[规则](contexts/message-classification.md) |
+| context:media-dedup | 会话内媒体重复判定、保留选择和副本删除 | `tgsorter`；[规则](contexts/media-dedup.md) |
 
 ## 工作区语言
 

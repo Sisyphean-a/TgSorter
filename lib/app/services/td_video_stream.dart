@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io' as io;
@@ -9,14 +10,14 @@ import 'package:tgsorter/app/services/td_response_reader.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 
-/// 将 Android 播放器的 HTTP Range 读取转换为 TDLib 的分段下载。
+/// 将本地播放器与抽帧器的 HTTP Range 读取转换为 TDLib 的分段下载。
 class TdVideoStream {
   TdVideoStream(this._adapter);
 
   final TdlibAdapter _adapter;
   static const _priority = 20;
 
-  Future<TdVideoStreamSession> open(int fileId) async {
+  Future<TdVideoStreamSession> open(int fileId, {int? maxDownloadBytes}) async {
     final file = await _getFile(fileId);
     if (file.completed && file.path.isNotEmpty) {
       return TdVideoStreamSession._(io.File(file.path).uri);
@@ -35,7 +36,13 @@ class TdVideoStream {
       port: server.port,
       path: '/$token',
     );
-    final session = TdVideoStreamSession._(uri, server);
+    final session = TdVideoStreamSession._(
+      uri,
+      server,
+      maxDownloadBytes == null
+          ? null
+          : math.min(maxDownloadBytes, file.size - 1),
+    );
     server.listen(
       (request) => unawaited(session._serve(this, fileId, file.size, request)),
     );
@@ -74,11 +81,22 @@ class TdVideoStream {
 }
 
 class TdVideoStreamSession {
-  TdVideoStreamSession._(this.uri, [this._server]);
+  TdVideoStreamSession._(
+    this.uri, [
+    this._server,
+    this._remainingDownloadBytes,
+  ]);
 
   final Uri uri;
   final io.HttpServer? _server;
   static const _downloadWindow = 4 * 1024 * 1024;
+  static const _thumbnailWindow = 512 * 1024;
+  static const _thumbnailCacheLimit = 8 * 1024 * 1024;
+  int? _remainingDownloadBytes;
+  final _previewCache = SplayTreeMap<int, List<int>>();
+  var _previewCacheBytes = 0;
+  bool _budgetExceeded = false;
+  bool get budgetExceeded => _budgetExceeded;
   static const _readChunk = 256 * 1024;
   static const _pollInterval = Duration(milliseconds: 150);
   static const _stallTimeout = Duration(seconds: 12);
@@ -150,7 +168,7 @@ class TdVideoStreamSession {
     bool active() => !_closed && !disconnected && generation == _request;
     try {
       await _sendBytes(source, fileId, bounds, response, active);
-      if (active()) {
+      if (active() && !_budgetExceeded) {
         await response.close();
       } else if (!_closed && !disconnected) {
         await _abort(response);
@@ -180,6 +198,19 @@ class TdVideoStreamSession {
     final stall = Stopwatch()..start();
     var file = await source._getFile(fileId);
     while (active() && offset < bounds.end) {
+      final cachedStart = _previewCache.lastKeyBefore(offset + 1);
+      if (cachedStart != null) {
+        final cached = _previewCache[cachedStart]!;
+        final start = offset - cachedStart;
+        if (start < cached.length) {
+          final count = math.min(cached.length - start, bounds.end - offset);
+          response.add(cached.sublist(start, start + count));
+          await response.flush();
+          offset += count;
+          stall.reset();
+          continue;
+        }
+      }
       final available = file.availableAt(offset);
       if (available > 0) {
         final count = math.min(
@@ -200,6 +231,13 @@ class TdVideoStreamSession {
           continue;
         }
         if (!active()) return;
+        if (_remainingDownloadBytes != null &&
+            _previewCacheBytes + bytes.length <= _thumbnailCacheLimit) {
+          // 多次定位会重读容器索引；只重用本会话已经验证可读的字节。
+          _previewCacheBytes +=
+              bytes.length - (_previewCache[offset]?.length ?? 0);
+          _previewCache[offset] = bytes;
+        }
         response.add(bytes);
         await response.flush();
         offset += bytes.length;
@@ -207,8 +245,19 @@ class TdVideoStreamSession {
         continue;
       }
       if (offset >= downloadEnd) {
-        downloadEnd = math.min(offset + _downloadWindow, bounds.end);
-        file = await source._download(fileId, offset, downloadEnd - offset);
+        final remaining = _remainingDownloadBytes;
+        final window = remaining == null
+            ? _downloadWindow
+            : math.min(_thumbnailWindow, remaining);
+        final count = math.min(window, bounds.end - offset);
+        if (count <= 0) {
+          _budgetExceeded = true;
+          return;
+        }
+        // 发出请求前扣除完整窗口，包括随后被取消或发生重叠的读取。
+        if (remaining != null) _remainingDownloadBytes = remaining - count;
+        downloadEnd = offset + count;
+        file = await source._download(fileId, offset, count);
         continue;
       }
       if (stall.elapsed >= _stallTimeout) {

@@ -17,6 +17,9 @@ import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_page.dart';
+import 'package:tgsorter/app/features/dedup/application/media_dedup_workbench.dart';
+
+import '../support/fake_dedup_media_gateway.dart';
 import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
 import 'package:tgsorter/app/features/tagging/ports/tagging_gateway.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
@@ -111,6 +114,7 @@ void main() {
           pipeline: pipeline,
           tagging: tagging,
           downloads: downloads,
+          dedup: MediaDedupWorkbench(FakeDedupMediaGateway()),
           loginAlerts: loginAlerts,
           pipelineSettings: settingsController,
           errors: errors,
@@ -149,6 +153,13 @@ void main() {
 
     expect(find.text('操作日志'), findsAtLeastNWidgets(1));
     expect(find.text('失败中'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('打开导航'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('会话去重'));
+    await tester.pumpAndSettle();
+    expect(find.text('会话去重'), findsOneWidget);
+    expect(find.text('未选择会话'), findsOneWidget);
 
     await tester.tap(find.byTooltip('打开导航'));
     await tester.pumpAndSettle();
@@ -234,6 +245,7 @@ void main() {
             pipeline: pipeline,
             tagging: tagging,
             downloads: downloads,
+            dedup: MediaDedupWorkbench(FakeDedupMediaGateway()),
             loginAlerts: loginAlerts,
             pipelineSettings: settingsController,
             errors: errors,
@@ -315,6 +327,7 @@ void main() {
           pipeline: pipeline,
           tagging: tagging,
           downloads: downloads,
+          dedup: MediaDedupWorkbench(FakeDedupMediaGateway()),
           loginAlerts: loginAlerts,
           pipelineSettings: settingsController,
           errors: errors,
@@ -386,6 +399,7 @@ void main() {
           pipeline: pipeline,
           tagging: tagging,
           downloads: downloads,
+          dedup: MediaDedupWorkbench(FakeDedupMediaGateway()),
           loginAlerts: loginAlerts,
           pipelineSettings: settingsController,
           errors: errors,
@@ -524,6 +538,7 @@ void main() {
             pipeline: pipeline,
             tagging: tagging,
             downloads: downloads,
+            dedup: MediaDedupWorkbench(FakeDedupMediaGateway()),
             loginAlerts: loginAlerts,
             pipelineSettings: settingsController,
             errors: errors,

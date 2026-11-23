@@ -12,6 +12,7 @@ import 'package:tgsorter/app/core/di/pipeline_module.dart';
 import 'package:tgsorter/app/core/di/settings_module.dart';
 import 'package:tgsorter/app/core/di/tagging_module.dart';
 import 'package:tgsorter/app/features/auth/ports/auth_gateway.dart';
+import 'package:tgsorter/app/features/dedup/application/media_dedup_workbench.dart';
 import 'package:tgsorter/app/features/login_alerts/application/login_alert_workbench_controller.dart';
 import 'package:tgsorter/app/features/pipeline/ports/auth_state_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/classify_gateway.dart';
@@ -32,9 +33,11 @@ import 'package:tgsorter/app/services/td_client_transport.dart';
 import 'package:tgsorter/app/services/td_json_logger.dart';
 import 'package:tgsorter/app/services/td_raw_transport.dart';
 import 'package:tgsorter/app/services/td_video_stream.dart';
+import 'package:tgsorter/app/services/td_video_thumbnail_preview.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_credentials.dart';
 import 'package:tgsorter/app/services/tdlib_runtime_paths.dart';
+import 'package:tgsorter/app/services/telegram_dedup_media_gateway.dart';
 import 'package:tgsorter/app/services/telegram_service.dart';
 
 Future<void> registerAppBindings() async {
@@ -111,8 +114,9 @@ Future<void> registerAppBindings() async {
   Get.put(transport, permanent: true);
   Get.put(credentials, permanent: true);
   Get.put(adapter, permanent: true);
+  final videoStream = TdVideoStream(adapter);
   if (Platform.isAndroid) {
-    Get.put(TdVideoStream(adapter), permanent: true);
+    Get.put(videoStream, permanent: true);
   }
   Get.put<AuthGateway>(telegram, permanent: true);
   Get.put<SessionQueryGateway>(telegram, permanent: true);
@@ -124,6 +128,13 @@ Future<void> registerAppBindings() async {
   Get.put<RecoveryGateway>(telegram, permanent: true);
   Get.put<TaggingGateway>(telegram, permanent: true);
   Get.put<DownloadSyncPort>(downloadSync, permanent: true);
+  Get.put(
+    MediaDedupWorkbench(
+      TelegramDedupMediaGateway(adapter),
+      videoThumbnails: TdVideoThumbnailPreview(videoStream),
+    ),
+    permanent: true,
+  );
   Get.put(loginAlerts, permanent: true);
 
   registerSettingsModule();

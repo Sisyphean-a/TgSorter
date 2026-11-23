@@ -21,6 +21,9 @@ import 'package:tgsorter/app/features/pipeline/ports/media_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/message_read_gateway.dart';
 import 'package:tgsorter/app/features/pipeline/ports/recovery_gateway.dart';
 import 'package:tgsorter/app/features/shell/presentation/main_shell_page.dart';
+import 'package:tgsorter/app/features/dedup/application/media_dedup_workbench.dart';
+
+import '../support/fake_dedup_media_gateway.dart';
 import 'package:tgsorter/app/features/settings/application/settings_coordinator.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/features/tagging/application/tagging_coordinator.dart';
@@ -103,6 +106,7 @@ void main() {
             pipeline: pipeline,
             tagging: tagging,
             downloads: downloads,
+            dedup: MediaDedupWorkbench(FakeDedupMediaGateway()),
             loginAlerts: loginAlerts,
             pipelineSettings: settings,
             errors: errors,

@@ -116,7 +116,7 @@ class AppSettings {
       categories: [],
       sourceChatId: null,
       fetchDirection: MessageFetchDirection.latestFirst,
-      forwardAsCopy: false,
+      forwardAsCopy: true,
       batchSize: 5,
       throttleMs: 1200,
       downloadWorkbenchEnabled: false,

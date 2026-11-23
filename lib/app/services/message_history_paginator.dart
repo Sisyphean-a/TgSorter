@@ -1,6 +1,8 @@
 import 'package:tdlib/td_api.dart';
 import 'package:tgsorter/app/models/app_settings.dart';
 import 'package:tgsorter/app/services/td_message_dto.dart';
+import 'package:tgsorter/app/services/td_response_reader.dart';
+import 'package:tgsorter/app/services/td_wire_message.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 
@@ -151,23 +153,64 @@ class MessageHistoryPaginator {
     return ordered.skip(start + 1).take(limit).toList(growable: false);
   }
 
+  Stream<Map<String, dynamic>> scanHistory(
+    int chatId, {
+    required int beforeMessageId,
+  }) async* {
+    var cursor = beforeMessageId;
+    while (true) {
+      final envelope = await _fetchHistoryEnvelope(
+        chatId: chatId,
+        fromMessageId: cursor,
+        limit: _historyBatchSize,
+      );
+      final messages = TdResponseReader.readList(envelope.payload, 'messages');
+      if (messages.isEmpty) return;
+      var next = cursor;
+      for (final value in messages) {
+        final message = TdResponseReader.readMap({'message': value}, 'message');
+        final id = TdResponseReader.readInt(message, 'id');
+        if (id == cursor) continue;
+        if (id <= 0 || (next != 0 && id >= next)) {
+          throw StateError('会话历史消息顺序异常');
+        }
+        next = id;
+        yield message;
+      }
+      if (next == cursor) {
+        throw StateError('会话历史分页未推进');
+      }
+      cursor = next;
+    }
+  }
+
   Future<List<TdMessageDto>> _fetchHistoryPage({
     required int chatId,
     required int fromMessageId,
     required int limit,
   }) async {
-    final envelope = await _adapter.sendWire(
-      GetChatHistory(
-        chatId: chatId,
-        fromMessageId: fromMessageId,
-        offset: 0,
-        limit: limit,
-        onlyLocal: false,
-      ),
-      request: 'getChatHistory',
-      phase: TdlibPhase.business,
-      timeout: _defaultTimeout,
+    final envelope = await _fetchHistoryEnvelope(
+      chatId: chatId,
+      fromMessageId: fromMessageId,
+      limit: limit,
     );
     return TdMessagesDto.fromEnvelope(envelope).messages;
   }
+
+  Future<TdWireEnvelope> _fetchHistoryEnvelope({
+    required int chatId,
+    required int fromMessageId,
+    required int limit,
+  }) => _adapter.sendWire(
+    GetChatHistory(
+      chatId: chatId,
+      fromMessageId: fromMessageId,
+      offset: 0,
+      limit: limit,
+      onlyLocal: false,
+    ),
+    request: 'getChatHistory',
+    phase: TdlibPhase.business,
+    timeout: _defaultTimeout,
+  );
 }
