@@ -152,17 +152,19 @@ void main() {
     unawaited(thumbnails.frames.close());
   });
 
-  testWidgets('只在主动点击后抽帧，达到上限保留已生成的图片', (tester) async {
+  testWidgets('两栏共用一次抽帧，可放大，超时后只重试缺失的时间点', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final preview = _ThumbnailPreview();
     await _open(tester, _gateway(), thumbnails: preview);
     await _selectChat(tester);
     await tester.pumpAndSettle();
     await tester.tap(find.text('视频 · 2 份'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('预览视频'));
+    await tester.tap(find.text('对比视频'));
     await tester.pumpAndSettle();
     expect(preview.requests, isEmpty);
-    expect(find.text('计划 4 张 · 分段读取上限 12 MiB'), findsOneWidget);
+    expect(find.textContaining('已生成 0 / 4 张'), findsOneWidget);
 
     await tester.tap(find.text('生成时间缩略图'));
     await tester.pump();
@@ -175,10 +177,32 @@ void main() {
         ),
       ),
     );
-    preview.frames.addError(StateError('已达读取上限'));
+    preview.frames.addError(TimeoutException('读取视频分段长时间没有进展'));
     await tester.pumpAndSettle();
     expect(find.text('03:00'), findsOneWidget);
-    expect(find.textContaining('已达读取上限'), findsOneWidget);
+    expect(find.textContaining('读取视频分段长时间没有进展'), findsOneWidget);
+    final left = find.byTooltip('放大消息 9 · 03:00');
+    final right = find.byTooltip('放大消息 5 · 03:00');
+    final leftRect = tester.getRect(left);
+    final rightRect = tester.getRect(right);
+    expect(leftRect.top, rightRect.top);
+    expect(leftRect.width, rightRect.width);
+    expect(leftRect.width + rightRect.width, greaterThan(350));
+    await tester.tap(left);
+    await tester.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('重试未完成时间点'));
+    await tester.pump();
+    expect(preview.targets.last, [
+      const Duration(minutes: 6),
+      const Duration(minutes: 9),
+      const Duration(minutes: 12),
+    ]);
+    expect(preview.budgets.first, same(preview.budgets.last));
+    await tester.tap(find.text('停止抽帧'));
+    await tester.pumpAndSettle();
     unawaited(preview.frames.close());
     await tester.pump();
   });
@@ -369,11 +393,25 @@ Future<void> _selectChat(
 
 class _ThumbnailPreview implements VideoThumbnailPreview {
   final requests = <(int, int)>[];
-  final frames = StreamController<VideoThumbnail>();
+  final targets = <List<Duration>?>[];
+  final budgets = <VideoThumbnailBudget?>[];
+  var frames = StreamController<VideoThumbnail>();
 
   @override
-  Stream<VideoThumbnail> generate(int fileId, int durationSeconds) {
+  Stream<VideoThumbnail> generate(
+    int fileId,
+    int durationSeconds, {
+    Iterable<Duration>? positions,
+    VideoThumbnailBudget? budget,
+    void Function(VideoThumbnailPhase)? onPhase,
+  }) {
+    if (requests.isNotEmpty) {
+      unawaited(frames.close());
+      frames = StreamController<VideoThumbnail>();
+    }
     requests.add((fileId, durationSeconds));
+    targets.add(positions?.toList());
+    budgets.add(budget);
     return frames.stream;
   }
 }

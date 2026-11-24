@@ -7,10 +7,25 @@ class VideoThumbnail {
   final Uint8List bytes;
 }
 
+enum VideoThumbnailPhase { reading, decoding }
+
+class VideoThumbnailBudget {
+  int _remaining = VideoThumbnailPreview.downloadBudgetMiB * 1024 * 1024;
+
+  int get remainingBytes => _remaining;
+  void charge(int bytes) => _remaining -= bytes;
+}
+
 abstract interface class VideoThumbnailPreview {
   static const downloadBudgetMiB = 12;
 
-  Stream<VideoThumbnail> generate(int fileId, int durationSeconds);
+  Stream<VideoThumbnail> generate(
+    int fileId,
+    int durationSeconds, {
+    Iterable<Duration>? positions,
+    VideoThumbnailBudget? budget,
+    void Function(VideoThumbnailPhase phase)? onPhase,
+  });
 }
 
 List<Duration> videoThumbnailPositions(int durationSeconds) {

@@ -127,7 +127,14 @@ void main() {
   });
 
   test('抽帧范围累计用完上限后不再请求 TDLib 下载', () async {
-    final session = await TdVideoStream(adapter).open(42, maxDownloadBytes: 5);
+    final activity = <TdVideoReadActivity>[];
+    final requested = <int>[];
+    final session = await TdVideoStream(adapter).open(
+      42,
+      maxDownloadBytes: 5,
+      onReadActivity: activity.add,
+      onDownloadRequested: requested.add,
+    );
     addTearDown(session.close);
 
     Future<List<int>> read(int offset, int count) async {
@@ -146,6 +153,16 @@ void main() {
     await expectLater(read(seek + 7, 2), throwsA(isA<IOException>()));
     expect(session.budgetExceeded, isTrue);
     expect(adapter.downloads, [(0, 2), (seek, 3)]);
+    expect(requested, [2, 3]);
+    expect(
+      activity,
+      containsAllInOrder([
+        TdVideoReadActivity.waiting,
+        TdVideoReadActivity.bytes,
+        TdVideoReadActivity.delivered,
+      ]),
+    );
+    expect(activity.last, TdVideoReadActivity.budgetExceeded);
   });
 
   test('已完整缓存的视频直接返回本地文件，不启动下载', () async {

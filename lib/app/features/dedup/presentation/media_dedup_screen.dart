@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:tgsorter/app/features/dedup/application/media_dedup_workbench.dart';
 import 'package:tgsorter/app/features/dedup/presentation/dedup_media_preview_dialog.dart';
 import 'package:tgsorter/app/features/dedup/presentation/dedup_photo_comparison_dialog.dart';
+import 'package:tgsorter/app/features/dedup/presentation/dedup_video_comparison_page.dart';
 import 'package:tgsorter/app/features/settings/ports/session_query_gateway.dart';
 import 'package:tgsorter/app/theme/app_tokens.dart';
 
@@ -438,11 +439,11 @@ class MediaDedupScreenState extends State<MediaDedupScreen> {
               TextButton(
                 style: _secondaryActionStyle(context),
                 onPressed: _busy ? null : () => _showPreview(group),
-                child: Text(
-                  group.kind == DedupMediaKind.photo
-                      ? '对比照片'
-                      : '预览${group.kind.label}',
-                ),
+                child: Text(switch (group.kind) {
+                  DedupMediaKind.photo => '对比照片',
+                  DedupMediaKind.video => '对比视频',
+                  _ => '预览${group.kind.label}',
+                }),
               ),
             ],
           ),
@@ -504,21 +505,35 @@ class MediaDedupScreenState extends State<MediaDedupScreen> {
     );
   }
 
-  Future<void> _showPreview(DuplicateMediaGroup group) => showDialog<void>(
-    context: context,
-    builder: (_) => group.kind == DedupMediaKind.photo
-        ? DedupPhotoComparisonDialog(
+  Future<void> _showPreview(DuplicateMediaGroup group) async {
+    if (group.kind == DedupMediaKind.video) {
+      final keep = await Navigator.of(context).push<int>(
+        MaterialPageRoute(
+          builder: (_) => DedupVideoComparisonPage(
             group: group,
             keepId: _view.keepChoices[group],
-            loadPhotoFile: widget.workbench.loadPhotoFile,
-            onKeepChanged: (id) =>
-                setState(() => _view.keepChoices[group] = id),
-          )
-        : DedupMediaPreviewDialog(
-            group: group,
-            thumbnails: widget.workbench.videoThumbnails,
+            preview: widget.workbench.videoThumbnails,
           ),
-  );
+        ),
+      );
+      if (mounted && keep != null) {
+        setState(() => _view.keepChoices[group] = keep);
+      }
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (_) => group.kind == DedupMediaKind.photo
+          ? DedupPhotoComparisonDialog(
+              group: group,
+              keepId: _view.keepChoices[group],
+              loadPhotoFile: widget.workbench.loadPhotoFile,
+              onKeepChanged: (id) =>
+                  setState(() => _view.keepChoices[group] = id),
+            )
+          : DedupMediaPreviewDialog(group: group),
+    );
+  }
 }
 
 class _ChatPicker extends StatefulWidget {

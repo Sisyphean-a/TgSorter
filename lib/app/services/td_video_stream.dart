@@ -10,6 +10,8 @@ import 'package:tgsorter/app/services/td_response_reader.dart';
 import 'package:tgsorter/app/services/tdlib_adapter.dart';
 import 'package:tgsorter/app/services/tdlib_failure.dart';
 
+enum TdVideoReadActivity { waiting, bytes, delivered, budgetExceeded }
+
 /// 将本地播放器与抽帧器的 HTTP Range 读取转换为 TDLib 的分段下载。
 class TdVideoStream {
   TdVideoStream(this._adapter);
@@ -17,7 +19,12 @@ class TdVideoStream {
   final TdlibAdapter _adapter;
   static const _priority = 20;
 
-  Future<TdVideoStreamSession> open(int fileId, {int? maxDownloadBytes}) async {
+  Future<TdVideoStreamSession> open(
+    int fileId, {
+    int? maxDownloadBytes,
+    void Function(TdVideoReadActivity activity)? onReadActivity,
+    void Function(int bytes)? onDownloadRequested,
+  }) async {
     final file = await _getFile(fileId);
     if (file.completed && file.path.isNotEmpty) {
       return TdVideoStreamSession._(io.File(file.path).uri);
@@ -42,6 +49,8 @@ class TdVideoStream {
       maxDownloadBytes == null
           ? null
           : math.min(maxDownloadBytes, file.size - 1),
+      onReadActivity,
+      onDownloadRequested,
     );
     server.listen(
       (request) => unawaited(session._serve(this, fileId, file.size, request)),
@@ -85,10 +94,14 @@ class TdVideoStreamSession {
     this.uri, [
     this._server,
     this._remainingDownloadBytes,
+    this._onReadActivity,
+    this._onDownloadRequested,
   ]);
 
   final Uri uri;
   final io.HttpServer? _server;
+  final void Function(TdVideoReadActivity)? _onReadActivity;
+  final void Function(int)? _onDownloadRequested;
   static const _downloadWindow = 4 * 1024 * 1024;
   static const _thumbnailWindow = 512 * 1024;
   static const _thumbnailCacheLimit = 8 * 1024 * 1024;
@@ -169,6 +182,7 @@ class TdVideoStreamSession {
     try {
       await _sendBytes(source, fileId, bounds, response, active);
       if (active() && !_budgetExceeded) {
+        _onReadActivity?.call(TdVideoReadActivity.delivered);
         await response.close();
       } else if (!_closed && !disconnected) {
         await _abort(response);
@@ -196,6 +210,7 @@ class TdVideoStreamSession {
     var offset = bounds.start;
     var downloadEnd = offset;
     final stall = Stopwatch()..start();
+    _onReadActivity?.call(TdVideoReadActivity.waiting);
     var file = await source._getFile(fileId);
     while (active() && offset < bounds.end) {
       final cachedStart = _previewCache.lastKeyBefore(offset + 1);
@@ -208,6 +223,7 @@ class TdVideoStreamSession {
           await response.flush();
           offset += count;
           stall.reset();
+          if (active()) _onReadActivity?.call(TdVideoReadActivity.bytes);
           continue;
         }
       }
@@ -242,8 +258,10 @@ class TdVideoStreamSession {
         await response.flush();
         offset += bytes.length;
         stall.reset();
+        if (active()) _onReadActivity?.call(TdVideoReadActivity.bytes);
         continue;
       }
+      _onReadActivity?.call(TdVideoReadActivity.waiting);
       if (offset >= downloadEnd) {
         final remaining = _remainingDownloadBytes;
         final window = remaining == null
@@ -252,15 +270,20 @@ class TdVideoStreamSession {
         final count = math.min(window, bounds.end - offset);
         if (count <= 0) {
           _budgetExceeded = true;
+          _onReadActivity?.call(TdVideoReadActivity.budgetExceeded);
           return;
         }
         // 发出请求前扣除完整窗口，包括随后被取消或发生重叠的读取。
-        if (remaining != null) _remainingDownloadBytes = remaining - count;
+        if (remaining != null) {
+          _remainingDownloadBytes = remaining - count;
+          _onDownloadRequested?.call(count);
+        }
         downloadEnd = offset + count;
         file = await source._download(fileId, offset, count);
         continue;
       }
-      if (stall.elapsed >= _stallTimeout) {
+      // 抽帧由外层按阶段计无进展超时；普通播放保留原有等待策略。
+      if (_onReadActivity == null && stall.elapsed >= _stallTimeout) {
         throw TimeoutException('等待视频字节超时（偏移 $offset）');
       }
       await Future<void>.delayed(_pollInterval);

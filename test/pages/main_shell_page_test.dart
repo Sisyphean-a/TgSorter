@@ -172,9 +172,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('视频 · 2 份'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('预览视频'));
+    await tester.tap(find.text('对比视频'));
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('当前不支持时间缩略图'), findsOneWidget);
 
     Future<void> back() async {
       expect(await tester.binding.handlePopRoute(), isTrue);
@@ -182,7 +182,7 @@ void main() {
     }
 
     await back();
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('当前不支持时间缩略图'), findsNothing);
     expect(find.text('消息 10'), findsOneWidget);
     await back();
     expect(find.text('视频 · 2 份'), findsOneWidget);

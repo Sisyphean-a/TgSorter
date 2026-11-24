@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tdlib/td_api.dart' show GetFile, TdFunction;
+import 'package:tgsorter/app/features/dedup/application/video_thumbnail_preview.dart';
 import 'package:tgsorter/app/services/td_video_stream.dart';
 import 'package:tgsorter/app/services/td_video_thumbnail_preview.dart';
 import 'package:tgsorter/app/services/td_wire_message.dart';
@@ -57,6 +58,37 @@ void main() {
     ]);
     expect(calls.last.method, 'close');
     expect(calls.last.arguments, id);
+  });
+
+  testWidgets('不再固定 12 秒截断，解码无进展时报告阶段并关闭会话', (tester) async {
+    final pending = Completer<Uint8List>();
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return call.method == 'extract' ? pending.future : null;
+    });
+    final errors = <Object>[];
+    final phases = <VideoThumbnailPhase>[];
+    final subscription = preview
+        .generate(42, 300, onPhase: phases.add)
+        .listen((_) {}, onError: errors.add);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 13));
+    expect(errors, isEmpty);
+    expect(phases, [VideoThumbnailPhase.reading, VideoThumbnailPhase.decoding]);
+    await tester.pump(const Duration(seconds: 13));
+    expect(
+      errors.single,
+      isA<TimeoutException>().having(
+        (error) => error.message,
+        '阶段',
+        contains('解码画面'),
+      ),
+    );
+    expect(calls.last.method, 'close');
+    pending.complete(Uint8List.fromList([1]));
+    await subscription.cancel();
+    await tester.pump();
+    debugDefaultTargetPlatformOverride = null;
   });
 
   test('取消时关闭原生会话，迟到的帧不再交付', () async {
